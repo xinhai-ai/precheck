@@ -11,6 +11,8 @@ interface LoginPageProps {
   params: Promise<{ locale: Locale }>
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function LoginPage({ params }: LoginPageProps) {
   const { locale } = await params
   const user = await getCurrentUser()
