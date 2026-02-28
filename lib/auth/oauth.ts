@@ -217,6 +217,10 @@ export async function handleOAuthSignIn(
 
   if (existingAccount) {
     const user = existingAccount.user
+    if (user.status !== "ACTIVE") {
+      throw new Error("User is not active")
+    }
+
     if (provider === "linuxdo" && typeof profile.trustLevel === "number") {
       await db.account.update({
         where: { id: existingAccount.id },
@@ -240,6 +244,10 @@ export async function handleOAuthSignIn(
   })
 
   if (existingUser) {
+    if (existingUser.status !== "ACTIVE") {
+      throw new Error("User is not active")
+    }
+
     // 关联 OAuth 账号到现有用户
     const account = await db.account.create({
       data: {
@@ -323,6 +331,9 @@ export async function handleOAuthBind(
   const user = await db.user.findUnique({ where: { id: userId } })
   if (!user) {
     throw new Error("User not found")
+  }
+  if (user.status !== "ACTIVE") {
+    throw new Error("User is not active")
   }
 
   // 检查该 OAuth 账号是否已被其他用户绑定

@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
 
+    const canViewSecrets = isSuperAdmin(user.role)
+
     const settings = await db.siteSettings.findUnique({
       where: { id: "global" },
       select: {
@@ -136,10 +138,10 @@ export async function GET(request: NextRequest) {
       smtpHost: settings.smtpHost,
       smtpPort: settings.smtpPort,
       smtpUser: settings.smtpUser,
-      smtpPass: settings.smtpPass,
+      smtpPass: canViewSecrets ? settings.smtpPass : null,
       smtpSecure: settings.smtpSecure ?? false,
       inviteCodeCheckApiUrl: settings.inviteCodeCheckApiUrl ?? null,
-      inviteCodeCheckApiKey: settings.inviteCodeCheckApiKey ?? null,
+      inviteCodeCheckApiKey: canViewSecrets ? (settings.inviteCodeCheckApiKey ?? null) : null,
       maxResubmitCount: settings.maxResubmitCount ?? 2,
     })
   } catch (error) {
@@ -285,10 +287,12 @@ export async function PUT(request: NextRequest) {
       smtpHost: updated.smtpHost,
       smtpPort: updated.smtpPort,
       smtpUser: updated.smtpUser,
-      smtpPass: updated.smtpPass,
+      smtpPass: null,
       smtpSecure: updated.smtpSecure,
       inviteCodeCheckApiUrl: updated.inviteCodeCheckApiUrl,
-      inviteCodeCheckApiKey: updated.inviteCodeCheckApiKey,
+      inviteCodeCheckApiKey: null,
+      smtpPassConfigured: Boolean(updated.smtpPass),
+      inviteCodeCheckApiKeyConfigured: Boolean(updated.inviteCodeCheckApiKey),
       maxResubmitCount: updated.maxResubmitCount,
     })
   } catch (error) {

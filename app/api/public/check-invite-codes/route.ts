@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { isInviteCodeStorageEnabled } from "@/lib/invite-code/guard"
+import { getCurrentUser } from "@/lib/auth/session"
+import { createApiErrorResponse } from "@/lib/api/error-response"
+import { ApiErrorKeys } from "@/lib/api/error-keys"
 
 const checkSchema = z.object({
   codes: z.array(z.string()).min(1).max(5),
-  codeMapping: z.record(z.string(), z.string()).optional(),
 })
 
 type CheckResult = {
@@ -16,8 +17,13 @@ type CheckResult = {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
+    }
+
     if (!db) {
-      return NextResponse.json({ success: false, error: "数据库未配置" }, { status: 503 })
+      return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
 
     const body = await request.json()
@@ -57,22 +63,6 @@ export async function POST(request: NextRequest) {
       success: boolean
       total: number
       results: CheckResult[]
-    }
-
-    if (isInviteCodeStorageEnabled()) {
-      // 更新数据库中的检测结果
-      const now = new Date()
-      for (const checkResult of result.results) {
-        const originalCode = data.codeMapping?.[checkResult.invite_code] || checkResult.invite_code
-        await db.inviteCode.updateMany({
-          where: { code: originalCode },
-          data: {
-            checkValid: checkResult.valid,
-            checkMessage: checkResult.message,
-            checkedAt: now,
-          },
-        })
-      }
     }
 
     return NextResponse.json({

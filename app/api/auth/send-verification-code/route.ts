@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     // 登录验证码：检查邮箱是否存在
     if (data.purpose === "login" && db) {
       const user = await db.user.findUnique({ where: { email: data.email } })
-      if (!user) {
+      if (!user || user.status !== "ACTIVE") {
         // 安全考虑：不透露邮箱是否存在，但不发送邮件
         return NextResponse.json({
           success: true,

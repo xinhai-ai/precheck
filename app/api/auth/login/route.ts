@@ -129,6 +129,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 禁用/封禁账户不允许登录
+    if (user.status === "INACTIVE" || user.status === "BANNED") {
+      return createApiErrorResponse(request, "apiErrors.auth.login.invalidCredentials", {
+        status: 401,
+      })
+    }
+
     // 检测已删除账户
     if (user.status === "DELETED") {
       const reactivationToken = generateResetToken()
