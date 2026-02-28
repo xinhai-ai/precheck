@@ -45,6 +45,7 @@ export function ErrorPage({ code, dictionary, locale }: ErrorPageProps) {
   const homeHref = `/${locale}`
   const retryHref = `/${locale}/error/${code}`
   const docsHref = `/${locale}/docs`
+  const loginHref = `/${locale}/login`
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4">
@@ -83,9 +84,18 @@ export function ErrorPage({ code, dictionary, locale }: ErrorPageProps) {
 
         {/* Actions */}
         <div className="flex flex-col gap-3 sm:flex-row">
+          {code === "503" && (
+            <Link
+              href={loginHref}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+            >
+              <Lock className="h-4 w-4" />
+              {locale === "zh" ? "管理员登录" : "Admin Login"}
+            </Link>
+          )}
           <Link
             href={homeHref}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-medium text-foreground"
           >
             <Home className="h-4 w-4" />
             {dictionary.errors.backHome}
