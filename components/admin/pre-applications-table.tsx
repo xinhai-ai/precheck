@@ -32,6 +32,7 @@ import {
   ExternalLink,
   PauseCircle,
   ChevronDown,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -136,7 +137,40 @@ type AdminPreApplication = {
   inviteCode: { id: string; code: string; expiresAt: string | null; usedAt: string | null } | null
   codeSent: boolean
   codeSentAt: string | null
+  fingerprintHash: string | null
+  fingerprintStatus: "OK" | "COLLECTION_FAILED"
+  fingerprintCollectedAt: string | null
   reviewRound?: number
+}
+
+type FingerprintRelatedUser = {
+  id: string
+  name: string | null
+  email: string
+  role: string
+  status: string
+  latestFingerprintAt: string | null
+  createdAt: string
+}
+
+type FingerprintRelatedApplication = {
+  id: string
+  registerEmail: string
+  status: string
+  queryToken: string | null
+  createdAt: string
+  user: { id: string; name: string | null; email: string } | null
+}
+
+type FingerprintDetail = {
+  id: string
+  fingerprintHash: string | null
+  fingerprintStatus: "OK" | "COLLECTION_FAILED"
+  fingerprintCollectedAt: string | null
+  relatedUsersCount: number
+  relatedApplicationsCount: number
+  relatedUsers: FingerprintRelatedUser[]
+  relatedApplications: FingerprintRelatedApplication[]
 }
 
 type PreApplicationVersion = {
@@ -243,6 +277,7 @@ const toDateTimeLocal = (value: string) => {
 
 export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplicationsTableProps) {
   const t = dict.admin
+  const adminExt = t as unknown as Record<string, string>
   const [records, setRecords] = useState<AdminPreApplication[]>([])
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({
@@ -253,7 +288,15 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     archived: 0,
   })
   const [qqGroupsConfig, setQQGroupsConfig] = useState<
-    { id: string; name: string; nameEn?: string; number: string; url: string; adminOnly?: boolean }[]
+    {
+      id: string
+      name: string
+      nameEn?: string
+      number: string
+      url: string
+      adminOnly?: boolean
+      enabled?: boolean
+    }[]
   >([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -265,6 +308,8 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
   const [registerEmailInput, setRegisterEmailInput] = useState("")
   const [queryTokenFilter, setQueryTokenFilter] = useState("")
   const [queryTokenInput, setQueryTokenInput] = useState("")
+  const [fingerprintHashFilter, setFingerprintHashFilter] = useState("")
+  const [fingerprintHashInput, setFingerprintHashInput] = useState("")
   const [reviewRoundFilter, setReviewRoundFilter] = useState("ALL")
   const [inviteStatusFilter, setInviteStatusFilter] = useState("ALL")
   const [sortBy, setSortBy] = useState("createdAt")
@@ -293,6 +338,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
   }>({ approve: [], approveNoCode: [], reject: [], dispute: [] })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchArchiving, setBatchArchiving] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   // AI 审核相关状态
   const [aiReviewLoading, setAIReviewLoading] = useState(false)
@@ -306,6 +352,9 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     null,
   )
   const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null)
+  const [fingerprintLoading, setFingerprintLoading] = useState(false)
+  const [fingerprintError, setFingerprintError] = useState<string | null>(null)
+  const [fingerprintDetail, setFingerprintDetail] = useState<FingerprintDetail | null>(null)
 
   // 邀请码有效性检测
   const [inviteCodeChecking, setInviteCodeChecking] = useState(false)
@@ -386,6 +435,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
         ...(statusFilter.length > 0 && { status: statusFilter.join(",") }),
         ...(registerEmailFilter && { registerEmail: registerEmailFilter }),
         ...(queryTokenFilter && { queryToken: queryTokenFilter }),
+        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(reviewRoundFilter !== "ALL" && { reviewRound: reviewRoundFilter }),
         ...(inviteStatusFilter !== "ALL" && { inviteStatus: inviteStatusFilter }),
       })
@@ -417,6 +467,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     statusFilter,
     registerEmailFilter,
     queryTokenFilter,
+    fingerprintHashFilter,
     reviewRoundFilter,
     inviteStatusFilter,
     sortBy,
@@ -427,6 +478,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     setSearch(searchInput)
     setRegisterEmailFilter(registerEmailInput)
     setQueryTokenFilter(queryTokenInput)
+    setFingerprintHashFilter(fingerprintHashInput)
     setPage(1)
   }
 
@@ -558,6 +610,61 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     }
   }
 
+  const loadFingerprintDetail = async (recordId: string) => {
+    setFingerprintLoading(true)
+    setFingerprintError(null)
+    try {
+      const res = await fetch(`/api/admin/pre-applications/${recordId}/fingerprint`)
+      if (!res.ok) {
+        throw new Error("Fetch failed")
+      }
+      const data = await res.json()
+      setFingerprintDetail(data)
+    } catch (error) {
+      console.error("Pre-application fingerprint detail error:", error)
+      setFingerprintError(t.fetchFailed)
+      setFingerprintDetail(null)
+    } finally {
+      setFingerprintLoading(false)
+    }
+  }
+
+  const downloadExport = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams({
+        ...(search && { search }),
+        ...(statusFilter.length > 0 && { status: statusFilter.join(",") }),
+        ...(registerEmailFilter && { registerEmail: registerEmailFilter }),
+        ...(queryTokenFilter && { queryToken: queryTokenFilter }),
+        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
+        ...(reviewRoundFilter !== "ALL" && { reviewRound: reviewRoundFilter }),
+        ...(inviteStatusFilter !== "ALL" && { inviteStatus: inviteStatusFilter }),
+      })
+
+      const res = await fetch(`/api/admin/pre-applications/export?${params}`)
+      if (!res.ok) {
+        throw new Error("Export failed")
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `pre-applications-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success(adminExt.exportSuccess || "导出成功")
+    } catch (error) {
+      console.error("Pre-application export error:", error)
+      toast.error(adminExt.exportFailed || t.actionFailed)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const loadInviteOptions = async () => {
     setInviteOptionsLoading(true)
     try {
@@ -659,6 +766,8 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
   const openDialog = (record: AdminPreApplication) => {
     setSelected(record)
     setHistoryRecords([])
+    setFingerprintDetail(null)
+    setFingerprintError(null)
     // 重置 AI 审核状态
     setAIReviewResult(null)
     setAIReviewError(null)
@@ -689,6 +798,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     }
     setDialogOpen(true)
     loadHistory(record.id)
+    loadFingerprintDetail(record.id)
   }
 
   // AI 审核处理函数
@@ -1183,9 +1293,48 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                 </Button>
               )}
             </div>
+            <div className="relative flex-1 sm:max-w-[180px]">
+              <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={fingerprintHashInput}
+                onChange={(event) => setFingerprintHashInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleSearch()
+                }}
+                placeholder={adminExt.fingerprintHash || "指纹哈希"}
+                className="pl-9 pr-8"
+              />
+              {fingerprintHashInput && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setFingerprintHashInput("")
+                    setFingerprintHashFilter("")
+                    setPage(1)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <Button variant="outline" onClick={handleSearch} className="shrink-0 gap-2">
               <Search className="h-4 w-4" />
               {t.searchAction}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={downloadExport}
+              disabled={exporting}
+              className="shrink-0 gap-2"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {adminExt.export || "导出"}
             </Button>
           </div>
 
@@ -1289,6 +1438,8 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                 setRegisterEmailFilter("")
                 setQueryTokenInput("")
                 setQueryTokenFilter("")
+                setFingerprintHashInput("")
+                setFingerprintHashFilter("")
                 setStatusFilter([])
                 setReviewRoundFilter("ALL")
                 setInviteStatusFilter("ALL")
@@ -1568,6 +1719,129 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                 </div>
               </div>
 
+              {/* 指纹信息 */} 
+              <div className="rounded-xl border bg-gradient-to-br from-muted/50 to-muted/20 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                  <Key className="h-4 w-4 text-primary" />
+                  {adminExt.fingerprintInfo || "指纹信息"}
+                </div>
+
+                {fingerprintLoading && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t.loading}
+                  </div>
+                )}
+
+                {!fingerprintLoading && fingerprintError && (
+                  <p className="text-sm text-destructive">{fingerprintError}</p>
+                )}
+
+                {!fingerprintLoading && !fingerprintError && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <div className="col-span-2">
+                        <span className="text-xs text-muted-foreground">
+                          {adminExt.fingerprintHash || "指纹哈希"}
+                        </span>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <p className="font-mono text-xs break-all">
+                            {fingerprintDetail?.fingerprintHash || selected.fingerprintHash || "-"}
+                          </p>
+                          {(fingerprintDetail?.fingerprintHash || selected.fingerprintHash) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  fingerprintDetail?.fingerprintHash || selected.fingerprintHash || "",
+                                )
+                                toast.success(t.aiReviewCopied || "已复制")
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          {adminExt.fingerprintStatus || "采集状态"}
+                        </span>
+                        <p className="font-medium">
+                          {(fingerprintDetail?.fingerprintStatus || selected.fingerprintStatus) === "OK"
+                            ? ((t as Record<string, string>).success || "成功")
+                            : ((t as Record<string, string>).failed || "失败")}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          {adminExt.fingerprintCollectedAt || "采集时间"}
+                        </span>
+                        <p className="font-medium">
+                          {formatDateTime(
+                            fingerprintDetail?.fingerprintCollectedAt ||
+                              selected.fingerprintCollectedAt,
+                            locale,
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          {adminExt.relatedUsers || "关联用户"}
+                        </span>
+                        <p className="font-medium">
+                          {fingerprintDetail?.relatedUsersCount ?? 0}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          {adminExt.relatedApplications || "关联申请"}
+                        </span>
+                        <p className="font-medium">
+                          {fingerprintDetail?.relatedApplicationsCount ?? 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    {fingerprintDetail?.relatedUsers?.length ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          {adminExt.relatedUsers || "关联用户"}
+                        </p>
+                        <div className="max-h-28 space-y-1 overflow-y-auto rounded-md border bg-card p-2">
+                          {fingerprintDetail.relatedUsers.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                              <span className="truncate">{item.name || item.email}</span>
+                              <span className="text-muted-foreground">{item.role}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {fingerprintDetail?.relatedApplications?.length ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          {adminExt.relatedApplications || "关联申请"}
+                        </p>
+                        <div className="max-h-28 space-y-1 overflow-y-auto rounded-md border bg-card p-2">
+                          {fingerprintDetail.relatedApplications.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                              <span className="truncate">
+                                {item.user?.name || item.user?.email || item.registerEmail}
+                              </span>
+                              <span className="text-muted-foreground">{item.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
               {/* 申请理由 */}
               <Accordion type="multiple" defaultValue={["essay"]} className="rounded-xl border">
                 <AccordionItem value="essay" className="border-none">
@@ -1809,6 +2083,9 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                                               inviteCode: null,
                                               codeSent: false,
                                               codeSentAt: null,
+                                              fingerprintHash: null,
+                                              fingerprintStatus: "COLLECTION_FAILED",
+                                              fingerprintCollectedAt: null,
                                               reviewRound: undefined,
                                             }
                                             openDialog(duplicateRecord)

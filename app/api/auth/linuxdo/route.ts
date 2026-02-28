@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(buildRedirectUrl("/dashboard/contribute?error=bind_disabled", request.url))
   }
 
-  const url = await getLinuxDoAuthUrl()
+  const fpCtx = searchParams.get("fp_ctx")?.trim()
+  const state = fpCtx ? `fp:${fpCtx}` : undefined
+  const url = await getLinuxDoAuthUrl(state)
   if (!url) {
     return createApiErrorResponse(request, ApiErrorKeys.auth.oauth.failedToGenerateUrl, {
       status: 500,

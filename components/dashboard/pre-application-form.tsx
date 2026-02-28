@@ -51,6 +51,7 @@ import { EmailWithDomainInput } from "@/components/ui/email-with-domain-input"
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { cn } from "@/lib/utils"
 import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
+import { collectFingerprint } from "@/lib/fingerprint/client"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
@@ -513,6 +514,7 @@ export function PreApplicationForm({
       }
 
       const method = latest ? "PUT" : "POST"
+      const fingerprintPayload = await collectFingerprint()
       const res = await fetch("/api/pre-application", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -523,6 +525,7 @@ export function PreApplicationForm({
           registerEmail: formData.registerEmail,
           group: formData.group,
           version: latest?.version,
+          ...fingerprintPayload,
         }),
       })
 

@@ -26,6 +26,8 @@ model User {
   role          Role        @default(USER)
   status        UserStatus  @default(ACTIVE)
   country       String?
+  latestFingerprintHash String?
+  latestFingerprintAt   DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -52,6 +54,7 @@ model User {
   privateChatsAsAdmin    PrivateChat[] @relation("PrivateChatAdmin")
   privateChatMessages    PrivateChatMessage[] @relation("PrivateChatMessageSender")
   apiTokens              ApiToken[]
+  fingerprintEvents      FingerprintEvent[] @relation("UserFingerprintEvents")
 
   // 密码重置
   resetToken       String?   @unique
@@ -60,6 +63,8 @@ model User {
   // 账户二次激活
   reactivationToken       String?   @unique
   reactivationTokenExpiry DateTime?
+
+  @@index([latestFingerprintHash])
 }
 
 model Account {
@@ -167,6 +172,9 @@ model PreApplication {
   inviteCodeId  String?                @unique
   codeSent      Boolean                @default(false)
   codeSentAt    DateTime?
+  fingerprintHash String?
+  fingerprintCollectedAt DateTime?
+  fingerprintStatus FingerprintStatus  @default(COLLECTION_FAILED)
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
   holdUntil     DateTime?              // ON_HOLD 状态的截止时间
@@ -176,11 +184,13 @@ model PreApplication {
   inviteCode InviteCode?               @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
   versions   PreApplicationVersion[]   // 版本历史
   tickets    Ticket[]                  // 工单
+  fingerprintEvents FingerprintEvent[] @relation("PreApplicationFingerprintEvents")
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@index([registerEmail])
   @@index([qqNumber])
+  @@index([fingerprintHash])
 }
 
 // 预申请版本历史表
@@ -204,6 +214,42 @@ model PreApplicationVersion {
 
   @@unique([preApplicationId, version])
   @@index([preApplicationId])
+}
+
+model FingerprintProfile {
+  id              String             @id @default(cuid())
+  fingerprintHash String             @unique
+  firstSeenAt     DateTime           @default(now())
+  lastSeenAt      DateTime           @default(now())
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  events          FingerprintEvent[]
+
+  @@index([lastSeenAt])
+}
+
+model FingerprintEvent {
+  id               String             @id @default(cuid())
+  fingerprintId    String?
+  fingerprintHash  String?
+  eventType        String
+  status           FingerprintStatus  @default(COLLECTION_FAILED)
+  failureReason    String?
+  userId           String?
+  preApplicationId String?
+  ip               String?
+  userAgent        String?
+  createdAt        DateTime           @default(now())
+
+  fingerprint    FingerprintProfile? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
+  user           User?               @relation("UserFingerprintEvents", fields: [userId], references: [id], onDelete: SetNull)
+  preApplication PreApplication?     @relation("PreApplicationFingerprintEvents", fields: [preApplicationId], references: [id], onDelete: SetNull)
+
+  @@index([fingerprintId, createdAt])
+  @@index([fingerprintHash, createdAt])
+  @@index([userId, createdAt])
+  @@index([preApplicationId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model InviteCode {
@@ -317,6 +363,11 @@ enum PreApplicationSource {
   DOUYIN
   XIAOHONGSHU
   OTHER
+}
+
+enum FingerprintStatus {
+  OK
+  COLLECTION_FAILED
 }
 
 model SiteSettings {

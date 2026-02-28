@@ -14,7 +14,7 @@ interface OAuthProfile {
 }
 
 // GitHub OAuth
-export async function getGitHubAuthUrl(): Promise<string | null> {
+export async function getGitHubAuthUrl(state?: string): Promise<string | null> {
   if (!features.oauth.github) {
     return null
   }
@@ -23,6 +23,9 @@ export async function getGitHubAuthUrl(): Promise<string | null> {
     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/github`,
     scope: "user:email",
   })
+  if (state) {
+    params.set("state", state)
+  }
   return `https://github.com/login/oauth/authorize?${params}`
 }
 
@@ -136,7 +139,7 @@ export async function getLinuxDoProfile(code: string): Promise<OAuthProfile | nu
 }
 
 // Google OAuth
-export async function getGoogleAuthUrl(): Promise<string | null> {
+export async function getGoogleAuthUrl(state?: string): Promise<string | null> {
   if (!features.oauth.google) {
     return null
   }
@@ -146,6 +149,9 @@ export async function getGoogleAuthUrl(): Promise<string | null> {
     response_type: "code",
     scope: "openid email profile",
   })
+  if (state) {
+    params.set("state", state)
+  }
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`
 }
 

@@ -6,6 +6,19 @@ import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
+function toCsvCell(value: unknown) {
+  if (value === null || value === undefined) return ""
+  const text = String(value)
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
+
+function toCsv(rows: unknown[][]) {
+  return rows.map((row) => row.map(toCsvCell).join(",")).join("\n")
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -14,7 +27,6 @@ export async function GET(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
 
-    // 用户管理仅限超级管理员
     if (!isSuperAdmin(user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })
     }
@@ -25,30 +37,19 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = request.nextUrl
     const search = searchParams.get("search") || ""
-    const sortByParam = searchParams.get("sortBy") || "createdAt"
-    const sortOrderParam = searchParams.get("sortOrder")
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "10")
-    const skip = (page - 1) * limit
-    const allowedSortBy = new Set(["createdAt", "email", "name", "role", "status"])
-    const sortBy = allowedSortBy.has(sortByParam) ? sortByParam : "createdAt"
-    const sortOrder = sortOrderParam === "asc" ? "asc" : "desc"
-
-    // 筛选参数
     const roleFilter = searchParams.get("role")
     const statusFilter = searchParams.get("status")
     const providerFilter = searchParams.get("provider")
     const linuxdoTL3 = searchParams.get("linuxdoTL3") === "true"
     const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
 
-    // 构建查询条件
     const conditions: Prisma.UserWhereInput[] = []
 
     if (search) {
       conditions.push({
         OR: [
-          { email: { contains: search, mode: "insensitive" as const } },
-          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" } },
+          { name: { contains: search, mode: "insensitive" } },
         ],
       })
     }
@@ -83,64 +84,60 @@ export async function GET(request: NextRequest) {
 
     const where = conditions.length > 0 ? { AND: conditions } : {}
 
-    const [usersRaw, total, stats] = await Promise.all([
-      db.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          status: true,
-          createdAt: true,
-          latestFingerprintHash: true,
-          latestFingerprintAt: true,
-          _count: {
-            select: {
-              preApplications: true,
-              preApplicationsReviewed: true,
-            },
-          },
-        },
-      }),
-      db.user.count({ where }),
-      // 统计数据
-      Promise.all([
-        db.user.count(),
-        db.user.count({ where: { role: "ADMIN" } }),
-        db.user.count({ where: { status: "ACTIVE" } }),
-        db.user.count({ where: { status: "BANNED" } }),
-        db.user.count({ where: { accounts: { some: { provider: "linuxdo" } } } }),
-        db.user.count({
-          where: {
-            accounts: { some: { provider: "linuxdo", trustLevel: { gte: 3 } } },
-            role: "ADMIN",
-          },
-        }),
-      ]).then(([totalUsers, admins, active, banned, linuxdo, linuxdoTL3Admins]) => ({
-        total: totalUsers,
-        admins,
-        active,
-        banned,
-        linuxdo,
-        linuxdoTL3Admins,
-      })),
-    ])
+    const users = await db.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        latestFingerprintHash: true,
+        latestFingerprintAt: true,
+      },
+    })
 
-    const users = usersRaw.map(({ _count, ...rest }) => ({
-      ...rest,
-      applicationCount: _count.preApplications,
-      reviewCount: _count.preApplicationsReviewed,
-    }))
+    const header = [
+      "id",
+      "email",
+      "name",
+      "role",
+      "status",
+      "createdAt",
+      "latestFingerprintHash",
+      "latestFingerprintAt",
+    ]
 
-    return NextResponse.json({ users, total, page, limit, stats })
+    const rows: unknown[][] = [
+      header,
+      ...users.map((item) => [
+        item.id,
+        item.email,
+        item.name || "",
+        item.role,
+        item.status,
+        item.createdAt.toISOString(),
+        item.latestFingerprintHash || "",
+        item.latestFingerprintAt?.toISOString() || "",
+      ]),
+    ]
+
+    const csv = toCsv(rows)
+    const filename = `admin-users-${new Date().toISOString().slice(0, 10)}.csv`
+
+    return new NextResponse(`\uFEFF${csv}`, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    })
   } catch (error) {
-    console.error("Users API error:", error)
+    console.error("Admin user export error:", error)
     return createApiErrorResponse(request, ApiErrorKeys.admin.users.failedToFetch, {
       status: 500,
     })
   }
 }
+

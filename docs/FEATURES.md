@@ -12,6 +12,7 @@ This template uses a **feature detection system** that automatically enables/dis
 | Password Reset | `SMTP_HOST`, `SMTP_USER`                   | Reset email not sent          |
 | File Upload    | `BLOB_READ_WRITE_TOKEN`                    | Upload features disabled      |
 | Redis Cache    | `KV_REST_API_URL`                          | Falls back to memory          |
+| Fingerprint    | `FEATURE_FINGERPRINT`                      | Fingerprint collection disabled |
 
 ## Quick Start
 

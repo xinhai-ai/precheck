@@ -17,6 +17,8 @@ import {
   Loader2,
   Globe,
   Crown,
+  Key,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -105,6 +107,8 @@ interface AdminUser {
   createdAt: string
   applicationCount: number
   reviewCount: number
+  latestFingerprintHash?: string | null
+  latestFingerprintAt?: string | null
 }
 
 interface AdminUsersTableProps {
@@ -114,6 +118,7 @@ interface AdminUsersTableProps {
 
 export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
   const t = dict.admin
+  const adminExt = t as unknown as Record<string, string>
   const [users, setUsers] = useState<AdminUser[]>([])
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({
@@ -129,6 +134,8 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [searchInput, setSearchInput] = useState("")
+  const [fingerprintHashFilter, setFingerprintHashFilter] = useState("")
+  const [fingerprintHashInput, setFingerprintHashInput] = useState("")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [roleFilter, setRoleFilter] = useState("all")
@@ -151,6 +158,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [emailsInput, setEmailsInput] = useState("")
   const [creating, setCreating] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const fetchCurrentUser = async () => {
     try {
@@ -175,6 +183,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
         sortBy,
         sortOrder,
         ...(search && { search }),
+        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(roleFilter !== "all" && { role: roleFilter }),
         ...(statusFilter !== "all" && { status: statusFilter }),
         ...(providerFilter !== "all" && { provider: providerFilter }),
@@ -208,6 +217,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     page,
     pageSize,
     search,
+    fingerprintHashFilter,
     sortBy,
     sortOrder,
     roleFilter,
@@ -218,12 +228,47 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
 
   const handleSearch = () => {
     setSearch(searchInput)
+    setFingerprintHashFilter(fingerprintHashInput)
     setPage(1)
   }
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       handleSearch()
+    }
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams({
+        ...(search && { search }),
+        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
+        ...(roleFilter !== "all" && { role: roleFilter }),
+        ...(statusFilter !== "all" && { status: statusFilter }),
+        ...(providerFilter !== "all" && { provider: providerFilter }),
+        ...(linuxdoTL3Filter && { linuxdoTL3: "true" }),
+      })
+      const res = await fetch(`/api/admin/users/export?${params}`)
+      if (!res.ok) {
+        throw new Error("Export failed")
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `admin-users-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success(adminExt.exportSuccess || "导出成功")
+    } catch (error) {
+      console.error("Admin users export error:", error)
+      toast.error(adminExt.exportFailed || t.actionFailed)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -720,7 +765,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
       </div>
 
       {/* 搜索栏 */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -744,8 +789,35 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
             </button>
           )}
         </div>
+        <div className="relative flex-1 max-w-sm">
+          <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={adminExt.fingerprintHash || "指纹哈希"}
+            value={fingerprintHashInput}
+            onChange={(event) => setFingerprintHashInput(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            className="pl-9 pr-9"
+          />
+          {fingerprintHashInput && (
+            <button
+              type="button"
+              onClick={() => {
+                setFingerprintHashInput("")
+                setFingerprintHashFilter("")
+                setPage(1)
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <Button onClick={handleSearch} variant="secondary">
           {t.searchAction}
+        </Button>
+        <Button onClick={handleExport} variant="secondary" disabled={exporting} className="gap-2">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {adminExt.export || "导出"}
         </Button>
         {currentUserRole === "SUPER_ADMIN" && (
           <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">

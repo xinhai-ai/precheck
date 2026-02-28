@@ -16,6 +16,7 @@ import { OAuthButtons } from "./oauth-buttons"
 import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
+import { collectFingerprint } from "@/lib/fingerprint/client"
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
 const TURNSTILE_ENABLED = Boolean(TURNSTILE_SITE_KEY)
@@ -140,6 +141,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
     setError("")
 
     try {
+      const fingerprintPayload = await collectFingerprint()
       const payload =
         loginType === "code"
           ? {
@@ -147,11 +149,13 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
               verificationCode: formData.verificationCode,
               loginType: "code" as const,
               turnstileToken: TURNSTILE_ENABLED ? turnstileToken : undefined,
+              ...fingerprintPayload,
             }
           : {
               email: formData.email,
               password: formData.password,
               turnstileToken: TURNSTILE_ENABLED ? turnstileToken : undefined,
+              ...fingerprintPayload,
             }
 
       const res = await fetch("/api/auth/login", {
@@ -180,8 +184,31 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
     }
   }
 
-  const handleOAuth = (provider: string) => {
-    window.location.href = `/api/auth/${provider}`
+  const handleOAuth = async (provider: string) => {
+    setIsLoading(true)
+    try {
+      const fingerprintPayload = await collectFingerprint()
+      let oauthPath = `/api/auth/${provider}`
+
+      const contextRes = await fetch("/api/fingerprint/oauth-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fingerprintPayload),
+      })
+
+      if (contextRes.ok) {
+        const data = await contextRes.json().catch(() => ({}))
+        if (typeof data?.token === "string" && data.token) {
+          oauthPath = `${oauthPath}?fp_ctx=${encodeURIComponent(data.token)}`
+        }
+      }
+
+      window.location.href = oauthPath
+    } catch {
+      window.location.href = `/api/auth/${provider}`
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || ""
     const registerEmail = (searchParams.get("registerEmail") || "").trim()
     const queryToken = (searchParams.get("queryToken") || "").trim()
+    const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
     const reviewRound = searchParams.get("reviewRound") || ""
     const inviteStatus = searchParams.get("inviteStatus") || ""
     const sortByParam = searchParams.get("sortBy") || "createdAt"
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
       status?: PreApplicationStatus | { in: PreApplicationStatus[] }
       registerEmail?: { contains: string; mode: "insensitive" }
       queryToken?: { contains: string; mode: "insensitive" }
+      fingerprintHash?: { contains: string; mode: "insensitive" }
       resubmitCount?: number
       codeSent?: boolean
       OR?: Array<Record<string, unknown>>
@@ -73,6 +75,10 @@ export async function GET(request: NextRequest) {
 
     if (queryToken) {
       where.queryToken = { contains: queryToken, mode: "insensitive" }
+    }
+
+    if (fingerprintHash) {
+      where.fingerprintHash = { contains: fingerprintHash, mode: "insensitive" }
     }
 
     if (reviewRound) {
@@ -128,6 +134,9 @@ export async function GET(request: NextRequest) {
           resubmitCount: true,
           codeSent: true,
           codeSentAt: true,
+          fingerprintHash: true,
+          fingerprintCollectedAt: true,
+          fingerprintStatus: true,
           user: { select: { id: true, name: true, email: true } },
           reviewedBy: { select: { id: true, name: true, email: true } },
           inviteCode: {

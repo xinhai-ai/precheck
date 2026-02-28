@@ -16,6 +16,7 @@ A production-ready Next.js starter template with React, TypeScript, Tailwind CSS
 - **Docker** - Containerized deployments
 - **Rich Text Editor** - Tiptap-powered editor with preview modes
 - **Internal Messages** - Admin-created messages with user inbox + read status
+- **Fingerprint Tracking** - Browser fingerprint capture on login + pre-application submit with admin correlation tools
 - **Theme & Locale** - Light/dark theme toggle + locale switcher
 - **Multi-Platform** - Deploy to Vercel, Cloudflare, Netlify, Railway, Fly.io, and more
 
@@ -61,6 +62,15 @@ Generated type definitions are written to `types/prisma.d.ts`.
 - Admins can create and manage internal messages, targeting all users, by role, by status, or by specific user list.
 - Users can read messages in `/{locale}/dashboard/messages`, with read/unread status tracking.
 - The dashboard bell surfaces the latest message and links to the inbox.
+
+## Fingerprint Tracking
+
+- Login records browser fingerprint for password/code/OAuth flows.
+- Dashboard pre-application submit records browser fingerprint.
+- Admin pre-application review drawer shows fingerprint details plus related users/applications sharing the same fingerprint hash.
+- Admin pre-application/user pages support fingerprint-hash search and CSV export includes fingerprint fields.
+- Only hash is stored (no raw visitor ID in DB).
+- Environment toggles: `FEATURE_FINGERPRINT`, `NEXT_PUBLIC_FEATURE_FINGERPRINT`, `FINGERPRINT_PEPPER`.
 
 ## Admin & Dashboard Features
 

@@ -10,6 +10,8 @@ import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { getQQGroups } from "@/lib/qq-groups"
 import { getRedisClient } from "@/lib/redis"
+import { parseFingerprintPayload } from "@/lib/fingerprint/payload"
+import { recordFingerprintEvent } from "@/lib/fingerprint/server"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -122,6 +124,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const data = preApplicationSchema.parse(body)
+    const fingerprintPayload = parseFingerprintPayload(body)
     const registerEmail = normalizeEmail(data.registerEmail)
     const essay = data.essay.trim()
 
@@ -212,6 +215,15 @@ export async function POST(request: NextRequest) {
       request,
     })
 
+    await recordFingerprintEvent({
+      db,
+      eventType: "PRE_APPLICATION_SUBMIT",
+      payload: fingerprintPayload,
+      request,
+      userId: user.id,
+      preApplicationId: record.id,
+    })
+
     return NextResponse.json({ record, maxResubmitCount: await getMaxResubmitCount() })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -259,6 +271,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     const data = preApplicationSchema.parse(body)
+    const fingerprintPayload = parseFingerprintPayload(body)
     const registerEmail = normalizeEmail(data.registerEmail)
     const essay = data.essay.trim()
 
@@ -399,6 +412,15 @@ export async function PUT(request: NextRequest) {
         isResubmit,
       },
       request,
+    })
+
+    await recordFingerprintEvent({
+      db,
+      eventType: "PRE_APPLICATION_SUBMIT",
+      payload: fingerprintPayload,
+      request,
+      userId: user.id,
+      preApplicationId: record.id,
     })
 
     return NextResponse.json({
