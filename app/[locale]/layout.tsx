@@ -15,6 +15,8 @@ import {
 import { HtmlLang } from "@/components/seo/html-lang"
 import { getSiteSettings } from "@/lib/site-settings"
 
+export const dynamic = "force-dynamic"
+
 export async function generateStaticParams() {
   return locales.map((locale) => ({ locale }))
 }
