@@ -37,10 +37,14 @@ async function main() {
       siteDescription: "社区预申请与邀请码管理系统",
       contactEmail: "admin@example.com",
       preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
+      preApplicationEssayMinLength: 50,
+      preApplicationEssayMaxLength: 300,
       allowedEmailDomains: allowedEmailDomains,
     },
     update: {
       preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
+      preApplicationEssayMinLength: 50,
+      preApplicationEssayMaxLength: 300,
       allowedEmailDomains: allowedEmailDomains,
     },
   })

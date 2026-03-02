@@ -169,7 +169,8 @@ export function PreApplicationForm({
   const router = useRouter()
   const t = dict.preApplication
   const emailSuffixPlaceholder = t.emailSuffixPlaceholder ?? ""
-  const essayMinChars = 50
+  const [essayMinChars, setEssayMinChars] = useState(50)
+  const [essayMaxChars, setEssayMaxChars] = useState(300)
   const [loading, setLoading] = useState(!initialRecords)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -359,6 +360,12 @@ export function PreApplicationForm({
           if (data.preApplicationEssayHint) {
             setEssayHint(data.preApplicationEssayHint)
           }
+          if (typeof data.preApplicationEssayMinLength === "number") {
+            setEssayMinChars(Math.max(1, Math.floor(data.preApplicationEssayMinLength)))
+          }
+          if (typeof data.preApplicationEssayMaxLength === "number") {
+            setEssayMaxChars(Math.max(1, Math.floor(data.preApplicationEssayMaxLength)))
+          }
         }
       } catch (error) {
         console.error("Failed to load system config:", error)
@@ -496,6 +503,20 @@ export function PreApplicationForm({
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
+      const trimmedEssayLength = formData.essay.trim().length
+      if (trimmedEssayLength < essayMinChars) {
+        const template = t.validation?.essayTooShort || "申请小作文至少需要 {min} 个字符"
+        toast.error(template.replace("{min}", String(essayMinChars)))
+        return
+      }
+
+      if (trimmedEssayLength > essayMaxChars) {
+        const template =
+          t.validation?.essayTooLong || "申请小作文最多允许 {max} 个字符，请精简后再提交"
+        toast.error(template.replace("{max}", String(essayMaxChars)))
+        return
+      }
+
       if (latest?.status === "APPROVED") {
         toast.error(t.alreadySubmitted)
         return
@@ -1077,7 +1098,11 @@ export function PreApplicationForm({
                             setTimeout(() => setCopiedToken(false), 2000)
                           }}
                         >
-                          {copiedToken ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedToken ? (
+                            <Check className="h-3.5 w-3.5 text-green-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -1129,6 +1154,7 @@ export function PreApplicationForm({
                     value={formData.essay}
                     onChange={(event) => setFormData({ ...formData, essay: event.target.value })}
                     rows={6}
+                    maxLength={essayMaxChars}
                     placeholder={essayHint}
                     className="resize-none rounded-xl"
                   />
@@ -1137,10 +1163,13 @@ export function PreApplicationForm({
                     <span
                       className={cn(
                         "shrink-0 tabular-nums",
-                        formData.essay.length >= essayMinChars && "text-emerald-600",
+                        formData.essay.length >= essayMinChars &&
+                          formData.essay.length <= essayMaxChars &&
+                          "text-emerald-600",
                       )}
                     >
-                      {formData.essay.length}/{essayMinChars}
+                      {formData.essay.length}/{essayMaxChars} ·{" "}
+                      {locale === "zh" ? `最少 ${essayMinChars}` : `min ${essayMinChars}`}
                     </span>
                   </div>
 

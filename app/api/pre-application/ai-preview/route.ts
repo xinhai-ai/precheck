@@ -4,6 +4,7 @@ import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { features } from "@/lib/features"
 import { reviewEssayWithAI } from "@/lib/cloudflare-ai"
+import { getEssayLengthLimits } from "@/lib/pre-application/essay-limits"
 
 // 用户端 AI 预审接口
 export async function POST(request: NextRequest) {
@@ -22,9 +23,16 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { essay } = body
+    const limits = await getEssayLengthLimits()
 
-    if (!essay || typeof essay !== "string" || essay.trim().length < 50) {
+    if (!essay || typeof essay !== "string" || essay.trim().length < limits.min) {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.essayTooShort, {
+        status: 400,
+      })
+    }
+
+    if (essay.trim().length > limits.max) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.essayTooLong, {
         status: 400,
       })
     }

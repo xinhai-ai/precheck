@@ -157,6 +157,8 @@ CREATE TABLE IF NOT EXISTS "SiteSettings" (
   "adminApplicationEnabled"  BOOLEAN NOT NULL DEFAULT true,
   "auditLogEnabled"          BOOLEAN NOT NULL DEFAULT false,
   "preApplicationEssayHint"  TEXT NOT NULL DEFAULT '建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。',
+  "preApplicationEssayMinLength" INTEGER NOT NULL DEFAULT 50,
+  "preApplicationEssayMaxLength" INTEGER NOT NULL DEFAULT 300,
   "allowedEmailDomains"      JSONB NOT NULL DEFAULT '[]',
   "reviewTemplatesApprove"   JSONB NOT NULL DEFAULT '[]',
   "reviewTemplatesApproveNoCode" JSONB NOT NULL DEFAULT '[]',

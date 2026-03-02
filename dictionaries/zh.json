@@ -278,6 +278,7 @@
       "alreadySubmitted": "已提交",
       "alreadyApproved": "已通过",
       "essayTooShort": "文章太短",
+      "essayTooLong": "文章太长",
       "invalidEmailDomain": "邮箱域名无效",
       "invalidGroup": "无效的群组",
       "sourceDetailRequired": "来源说明为必填项",
@@ -1101,6 +1102,7 @@
     "confirmDelete": "确认删除",
     "validation": {
       "essayTooShort": "申请小作文至少需要 {min} 个字符",
+      "essayTooLong": "申请小作文最多允许 {max} 个字符",
       "sourceDetailRequired": "选择其他平台时请填写说明"
     },
     "allowedDomainsTitle": "支持邮箱后缀",
@@ -1920,6 +1922,11 @@
     "systemConfigAuditLogDesc": "记录所有管理操作到审计日志（默认关闭以提升性能）",
     "maxResubmitCount": "驳回后最大重新提交次数",
     "maxResubmitCountDesc": "设为 0 表示不限制重新提交次数",
+    "preApplicationEssayLengthLimit": "预申请字数限制",
+    "preApplicationEssayLengthLimitDesc": "设置预申请小作文允许的最小/最大字符数",
+    "preApplicationEssayMinLength": "最小字符数",
+    "preApplicationEssayMaxLength": "最大字符数",
+    "preApplicationEssayLengthInvalid": "预申请最小字符数不能大于最大字符数",
     "systemConfigEmailDomains": "允许的邮箱域名",
     "systemConfigEmailDomainsDesc": "只有使用这些域名的邮箱才能提交预申请",
     "systemConfigEmailDomainPlaceholder": "例如: gmail.com",

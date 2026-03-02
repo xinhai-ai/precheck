@@ -4,6 +4,7 @@ import { z } from "zod"
 import { db } from "@/lib/db"
 import { writeAuditLog } from "@/lib/audit"
 import { isAllowedEmailDomainAsync, normalizeEmail } from "@/lib/pre-application/validation"
+import { getEssayLengthLimits } from "@/lib/pre-application/essay-limits"
 import { PreApplicationSource } from "@prisma/client"
 import { randomBytes } from "crypto"
 import { getQQVerifyStatus, QQ_VERIFY_CONFIG } from "@/lib/qq-verify"
@@ -20,7 +21,7 @@ async function generateUniqueQueryToken(): Promise<string> {
 }
 
 const guestApplicationSchema = z.object({
-  essay: z.string().min(50).max(1000),
+  essay: z.string(),
   source: z.nativeEnum(PreApplicationSource).optional().nullable(),
   sourceDetail: z.string().max(100).optional().nullable(),
   registerEmail: z.string().email(),
@@ -68,9 +69,20 @@ export async function POST(request: NextRequest) {
 
     const registerEmail = normalizeEmail(data.registerEmail)
     const essay = data.essay.trim()
+    const essayLengthLimits = await getEssayLengthLimits()
 
-    if (essay.length < 50) {
-      return NextResponse.json({ error: "申请内容不少于 50 个字符" }, { status: 400 })
+    if (essay.length < essayLengthLimits.min) {
+      return NextResponse.json(
+        { error: `申请内容不少于 ${essayLengthLimits.min} 个字符` },
+        { status: 400 },
+      )
+    }
+
+    if (essay.length > essayLengthLimits.max) {
+      return NextResponse.json(
+        { error: `申请内容最多 ${essayLengthLimits.max} 个字符` },
+        { status: 400 },
+      )
     }
 
     if (!(await isAllowedEmailDomainAsync(registerEmail))) {

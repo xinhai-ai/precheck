@@ -280,6 +280,7 @@
       "alreadySubmitted": "Already submitted",
       "alreadyApproved": "Already approved",
       "essayTooShort": "Essay is too short",
+      "essayTooLong": "Essay is too long",
       "invalidEmailDomain": "Invalid email domain",
       "invalidGroup": "Invalid group",
       "sourceDetailRequired": "Source detail required",
@@ -1107,6 +1108,7 @@
     "confirmDelete": "Confirm Delete",
     "validation": {
       "essayTooShort": "Your essay must be at least {min} characters",
+      "essayTooLong": "Your essay must be at most {max} characters",
       "sourceDetailRequired": "Please provide details when selecting Other"
     },
     "allowedDomainsTitle": "Allowed email domains",
@@ -1925,6 +1927,11 @@
     "systemConfigAuditLogDesc": "Record all admin operations to audit log (disabled by default for performance)",
     "maxResubmitCount": "Max Resubmissions After Rejection",
     "maxResubmitCountDesc": "Set to 0 for unlimited resubmissions",
+    "preApplicationEssayLengthLimit": "Pre-application essay length limits",
+    "preApplicationEssayLengthLimitDesc": "Set the minimum and maximum characters allowed for pre-application essays",
+    "preApplicationEssayMinLength": "Minimum characters",
+    "preApplicationEssayMaxLength": "Maximum characters",
+    "preApplicationEssayLengthInvalid": "Minimum essay length cannot be greater than maximum length",
     "systemConfigEmailDomains": "Allowed Email Domains",
     "systemConfigEmailDomainsDesc": "Only emails with these domains can submit pre-applications",
     "systemConfigEmailDomainPlaceholder": "e.g. gmail.com",

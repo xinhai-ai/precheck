@@ -67,6 +67,8 @@ type QQGroupConfig = {
 
 type SystemConfig = {
   preApplicationEssayHint: string
+  preApplicationEssayMinLength: number
+  preApplicationEssayMaxLength: number
   allowedEmailDomains: string[]
   auditLogEnabled: boolean
   reviewTemplatesApprove: string[]
@@ -316,6 +318,10 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
 
   const handleSaveAll = async () => {
     if (!settings || !systemConfig) return
+    if (systemConfig.preApplicationEssayMinLength > systemConfig.preApplicationEssayMaxLength) {
+      toast.error(t.preApplicationEssayLengthInvalid || "预申请最小字符数不能大于最大字符数")
+      return
+    }
     setSaving(true)
     setError("")
 
@@ -1082,6 +1088,66 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                           }
                           className="w-20 text-center"
                         />
+                      </div>
+                    )}
+                    {systemConfig && (
+                      <div className="flex items-center justify-between py-4">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              "bg-primary/10 text-primary",
+                            )}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {t.preApplicationEssayLengthLimit || "预申请字数限制"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {t.preApplicationEssayLengthLimitDesc ||
+                                "设置用户提交预申请小作文的最小/最大字符数"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            title={t.preApplicationEssayMinLength || "最小字符数"}
+                            placeholder={t.preApplicationEssayMinLength || "最小值"}
+                            value={systemConfig.preApplicationEssayMinLength}
+                            onChange={(e) =>
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationEssayMinLength: Math.max(
+                                  1,
+                                  Number(e.target.value) || 1,
+                                ),
+                              })
+                            }
+                            className="w-20 text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">~</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            title={t.preApplicationEssayMaxLength || "最大字符数"}
+                            placeholder={t.preApplicationEssayMaxLength || "最大值"}
+                            value={systemConfig.preApplicationEssayMaxLength}
+                            onChange={(e) =>
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationEssayMaxLength: Math.max(
+                                  1,
+                                  Number(e.target.value) || 1,
+                                ),
+                              })
+                            }
+                            className="w-20 text-center"
+                          />
+                        </div>
                       </div>
                     )}
                   </CardContent>

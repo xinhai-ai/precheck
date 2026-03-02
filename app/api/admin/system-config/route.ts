@@ -8,6 +8,11 @@ import {
   allowedEmailDomains as defaultEmailDomains,
   defaultQQGroups,
 } from "@/lib/pre-application/constants"
+import {
+  DEFAULT_ESSAY_MAX_LENGTH,
+  DEFAULT_ESSAY_MIN_LENGTH,
+  normalizeEssayLengthLimits,
+} from "@/lib/pre-application/essay-limits"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
@@ -24,6 +29,8 @@ const qqGroupSchema = z.object({
 
 const systemConfigSchema = z.object({
   preApplicationEssayHint: z.string().min(10).max(500),
+  preApplicationEssayMinLength: z.number().int().min(1).max(5000),
+  preApplicationEssayMaxLength: z.number().int().min(1).max(5000),
   allowedEmailDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).min(1),
   auditLogEnabled: z.boolean().optional(),
   reviewTemplatesApprove: z.array(z.string()).optional(),
@@ -68,6 +75,8 @@ export async function GET(request: NextRequest) {
       where: { id: "global" },
       select: {
         preApplicationEssayHint: true,
+        preApplicationEssayMinLength: true,
+        preApplicationEssayMaxLength: true,
         allowedEmailDomains: true,
         auditLogEnabled: true,
         reviewTemplatesApprove: true,
@@ -92,6 +101,8 @@ export async function GET(request: NextRequest) {
     if (!settings) {
       return NextResponse.json({
         preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
+        preApplicationEssayMinLength: DEFAULT_ESSAY_MIN_LENGTH,
+        preApplicationEssayMaxLength: DEFAULT_ESSAY_MAX_LENGTH,
         allowedEmailDomains: defaultEmailDomains,
         auditLogEnabled: false,
         reviewTemplatesApprove: [],
@@ -113,8 +124,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    const limits = normalizeEssayLengthLimits(
+      settings.preApplicationEssayMinLength,
+      settings.preApplicationEssayMaxLength,
+    )
+
     return NextResponse.json({
       preApplicationEssayHint: settings.preApplicationEssayHint,
+      preApplicationEssayMinLength: limits.min,
+      preApplicationEssayMaxLength: limits.max,
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
@@ -167,6 +185,12 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     const data = systemConfigSchema.parse(body)
+    if (data.preApplicationEssayMinLength > data.preApplicationEssayMaxLength) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "最小字符数不能大于最大字符数" },
+      })
+    }
 
     const before = await db.siteSettings.findUnique({
       where: { id: "global" },
@@ -180,6 +204,8 @@ export async function PUT(request: NextRequest) {
         siteDescription: "社区预申请与邀请码管理系统",
         contactEmail: "admin@example.com",
         preApplicationEssayHint: data.preApplicationEssayHint,
+        preApplicationEssayMinLength: data.preApplicationEssayMinLength,
+        preApplicationEssayMaxLength: data.preApplicationEssayMaxLength,
         allowedEmailDomains: data.allowedEmailDomains,
         auditLogEnabled: data.auditLogEnabled ?? false,
         reviewTemplatesApprove: data.reviewTemplatesApprove ?? [],
@@ -203,6 +229,8 @@ export async function PUT(request: NextRequest) {
       },
       update: {
         preApplicationEssayHint: data.preApplicationEssayHint,
+        preApplicationEssayMinLength: data.preApplicationEssayMinLength,
+        preApplicationEssayMaxLength: data.preApplicationEssayMaxLength,
         allowedEmailDomains: data.allowedEmailDomains,
         ...(data.auditLogEnabled !== undefined && { auditLogEnabled: data.auditLogEnabled }),
         ...(data.reviewTemplatesApprove !== undefined && {
@@ -250,6 +278,8 @@ export async function PUT(request: NextRequest) {
       metadata: {
         fields: [
           "preApplicationEssayHint",
+          "preApplicationEssayMinLength",
+          "preApplicationEssayMaxLength",
           "allowedEmailDomains",
           "auditLogEnabled",
           "reviewTemplatesApprove",
@@ -274,6 +304,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       preApplicationEssayHint: updated.preApplicationEssayHint,
+      preApplicationEssayMinLength: updated.preApplicationEssayMinLength,
+      preApplicationEssayMaxLength: updated.preApplicationEssayMaxLength,
       allowedEmailDomains: updated.allowedEmailDomains,
       auditLogEnabled: updated.auditLogEnabled,
       reviewTemplatesApprove: updated.reviewTemplatesApprove,

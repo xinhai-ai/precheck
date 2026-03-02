@@ -18,14 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  ClipboardList,
-  Loader2,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  HelpCircle,
-} from "lucide-react"
+import { ClipboardList, Loader2, Clock, CheckCircle2, XCircle, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { preApplicationSources } from "@/lib/pre-application/constants"
 import type { QQGroupConfig } from "@/lib/pre-application/constants"
@@ -60,6 +53,8 @@ interface GuestApplyFormProps {
     emailSuffixPlaceholder?: string
     validation: {
       sourceDetailRequired: string
+      essayTooShort?: string
+      essayTooLong?: string
     }
     status: {
       pending: string
@@ -105,7 +100,8 @@ type GuestRecord = {
 }
 
 export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) {
-  const essayMinChars = 50
+  const [essayMinChars, setEssayMinChars] = useState(50)
+  const [essayMaxChars, setEssayMaxChars] = useState(300)
   const [loadingRecord, setLoadingRecord] = useState(true)
   const [loadingGroups, setLoadingGroups] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -176,6 +172,12 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
           if (data.preApplicationEssayHint) {
             setEssayHint(data.preApplicationEssayHint)
           }
+          if (typeof data.preApplicationEssayMinLength === "number") {
+            setEssayMinChars(Math.max(1, Math.floor(data.preApplicationEssayMinLength)))
+          }
+          if (typeof data.preApplicationEssayMaxLength === "number") {
+            setEssayMaxChars(Math.max(1, Math.floor(data.preApplicationEssayMaxLength)))
+          }
         }
       } catch (error) {
         console.error("Failed to load system config:", error)
@@ -199,6 +201,25 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
     setSubmitting(true)
 
     try {
+      const trimmedEssayLength = formData.essay.trim().length
+      if (trimmedEssayLength < essayMinChars) {
+        const template =
+          dict.validation.essayTooShort ||
+          (locale === "zh"
+            ? "申请内容不少于 {min} 个字符"
+            : "Essay must be at least {min} characters")
+        toast.error(template.replace("{min}", String(essayMinChars)))
+        return
+      }
+
+      if (trimmedEssayLength > essayMaxChars) {
+        const template =
+          dict.validation.essayTooLong ||
+          (locale === "zh" ? "申请内容最多 {max} 个字符" : "Essay must be at most {max} characters")
+        toast.error(template.replace("{max}", String(essayMaxChars)))
+        return
+      }
+
       if (formData.source === "OTHER" && !formData.sourceDetail.trim()) {
         toast.error(dict.validation.sourceDetailRequired)
         return
@@ -343,7 +364,6 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
             </div>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-
             {record.reviewedBy && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1 p-3 rounded-lg bg-muted/30">
@@ -461,6 +481,7 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
                 value={formData.essay}
                 onChange={(e) => setFormData({ ...formData, essay: e.target.value })}
                 rows={6}
+                maxLength={essayMaxChars}
                 placeholder={essayHint}
                 className="resize-none rounded-xl"
                 required
@@ -470,10 +491,13 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
                 <span
                   className={cn(
                     "shrink-0 tabular-nums",
-                    formData.essay.length >= essayMinChars && "text-emerald-600",
+                    formData.essay.length >= essayMinChars &&
+                      formData.essay.length <= essayMaxChars &&
+                      "text-emerald-600",
                   )}
                 >
-                  {formData.essay.length}/{essayMinChars}
+                  {formData.essay.length}/{essayMaxChars} ·{" "}
+                  {locale === "zh" ? `最少 ${essayMinChars}` : `min ${essayMinChars}`}
                 </span>
               </div>
             </div>
@@ -554,7 +578,12 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
 
             <Button
               type="submit"
-              disabled={submitting || formData.essay.length < essayMinChars || !isValidEmail}
+              disabled={
+                submitting ||
+                formData.essay.length < essayMinChars ||
+                formData.essay.length > essayMaxChars ||
+                !isValidEmail
+              }
               className="w-full sm:w-auto"
               size="lg"
             >

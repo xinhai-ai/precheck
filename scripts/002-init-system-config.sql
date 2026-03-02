@@ -8,6 +8,8 @@ INSERT INTO "SiteSettings" (
   "siteDescription",
   "contactEmail",
   "preApplicationEssayHint",
+  "preApplicationEssayMinLength",
+  "preApplicationEssayMaxLength",
   "allowedEmailDomains"
 )
 SELECT
@@ -16,5 +18,7 @@ SELECT
   '社区预申请与邀请码管理系统',
   'admin@example.com',
   '建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。',
+  50,
+  300,
   '["126.com","139.com","163.com","189.cn","aliyun.com","apache.org","deepseek.com","edu.cn","edu.hk","edu.mo","edu.tw","foxmail.com","gmail.com","gov.cn","qq.com","sina.cn","sina.com","sohu.com","xiaomi.com","yahoo.com","privaterelay.appleid.com"]'
 WHERE NOT EXISTS (SELECT 1 FROM "SiteSettings" LIMIT 1);

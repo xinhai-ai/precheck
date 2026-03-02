@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
 import { writeAuditLog } from "@/lib/audit"
 import { isAllowedEmailDomainAsync, normalizeEmail } from "@/lib/pre-application/validation"
+import { getEssayLengthLimits } from "@/lib/pre-application/essay-limits"
 import { PreApplicationSource } from "@prisma/client"
 import { randomBytes } from "crypto"
 import { createApiErrorResponse } from "@/lib/api/error-response"
@@ -33,7 +34,7 @@ async function getMaxResubmitCount(): Promise<number> {
 }
 
 const preApplicationSchema = z.object({
-  essay: z.string().min(50).max(1000),
+  essay: z.string(),
   source: z.nativeEnum(PreApplicationSource).optional().nullable(),
   sourceDetail: z.string().max(100).optional().nullable(),
   registerEmail: z.string().email(),
@@ -128,8 +129,16 @@ export async function POST(request: NextRequest) {
     const registerEmail = normalizeEmail(data.registerEmail)
     const essay = data.essay.trim()
 
-    if (essay.length < 50) {
+    const essayLengthLimits = await getEssayLengthLimits()
+
+    if (essay.length < essayLengthLimits.min) {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.essayTooShort, {
+        status: 400,
+      })
+    }
+
+    if (essay.length > essayLengthLimits.max) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.essayTooLong, {
         status: 400,
       })
     }
@@ -275,8 +284,16 @@ export async function PUT(request: NextRequest) {
     const registerEmail = normalizeEmail(data.registerEmail)
     const essay = data.essay.trim()
 
-    if (essay.length < 50) {
+    const essayLengthLimits = await getEssayLengthLimits()
+
+    if (essay.length < essayLengthLimits.min) {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.essayTooShort, {
+        status: 400,
+      })
+    }
+
+    if (essay.length > essayLengthLimits.max) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.essayTooLong, {
         status: 400,
       })
     }

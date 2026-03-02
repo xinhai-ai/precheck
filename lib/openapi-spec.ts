@@ -537,7 +537,7 @@ export const openApiSpec = {
                   essay: {
                     type: "string",
                     minLength: 50,
-                    maxLength: 1000,
+                    maxLength: 300,
                     description: "申请理由",
                   },
                   source: {
@@ -577,7 +577,7 @@ export const openApiSpec = {
                 type: "object",
                 required: ["essay", "registerEmail", "group", "version"],
                 properties: {
-                  essay: { type: "string", minLength: 50, maxLength: 1000 },
+                  essay: { type: "string", minLength: 50, maxLength: 300 },
                   source: {
                     type: "string",
                     enum: ["TIEBA", "BILIBILI", "DOUYIN", "XIAOHONGSHU", "OTHER"],

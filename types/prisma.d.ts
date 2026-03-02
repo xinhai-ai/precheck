@@ -6,7 +6,14 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus = "PENDING" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
+export type PreApplicationStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "DISPUTED"
+  | "ARCHIVED"
+  | "PENDING_REVIEW"
+  | "ON_HOLD"
 
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
@@ -238,6 +245,8 @@ export interface SiteSettings {
   adminApplicationEnabled: boolean
   auditLogEnabled: boolean
   preApplicationEssayHint: string
+  preApplicationEssayMinLength: number
+  preApplicationEssayMaxLength: number
   allowedEmailDomains: Prisma.JsonValue
   reviewTemplatesApprove: Prisma.JsonValue
   reviewTemplatesApproveNoCode: Prisma.JsonValue

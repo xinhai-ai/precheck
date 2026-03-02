@@ -196,6 +196,7 @@ export const ApiErrorKeys = {
     alreadySubmitted: "apiErrors.preApplication.alreadySubmitted",
     alreadyApproved: "apiErrors.preApplication.alreadyApproved",
     essayTooShort: "apiErrors.preApplication.essayTooShort",
+    essayTooLong: "apiErrors.preApplication.essayTooLong",
     invalidEmailDomain: "apiErrors.preApplication.invalidEmailDomain",
     invalidGroup: "apiErrors.preApplication.invalidGroup",
     sourceDetailRequired: "apiErrors.preApplication.sourceDetailRequired",
