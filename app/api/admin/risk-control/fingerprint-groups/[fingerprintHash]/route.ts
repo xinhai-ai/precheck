@@ -122,20 +122,36 @@ export async function GET(
       .map((row) => row.userId)
       .filter((value): value is string => Boolean(value))
 
-    const users = userIds.length
-      ? await db.user.findMany({
-          where: { id: { in: userIds } },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            status: true,
-          },
-        })
-      : []
+    const [users, latestIpEntries] = userIds.length
+      ? await Promise.all([
+          db.user.findMany({
+            where: { id: { in: userIds } },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              status: true,
+            },
+          }),
+          Promise.all(
+            userIds.map(async (id) => {
+              const latest = await db.fingerprintEvent.findFirst({
+                where: {
+                  fingerprintHash,
+                  userId: id,
+                },
+                orderBy: { createdAt: "desc" },
+                select: { ip: true },
+              })
+              return [id, latest?.ip || null] as const
+            }),
+          ),
+        ])
+      : [[], []]
 
     const userMap = new Map(users.map((item) => [item.id, item]))
+    const latestIpMap = new Map(latestIpEntries)
     const relatedUsers = userSeenRows
       .map((row) => {
         if (!row.userId) return null
@@ -150,6 +166,7 @@ export async function GET(
           status: targetUser.status,
           firstSeenAt: row._min.createdAt?.toISOString() || null,
           lastSeenAt: row._max.createdAt?.toISOString() || null,
+          lastSeenIp: latestIpMap.get(targetUser.id) || null,
         }
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item))

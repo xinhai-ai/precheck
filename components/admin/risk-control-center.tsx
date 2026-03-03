@@ -1,8 +1,21 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ShieldAlert, Loader2, RefreshCw, Search, Copy } from "lucide-react"
+import { motion } from "framer-motion"
+import {
+  ShieldAlert,
+  Shield,
+  Loader2,
+  RefreshCw,
+  Search,
+  Copy,
+  MoreHorizontal,
+  Ban,
+  ShieldCheck,
+  ExternalLink,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +36,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Locale } from "@/lib/i18n/config"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Role } from "@prisma/client"
@@ -79,7 +99,61 @@ function formatDateTime(value: string | null | undefined, locale: Locale): strin
   return new Date(value).toLocaleString(locale)
 }
 
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  trend,
+  color = "primary",
+  active = false,
+  onClick,
+}: {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  trend?: string
+  color?: "primary" | "success" | "warning" | "danger" | "purple"
+  active?: boolean
+  onClick?: () => void
+}) {
+  const colorStyles = {
+    primary: "from-primary/20 to-primary/5 text-primary",
+    success: "from-emerald-500/20 to-emerald-500/5 text-emerald-600 dark:text-emerald-400",
+    warning: "from-amber-500/20 to-amber-500/5 text-amber-600 dark:text-amber-400",
+    danger: "from-rose-500/20 to-rose-500/5 text-rose-600 dark:text-rose-400",
+    purple: "from-purple-500/20 to-purple-500/5 text-purple-600 dark:text-purple-400",
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-xl border bg-card p-4 ${
+        onClick ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md" : ""
+      } ${active ? "ring-2 ring-primary ring-offset-2" : ""}`}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br opacity-50 ${colorStyles[color]}`} />
+      <div className="relative flex items-center gap-4">
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${colorStyles[color]}`}
+        >
+          <Icon className="h-6 w-6" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold">
+            {typeof value === "number" ? value.toLocaleString() : value}
+          </p>
+          {trend && <p className="text-xs text-muted-foreground">{trend}</p>}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskControlCenterProps) {
+  const router = useRouter()
   const t = dict.admin as unknown as Record<string, unknown>
   const riskT = ((t.riskControlPanel as Record<string, unknown>) || {}) as Record<string, string>
   const isSuperAdmin = currentRole === "SUPER_ADMIN"
@@ -263,36 +337,87 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
     }
   }
 
+  const handleToggleUserBan = async (userId: string, isBanned: boolean) => {
+    if (!isSuperAdmin) {
+      toast.error(riskT.actionForbidden || "仅超级管理员可执行该操作")
+      return
+    }
+
+    try {
+      const nextStatus = isBanned ? "ACTIVE" : "BANNED"
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message =
+          (data?.error?.message as string | undefined) ||
+          (data?.error?.code as string | undefined) ||
+          (isBanned ? riskT.unbanFailed : riskT.banFailed) ||
+          "操作失败"
+        throw new Error(message)
+      }
+
+      toast.success(isBanned ? riskT.unbanSuccess || "已解封用户" : riskT.banSuccess || "已封禁用户")
+      await Promise.all([loadGroups(), loadIgnoredUsers(), selectedHash ? loadDetail(selectedHash) : null])
+    } catch (error) {
+      console.error("Toggle user ban status error:", error)
+      toast.error(error instanceof Error ? error.message : riskT.banFailed || "操作失败")
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {riskT.title || "风险控制中心"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {riskT.description || "集中查看指纹关联风险，支持忽略特定用户以降低误报。"}
-        </p>
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 shadow-lg shadow-rose-500/25">
+          <ShieldAlert className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {riskT.title || "风险控制中心"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {riskT.description || "集中查看指纹关联风险，支持忽略特定用户以降低误报。"}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>{riskT.highRisk || "高风险分组"}</CardDescription>
-            <CardTitle className="text-2xl">{stats.high}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>{riskT.mediumRisk || "中风险分组"}</CardDescription>
-            <CardTitle className="text-2xl">{stats.medium}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>{riskT.ignoredUsers || "已忽略用户"}</CardDescription>
-            <CardTitle className="text-2xl">{stats.ignoredUsers}</CardTitle>
-          </CardHeader>
-        </Card>
+        <StatCard
+          icon={ShieldAlert}
+          label={riskT.highRisk || "高风险分组"}
+          value={stats.high}
+          color="danger"
+          active={riskLevel === "HIGH"}
+          onClick={() => {
+            setRiskLevel("HIGH")
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={Shield}
+          label={riskT.mediumRisk || "中风险分组"}
+          value={stats.medium}
+          color="warning"
+          active={riskLevel === "MEDIUM"}
+          onClick={() => {
+            setRiskLevel("MEDIUM")
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={ShieldCheck}
+          label={riskT.ignoredUsers || "已忽略用户"}
+          value={stats.ignoredUsers}
+          color="primary"
+          onClick={() => {
+            setRiskLevel("ALL")
+            setPage(1)
+          }}
+        />
       </div>
 
       <Card>
@@ -426,7 +551,13 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                       <td className="px-3 py-2">
                         <Badge
                           variant={item.riskLevel === "HIGH" ? "destructive" : "secondary"}
-                          className={item.riskLevel === "MEDIUM" ? "bg-amber-500/15 text-amber-700" : ""}
+                          className={
+                            item.riskLevel === "MEDIUM"
+                              ? "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                              : item.riskLevel === "LOW"
+                                ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                : ""
+                          }
                         >
                           {item.riskLevel === "HIGH"
                             ? riskT.levelHigh || "高风险"
@@ -480,16 +611,32 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
         </CardContent>
       </Card>
 
-      {selectedHash && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5" />
-              {riskT.detailTitle || "风险详情"}
-            </CardTitle>
-            <CardDescription className="font-mono text-xs break-all">{selectedHash}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <Drawer
+        open={Boolean(selectedHash)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedHash(null)
+            setDetail(null)
+          }
+        }}
+        direction="right"
+      >
+        <DrawerContent className="h-full data-[vaul-drawer-direction=right]:w-[95vw] data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+          <DrawerHeader className="sticky top-0 z-10 border-b bg-background">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DrawerTitle>{riskT.detailTitle || "风险详情"}</DrawerTitle>
+                <DrawerDescription className="font-mono text-xs break-all">
+                  {selectedHash || "-"}
+                </DrawerDescription>
+              </div>
+            </div>
+          </DrawerHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {detailLoading ? (
               <div className="py-8 text-center text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
@@ -501,7 +648,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
               <p className="text-sm text-muted-foreground">{riskT.detailEmpty || "暂无详情"}</p>
             ) : (
               <>
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
                   <Card>
                     <CardHeader className="pb-2">
                       <CardDescription>{riskT.userCount || "用户数"}</CardDescription>
@@ -530,82 +677,141 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   </Card>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">{riskT.relatedUsers || "关联用户"}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {detail.relatedUsers.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">{riskT.emptyRelatedUsers || "暂无关联用户"}</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {detail.relatedUsers.map((item) => (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">{riskT.relatedUsers || "关联用户"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {detail.relatedUsers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {riskT.emptyRelatedUsers || "暂无关联用户"}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {detail.relatedUsers.map((item) => {
+                          const isIgnored = ignoredUserIdSet.has(item.id)
+                          const isBanned = item.status === "BANNED"
+
+                          return (
                             <div
                               key={item.id}
-                              className="flex items-center justify-between gap-3 rounded-md border p-2"
+                              className="flex items-start justify-between gap-3 rounded-md border p-2"
                             >
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-medium">{item.name || item.email}</p>
                                 <p className="truncate text-xs text-muted-foreground">{item.email}</p>
-                              </div>
-                              {isSuperAdmin && (
-                                ignoredUserIdSet.has(item.id) ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUnignore(item.id)}
+                                <p className="text-xs text-muted-foreground">
+                                  {riskT.relatedTime || "关联时间"}:{" "}
+                                  {formatDateTime(item.firstSeenAt, locale)} →{" "}
+                                  {formatDateTime(item.lastSeenAt, locale)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  IP: {item.lastSeenIp || "-"}
+                                </p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {item.role}
+                                  </Badge>
+                                  <Badge
+                                    variant={isBanned ? "destructive" : "secondary"}
+                                    className="text-[10px]"
                                   >
-                                    {riskT.unignoreUser || "取消忽略"}
+                                    {item.status}
+                                  </Badge>
+                                  {isIgnored && (
+                                    <Badge variant="secondary" className="text-[10px]">
+                                      {riskT.ignoredTag || "已忽略"}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                    <MoreHorizontal className="h-4 w-4" />
                                   </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    disabled={!isSuperAdmin}
+                                    onClick={() => {
+                                      if (isIgnored) {
+                                        void handleUnignore(item.id)
+                                      } else {
+                                        setIgnoreTarget({
+                                          id: item.id,
+                                          label: item.name || item.email,
+                                        })
+                                      }
+                                    }}
+                                  >
+                                    {isIgnored ? (
+                                      <ShieldCheck className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <ShieldAlert className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isIgnored
+                                      ? riskT.unignoreUser || "取消忽略"
+                                      : riskT.ignoreUser || "忽略用户"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    disabled={!isSuperAdmin}
+                                    onClick={() => void handleToggleUserBan(item.id, isBanned)}
+                                  >
+                                    {isBanned ? (
+                                      <ShieldCheck className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <Ban className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isBanned
+                                      ? riskT.unbanUser || "解封用户"
+                                      : riskT.banUser || "封禁用户"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
                                     onClick={() =>
-                                      setIgnoreTarget({
-                                        id: item.id,
-                                        label: item.name || item.email,
-                                      })
+                                      router.push(
+                                        `/${locale}/admin/users?search=${encodeURIComponent(item.email)}`,
+                                      )
                                     }
                                   >
-                                    {riskT.ignoreUser || "忽略用户"}
-                                  </Button>
-                                )
-                              )}
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    {riskT.openUserManagement || "打开用户管理"}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">
-                        {riskT.relatedApplications || "关联申请"}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {detail.relatedApplications.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          {riskT.emptyRelatedApplications || "暂无关联申请"}
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {detail.relatedApplications.map((item) => (
-                            <div key={item.id} className="rounded-md border p-2">
-                              <p className="text-sm font-medium">{item.user?.name || item.registerEmail}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.status} · {formatDateTime(item.createdAt, locale)}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {riskT.relatedApplications || "关联申请"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {detail.relatedApplications.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {riskT.emptyRelatedApplications || "暂无关联申请"}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {detail.relatedApplications.map((item) => (
+                          <div key={item.id} className="rounded-md border p-2">
+                            <p className="text-sm font-medium">{item.user?.name || item.registerEmail}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.status} · {formatDateTime(item.createdAt, locale)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 <Card>
                   <CardHeader>
@@ -632,9 +838,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                 </Card>
               </>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <Card>
         <CardHeader>

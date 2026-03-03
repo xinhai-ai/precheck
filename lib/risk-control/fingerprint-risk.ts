@@ -32,6 +32,7 @@ export type FingerprintRiskDetailUser = {
   status: string
   firstSeenAt: string | null
   lastSeenAt: string | null
+  lastSeenIp: string | null
 }
 
 export type FingerprintRiskDetailApplication = {
