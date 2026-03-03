@@ -78,7 +78,7 @@ function WatermarkComponent({ userId, email, name }: WatermarkProps) {
     if (!userId) return
 
     updateWatermark()
-    const interval = setInterval(updateWatermark, 1000)
+    const interval = setInterval(updateWatermark, 30000)
 
     return () => clearInterval(interval)
   }, [userId, updateWatermark])
