@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     const recordsForUserView = records.map((record) => ({
       ...record,
-      status: mapStatusForUserView(record.status),
+      status: mapStatusForUserView(record.status, record.versions[0]?.status),
       versions: record.versions.map((version) => ({
         ...version,
         status: mapStatusForUserView(version.status),

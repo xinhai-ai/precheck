@@ -6,7 +6,10 @@ import { isAdmin, isSuperAdmin } from "@/lib/auth/permissions"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
-import { SHADOW_HIDDEN_STATUS } from "@/lib/pre-application/shadowban"
+import {
+  SHADOW_HIDE_SOURCE_STATUSES,
+  SHADOW_HIDDEN_STATUS,
+} from "@/lib/pre-application/shadowban"
 
 const shadowBanSchema = z.object({
   userId: z.string().trim().min(1),
@@ -149,6 +152,9 @@ export async function POST(request: NextRequest) {
       const updated = await tx.preApplication.updateMany({
         where: {
           userId: data.userId,
+          status: {
+            in: [...SHADOW_HIDE_SOURCE_STATUSES],
+          },
         },
         data: {
           status: SHADOW_HIDDEN_STATUS,
