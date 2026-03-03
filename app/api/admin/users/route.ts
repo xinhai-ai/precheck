@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
           name: true,
           role: true,
           status: true,
+          banReason: true,
           createdAt: true,
           latestFingerprintHash: true,
           latestFingerprintAt: true,
@@ -102,6 +103,13 @@ export async function GET(request: NextRequest) {
             select: {
               preApplications: true,
               preApplicationsReviewed: true,
+            },
+          },
+          shadowBannedEntry: {
+            select: {
+              reason: true,
+              createdAt: true,
+              updatedAt: true,
             },
           },
         },
@@ -130,10 +138,13 @@ export async function GET(request: NextRequest) {
       })),
     ])
 
-    const users = usersRaw.map(({ _count, ...rest }) => ({
+    const users = usersRaw.map(({ _count, shadowBannedEntry, ...rest }) => ({
       ...rest,
       applicationCount: _count.preApplications,
       reviewCount: _count.preApplicationsReviewed,
+      shadowBanned: Boolean(shadowBannedEntry),
+      shadowBanReason: shadowBannedEntry?.reason ?? null,
+      shadowBannedAt: shadowBannedEntry?.createdAt ?? null,
     }))
 
     return NextResponse.json({ users, total, page, limit, stats })

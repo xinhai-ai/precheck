@@ -10,6 +10,7 @@ import { ApiErrorKeys } from "@/lib/api/error-keys"
 const updateUserSchema = z.object({
   role: z.enum(["USER", "ADMIN", "SUPER_ADMIN"]).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "BANNED"]).optional(),
+  banReason: z.string().trim().max(500).nullable().optional(),
 })
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         name: true,
         role: true,
         status: true,
+        banReason: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -108,15 +110,33 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
     const before = await db.user.findUnique({ where: { id } })
 
+    const nextData: {
+      role?: "USER" | "ADMIN" | "SUPER_ADMIN"
+      status?: "ACTIVE" | "INACTIVE" | "BANNED"
+      banReason?: string | null
+    } = {
+      ...(data.role !== undefined ? { role: data.role } : {}),
+      ...(data.status !== undefined ? { status: data.status } : {}),
+    }
+
+    if (data.status === "BANNED") {
+      nextData.banReason = data.banReason?.trim() || null
+    } else if (data.status !== undefined) {
+      nextData.banReason = null
+    } else if (data.banReason !== undefined && targetUser.status === "BANNED") {
+      nextData.banReason = data.banReason?.trim() || null
+    }
+
     const updatedUser = await db.user.update({
       where: { id },
-      data,
+      data: nextData,
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
         status: true,
+        banReason: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -129,7 +149,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       actor: user,
       before,
       after: updatedUser,
-      metadata: { payload: data },
+      metadata: { payload: nextData },
       request,
     })
 

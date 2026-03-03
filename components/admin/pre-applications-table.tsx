@@ -33,6 +33,7 @@ import {
   PauseCircle,
   ChevronDown,
   Download,
+  MoreHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -61,10 +62,12 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
+import type { Role } from "@prisma/client"
 import { preApplicationGroups, preApplicationSources } from "@/lib/pre-application/constants"
 import { PostContent } from "@/components/posts/post-content"
 import {
@@ -122,6 +125,7 @@ type AdminPreApplication = {
   group: string
   status:
     | "PENDING"
+    | "SHADOW_HIDDEN"
     | "APPROVED"
     | "REJECTED"
     | "DISPUTED"
@@ -132,7 +136,7 @@ type AdminPreApplication = {
   reviewedAt: string | null
   createdAt: string
   updatedAt: string
-  user: { id: string; name: string | null; email: string }
+  user: { id: string; name: string | null; email: string } | null
   reviewedBy: { id: string; name: string | null; email: string } | null
   inviteCode: { id: string; code: string; expiresAt: string | null; usedAt: string | null } | null
   codeSent: boolean
@@ -184,6 +188,7 @@ type PreApplicationVersion = {
   group: string
   status:
     | "PENDING"
+    | "SHADOW_HIDDEN"
     | "APPROVED"
     | "REJECTED"
     | "DISPUTED"
@@ -199,6 +204,7 @@ type PreApplicationVersion = {
 interface AdminPreApplicationsTableProps {
   locale: Locale
   dict: Dictionary
+  currentUserRole: Role | null
 }
 
 // 统计卡片组件
@@ -276,9 +282,20 @@ const toDateTimeLocal = (value: string) => {
   )}:${pad(date.getMinutes())}`
 }
 
-export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplicationsTableProps) {
+const isReviewEditableStatus = (status: AdminPreApplication["status"]) =>
+  status === "PENDING" ||
+  status === "DISPUTED" ||
+  status === "PENDING_REVIEW" ||
+  status === "ON_HOLD"
+
+export function AdminPreApplicationsTable({
+  locale,
+  dict,
+  currentUserRole,
+}: AdminPreApplicationsTableProps) {
   const t = dict.admin
   const adminExt = t as unknown as Record<string, string>
+  const isSuperAdmin = currentUserRole === "SUPER_ADMIN"
   const [records, setRecords] = useState<AdminPreApplication[]>([])
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({
@@ -287,6 +304,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     rejected: 0,
     disputed: 0,
     archived: 0,
+    shadowHidden: 0,
   })
   const [qqGroupsConfig, setQQGroupsConfig] = useState<
     {
@@ -340,6 +358,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchArchiving, setBatchArchiving] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [shadowBanSubmitting, setShadowBanSubmitting] = useState(false)
 
   // AI 审核相关状态
   const [aiReviewLoading, setAIReviewLoading] = useState(false)
@@ -364,6 +383,20 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     message: string
   } | null>(null)
 
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: "PENDING", label: t.pending },
+      { value: "DISPUTED", label: t.disputed || "有争议" },
+      { value: "PENDING_REVIEW", label: t.pendingReview || "待复核" },
+      { value: "ON_HOLD", label: t.onHold || "暂缓处理" },
+      { value: "APPROVED", label: t.approved },
+      { value: "REJECTED", label: t.rejected },
+      { value: "ARCHIVED", label: t.archived || "已归档" },
+      { value: "SHADOW_HIDDEN", label: adminExt.shadowHidden || "Shadowban 隐藏" },
+    ],
+    [adminExt.shadowHidden, t],
+  )
+
   useEffect(() => {
     if (
       reviewAction === "REJECT" ||
@@ -378,13 +411,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
   }, [reviewAction])
 
   useEffect(() => {
-    if (
-      selected?.status !== "PENDING" &&
-      selected?.status !== "DISPUTED" &&
-      selected?.status !== "PENDING_REVIEW" &&
-      selected?.status !== "ON_HOLD"
-    )
-      return
+    if (!selected?.status || !isReviewEditableStatus(selected.status)) return
 
     const templates =
       reviewAction === "APPROVE"
@@ -405,13 +432,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
       reviewAction === "ON_HOLD"
     )
       return
-    if (
-      selected?.status !== "PENDING" &&
-      selected?.status !== "DISPUTED" &&
-      selected?.status !== "PENDING_REVIEW" &&
-      selected?.status !== "ON_HOLD"
-    )
-      return
+    if (!selected?.status || !isReviewEditableStatus(selected.status)) return
     loadInviteOptions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, reviewAction, selected?.status])
@@ -448,7 +469,14 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
       setRecords(data.records || [])
       setTotal(data.total || 0)
       if (data.stats) {
-        setStats(data.stats)
+        setStats({
+          pending: data.stats.pending || 0,
+          approved: data.stats.approved || 0,
+          rejected: data.stats.rejected || 0,
+          disputed: data.stats.disputed || 0,
+          archived: data.stats.archived || 0,
+          shadowHidden: data.stats.shadowHidden || 0,
+        })
       }
     } catch (error) {
       console.error("Pre-application list error:", error)
@@ -490,6 +518,10 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
   }
 
   const toggleCodeSent = async (record: AdminPreApplication) => {
+    if (record.status === "SHADOW_HIDDEN") {
+      toast.error(adminExt.shadowbanLockedHint || "该申请处于 Shadowban 锁定，需先解除后才能修改")
+      return
+    }
     const newValue = !record.codeSent
     try {
       const res = await fetch(`/api/admin/pre-applications/${record.id}/code-sent`, {
@@ -577,6 +609,11 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
         label: t.onHold || "暂缓处理",
         className: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
         icon: PauseCircle,
+      },
+      SHADOW_HIDDEN: {
+        label: adminExt.shadowHidden || "Shadowban 隐藏",
+        className: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300",
+        icon: Archive,
       },
     }
     return map[status] || map.PENDING
@@ -776,12 +813,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     setDuplicateCheckError(null)
     setInviteCodeCheckResult(null)
     setMarkCodeSent(false)
-    if (
-      record.status === "PENDING" ||
-      record.status === "DISPUTED" ||
-      record.status === "PENDING_REVIEW" ||
-      record.status === "ON_HOLD"
-    ) {
+    if (isReviewEditableStatus(record.status)) {
       setReviewAction("APPROVE")
       setGuidance(record.guidance || "")
       // 保留已有的邀请码
@@ -892,6 +924,10 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
 
   const handleReview = async () => {
     if (!selected) return
+    if (selected.status === "SHADOW_HIDDEN") {
+      toast.error(adminExt.shadowbanLockedHint || "该申请处于 Shadowban 锁定，需先解除后才能修改")
+      return
+    }
     if (!guidance.trim()) {
       toast.error(t.reviewGuidanceRequired)
       return
@@ -949,6 +985,13 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
 
   const handleBatchArchive = async () => {
     if (selectedIds.size === 0) return
+    const hasShadowHidden = records.some(
+      (record) => selectedIds.has(record.id) && record.status === "SHADOW_HIDDEN",
+    )
+    if (hasShadowHidden) {
+      toast.error(adminExt.shadowbanLockedHint || "该申请处于 Shadowban 锁定，需先解除后才能修改")
+      return
+    }
     setBatchArchiving(true)
     try {
       const res = await fetch("/api/admin/pre-applications/batch-archive", {
@@ -972,6 +1015,67 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
     }
   }
 
+  const handleToggleShadowBan = async () => {
+    if (!selected?.user?.id) {
+      toast.error(adminExt.shadowbanUserRequired || "该申请未绑定用户，无法操作")
+      return
+    }
+
+    if (!isSuperAdmin) {
+      toast.error(adminExt.shadowbanSuperAdminOnly || "仅超级管理员可操作")
+      return
+    }
+
+    const userId = selected.user.id
+    const isShadowHidden = selected.status === "SHADOW_HIDDEN"
+
+    setShadowBanSubmitting(true)
+    try {
+      if (isShadowHidden) {
+        const confirmed = window.confirm(
+          adminExt.unshadowbanConfirm || "确认解除该用户 Shadowban 并恢复其申请到待审核？",
+        )
+        if (!confirmed) return
+
+        const res = await fetch(`/api/admin/shadow-banned-users/${encodeURIComponent(userId)}`, {
+          method: "DELETE",
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
+          throw new Error(message)
+        }
+        toast.success(adminExt.unshadowbanSuccess || "已解除 Shadowban")
+        setSelected((prev) => (prev ? { ...prev, status: "PENDING" } : prev))
+      } else {
+        const reason = window.prompt(
+          adminExt.shadowbanReasonPrompt || "请输入 Shadowban 原因（仅管理员可见）：",
+          "",
+        )
+        if (!reason?.trim()) return
+
+        const res = await fetch("/api/admin/shadow-banned-users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, reason: reason.trim() }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
+          throw new Error(message)
+        }
+        toast.success(adminExt.shadowbanSuccess || "已设置 Shadowban")
+        setSelected((prev) => (prev ? { ...prev, status: "SHADOW_HIDDEN" } : prev))
+      }
+
+      await fetchRecords()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.actionFailed)
+    } finally {
+      setShadowBanSubmitting(false)
+    }
+  }
+
   const columns: Column<AdminPreApplication>[] = useMemo(
     () => [
       {
@@ -989,6 +1093,8 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                     ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
                     : record.status === "REJECTED"
                       ? "bg-rose-100 text-rose-600 dark:bg-rose-900/30"
+                      : record.status === "SHADOW_HIDDEN"
+                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300"
                       : "bg-purple-100 text-purple-600 dark:bg-purple-900/30",
               )}
             >
@@ -1065,21 +1171,13 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
         render: (record) => (
           <Button
             variant={
-              record.status === "PENDING" ||
-              record.status === "DISPUTED" ||
-              record.status === "PENDING_REVIEW" ||
-              record.status === "ON_HOLD"
-                ? "default"
-                : "outline"
+              isReviewEditableStatus(record.status) ? "default" : "outline"
             }
             size="sm"
             className="h-8 gap-1.5 text-xs"
             onClick={() => openDialog(record)}
           >
-            {record.status === "PENDING" ||
-            record.status === "DISPUTED" ||
-            record.status === "PENDING_REVIEW" ||
-            record.status === "ON_HOLD" ? (
+            {isReviewEditableStatus(record.status) ? (
               <>
                 <Pencil className="h-3.5 w-3.5" />
                 {t.preApplicationReviewAction}
@@ -1118,7 +1216,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <StatCard
           icon={Clock}
           label={t.pending}
@@ -1171,6 +1269,17 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
           active={statusFilter.length === 1 && statusFilter[0] === "ARCHIVED"}
           onClick={() => {
             setStatusFilter(["ARCHIVED"])
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={Filter}
+          label={adminExt.shadowHidden || "Shadowban 隐藏"}
+          value={stats.shadowHidden}
+          color="primary"
+          active={statusFilter.length === 1 && statusFilter[0] === "SHADOW_HIDDEN"}
+          onClick={() => {
+            setStatusFilter(["SHADOW_HIDDEN"])
             setPage(1)
           }}
         />
@@ -1349,21 +1458,13 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                     <Filter className="h-3.5 w-3.5" />
                     {statusFilter.length === 0
                       ? t.statusAll
-                      : statusFilter.length === 4
+                      : statusFilter.length === statusFilterOptions.length
                         ? t.statusAll
                         : `${statusFilter.length} 项`}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-36">
-                  {[
-                    { value: "PENDING", label: t.pending },
-                    { value: "DISPUTED", label: t.disputed || "有争议" },
-                    { value: "PENDING_REVIEW", label: t.pendingReview || "待复核" },
-                    { value: "ON_HOLD", label: t.onHold || "暂缓处理" },
-                    { value: "APPROVED", label: t.approved },
-                    { value: "REJECTED", label: t.rejected },
-                    { value: "ARCHIVED", label: t.archived || "已归档" },
-                  ].map((item) => (
+                  {statusFilterOptions.map((item) => (
                     <DropdownMenuCheckboxItem
                       key={item.value}
                       checked={statusFilter.includes(item.value)}
@@ -1536,6 +1637,8 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                           ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
                           : record.status === "REJECTED"
                             ? "bg-rose-100 text-rose-600 dark:bg-rose-900/30"
+                            : record.status === "SHADOW_HIDDEN"
+                              ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300"
                             : "bg-purple-100 text-purple-600 dark:bg-purple-900/30",
                     )}
                   >
@@ -1583,19 +1686,11 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                     <Button
                       className="mt-3 w-full h-8 gap-1.5 text-xs"
                       variant={
-                        record.status === "PENDING" ||
-                        record.status === "DISPUTED" ||
-                        record.status === "PENDING_REVIEW" ||
-                        record.status === "ON_HOLD"
-                          ? "default"
-                          : "outline"
+                        isReviewEditableStatus(record.status) ? "default" : "outline"
                       }
                       onClick={() => openDialog(record)}
                     >
-                      {record.status === "PENDING" ||
-                      record.status === "DISPUTED" ||
-                      record.status === "PENDING_REVIEW" ||
-                      record.status === "ON_HOLD" ? (
+                      {isReviewEditableStatus(record.status) ? (
                         <>
                           <Pencil className="h-3.5 w-3.5" />
                           {t.preApplicationReviewAction}
@@ -1637,11 +1732,47 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
 
           {selected && (
             <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+              {selected.status === "SHADOW_HIDDEN" && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+                  {adminExt.shadowbanLockedHint || "该申请处于 Shadowban 锁定，需先解除后才能修改"}
+                </div>
+              )}
+
               {/* 申请人信息卡片 */}
               <div className="rounded-xl border bg-gradient-to-br from-muted/50 to-muted/20 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                  <User className="h-4 w-4 text-primary" />
-                  {t.preApplicationUser}
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <User className="h-4 w-4 text-primary" />
+                    {t.preApplicationUser}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={shadowBanSubmitting || !selected.user?.id}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {isSuperAdmin ? (
+                        <DropdownMenuItem
+                          onClick={handleToggleShadowBan}
+                          disabled={shadowBanSubmitting || !selected.user?.id}
+                        >
+                          {selected.status === "SHADOW_HIDDEN"
+                            ? adminExt.unshadowbanUser || "解除 Shadowban"
+                            : adminExt.shadowbanUser || "Shadowban 用户"}
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem disabled>
+                          {adminExt.shadowbanSuperAdminOnly || "仅超级管理员可操作"}
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                   <div>
@@ -2221,10 +2352,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
               )}
 
               {/* 审核操作表单 */}
-              {selected.status === "PENDING" ||
-              selected.status === "DISPUTED" ||
-              selected.status === "PENDING_REVIEW" ||
-              selected.status === "ON_HOLD" ? (
+              {isReviewEditableStatus(selected.status) ? (
                 <div className="space-y-4 rounded-xl border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Send className="h-4 w-4 text-primary" />
@@ -2442,10 +2570,7 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 {t.reviewCancel}
               </Button>
-              {(selected?.status === "PENDING" ||
-                selected?.status === "DISPUTED" ||
-                selected?.status === "PENDING_REVIEW" ||
-                selected?.status === "ON_HOLD") && (
+              {selected?.status && isReviewEditableStatus(selected.status) && (
                 <Button onClick={handleReview} disabled={submitting} className="gap-2">
                   {submitting ? (
                     <>

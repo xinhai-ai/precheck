@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { writeAuditLog } from "@/lib/audit"
+import { isShadowHiddenLockedForAdminMutation } from "@/lib/pre-application/shadowban"
 
 const schema = z.object({
   codeSent: z.boolean(),
@@ -34,6 +35,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
     if (!record) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
+    }
+
+    if (isShadowHiddenLockedForAdminMutation(record.status)) {
+      return createApiErrorResponse(request, ApiErrorKeys.admin.preApplications.shadowbanLocked, {
+        status: 409,
+      })
     }
 
     if (record.status !== "APPROVED") {

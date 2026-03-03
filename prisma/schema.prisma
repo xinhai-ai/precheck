@@ -25,6 +25,7 @@ model User {
   avatar                String?
   role                  Role       @default(USER)
   status                UserStatus @default(ACTIVE)
+  banReason             String?
   country               String?
   latestFingerprintHash String?
   latestFingerprintAt   DateTime?
@@ -57,6 +58,8 @@ model User {
   fingerprintEvents              FingerprintEvent[]      @relation("UserFingerprintEvents")
   riskIgnoredEntry               RiskIgnoredUser?        @relation("RiskIgnoredTarget")
   riskIgnoredCreated             RiskIgnoredUser[]       @relation("RiskIgnoredCreator")
+  shadowBannedEntry              ShadowBannedUser?       @relation("ShadowBannedTarget")
+  shadowBannedCreated            ShadowBannedUser[]      @relation("ShadowBannedCreator")
 
   // 密码重置
   resetToken       String?   @unique
@@ -269,6 +272,21 @@ model RiskIgnoredUser {
   @@index([createdAt])
 }
 
+model ShadowBannedUser {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  reason      String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User @relation("ShadowBannedTarget", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("ShadowBannedCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([createdById])
+  @@index([createdAt])
+}
+
 model InviteCode {
   id             String    @id @default(cuid())
   code           String    @unique
@@ -366,6 +384,7 @@ enum PostStatus {
 
 enum PreApplicationStatus {
   PENDING
+  SHADOW_HIDDEN
   APPROVED
   REJECTED
   DISPUTED

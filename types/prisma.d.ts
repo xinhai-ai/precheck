@@ -6,7 +6,7 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus = "PENDING" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
+export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
 
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
@@ -25,6 +25,7 @@ export interface User {
   avatar: string | null
   role: Role
   status: UserStatus
+  banReason: string | null
   country: string | null
   latestFingerprintHash: string | null
   latestFingerprintAt: Date | null
@@ -55,6 +56,8 @@ export interface User {
   fingerprintEvents: FingerprintEvent[]
   riskIgnoredEntry: RiskIgnoredUser | null
   riskIgnoredCreated: RiskIgnoredUser[]
+  shadowBannedEntry: ShadowBannedUser | null
+  shadowBannedCreated: ShadowBannedUser[]
   resetToken: string | null
   resetTokenExpiry: Date | null
   reactivationToken: string | null
@@ -208,6 +211,17 @@ export interface FingerprintEvent {
 }
 
 export interface RiskIgnoredUser {
+  id: string
+  userId: string
+  reason: string
+  createdById: string
+  createdAt: Date
+  updatedAt: Date
+  user: User
+  createdBy: User
+}
+
+export interface ShadowBannedUser {
   id: string
   userId: string
   reason: string

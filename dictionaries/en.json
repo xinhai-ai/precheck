@@ -43,6 +43,7 @@
         "serviceUnavailable": "Authentication service not configured",
         "verificationFailed": "Verification failed",
         "invalidCredentials": "Invalid email or password",
+        "banned": "This account has been banned. Please contact an administrator.",
         "invalidEmail": "Invalid email address",
         "passwordRequired": "Password is required",
         "validationFailed": "Invalid login data",
@@ -183,6 +184,7 @@
         "invalidInviteExpiry": "Invalid invite expiry",
         "expiryMustBeInFuture": "Invite expiry must be in the future",
         "alreadyReviewed": "Already reviewed",
+        "shadowbanLocked": "This application is shadowban-locked and cannot be modified",
         "aiNotConfigured": "AI service not configured",
         "aiReviewFailed": "AI review failed",
         "duplicateCheckFailed": "Duplicate check failed"
@@ -211,6 +213,13 @@
         "failedToDeleteIgnoredUser": "Failed to delete ignored user",
         "userNotFound": "User not found",
         "ignoredUserNotFound": "Ignored user record not found"
+      },
+      "shadowBan": {
+        "failedToFetch": "Failed to fetch shadowban list",
+        "failedToSave": "Failed to save shadowban",
+        "failedToDelete": "Failed to remove shadowban",
+        "userNotFound": "User not found",
+        "notFound": "Shadowban record not found"
       },
       "resetDatabase": {
         "failed": "Failed to reset database"
@@ -616,6 +625,7 @@
       "verificationCode": "Verification Code",
       "sendCode": "Send Code",
       "codeSent": "Code sent",
+      "banReasonLabel": "Reason",
       "errors": {
         "invalid": "Invalid email or password",
         "required": "Email and password are required",
@@ -1365,6 +1375,16 @@
     "posts": "Posts",
     "preApplications": "Pre-Applications",
     "preApplicationsDesc": "Review and manage pre-applications",
+    "shadowHidden": "Shadowban Hidden",
+    "shadowbanLockedHint": "This application is shadowban-locked. Unshadowban is required before any changes.",
+    "shadowbanSuperAdminOnly": "Only super admins can perform this action",
+    "shadowbanUserRequired": "This application is not linked to a user",
+    "shadowbanUser": "Shadowban User",
+    "unshadowbanUser": "Remove Shadowban",
+    "shadowbanSuccess": "Shadowban enabled",
+    "unshadowbanSuccess": "Shadowban removed",
+    "shadowbanReasonPrompt": "Enter shadowban reason (admin-only):",
+    "unshadowbanConfirm": "Remove shadowban and restore this user's applications to pending?",
     "riskControl": "Risk Control",
     "riskControlPanel": {
       "title": "Risk Control Center",
@@ -1744,6 +1764,8 @@
     "confirmTitle": "Confirm action",
     "confirmMakeAdmin": "Promote this user to admin?",
     "confirmBanUser": "Ban this user?",
+    "banReasonPrompt": "Enter ban reason (optional):",
+    "banReasonLabel": "Ban reason",
     "confirmActivateUser": "Activate this user?",
     "confirmDeleteUser": "Delete this user? The user will be marked as deleted.",
     "hardDelete": "Permanently Delete",

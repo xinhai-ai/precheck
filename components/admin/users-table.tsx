@@ -109,6 +109,10 @@ interface AdminUser {
   reviewCount: number
   latestFingerprintHash?: string | null
   latestFingerprintAt?: string | null
+  banReason?: string | null
+  shadowBanned?: boolean
+  shadowBanReason?: string | null
+  shadowBannedAt?: string | null
 }
 
 interface AdminUsersTableProps {
@@ -155,6 +159,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     onConfirm: () => Promise<void>
   } | null>(null)
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [emailsInput, setEmailsInput] = useState("")
   const [creating, setCreating] = useState(false)
@@ -166,6 +171,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
       if (res.ok) {
         const data = await res.json()
         setCurrentUserRole(data.user?.role || null)
+        setCurrentUserId(data.user?.id || null)
       }
     } catch {
       // ignore
@@ -278,7 +284,10 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
       .replace("{page}", summary.page.toString())
       .replace("{totalPages}", summary.totalPages.toString())
 
-  const updateUser = async (id: string, payload: { role?: string; status?: string }) => {
+  const updateUser = async (
+    id: string,
+    payload: { role?: string; status?: string; banReason?: string | null },
+  ) => {
     setBusyId(id)
     setError("")
     try {
@@ -476,6 +485,52 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {isSuperAdmin && user.id !== currentUserId && user.role !== "SUPER_ADMIN" && (
+            <DropdownMenuItem
+              disabled={isBusy}
+              onClick={async () => {
+                setBusyId(user.id)
+                try {
+                  if (user.shadowBanned) {
+                    const confirmed = window.confirm(
+                      adminExt.unshadowbanConfirm || "确认解除该用户 Shadowban？",
+                    )
+                    if (!confirmed) return
+                    const res = await fetch(
+                      `/api/admin/shadow-banned-users/${encodeURIComponent(user.id)}`,
+                      { method: "DELETE" },
+                    )
+                    if (!res.ok) throw new Error("Unshadowban failed")
+                    toast.success(adminExt.unshadowbanSuccess || "已解除 Shadowban")
+                  } else {
+                    const reason = window.prompt(
+                      adminExt.shadowbanReasonPrompt || "请输入 Shadowban 原因：",
+                      "",
+                    )
+                    if (!reason?.trim()) return
+                    const res = await fetch("/api/admin/shadow-banned-users", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ userId: user.id, reason: reason.trim() }),
+                    })
+                    if (!res.ok) throw new Error("Shadowban failed")
+                    toast.success(adminExt.shadowbanSuccess || "已设置 Shadowban")
+                  }
+                  await fetchUsers()
+                } catch (error) {
+                  console.error("Toggle shadowban error:", error)
+                  toast.error(t.actionFailed)
+                } finally {
+                  setBusyId(null)
+                }
+              }}
+            >
+              <Key className="mr-2 h-4 w-4" />
+              {user.shadowBanned
+                ? adminExt.unshadowbanUser || "解除 Shadowban"
+                : adminExt.shadowbanUser || "Shadowban 用户"}
+            </DropdownMenuItem>
+          )}
           {isSuperAdmin && user.role !== "SUPER_ADMIN" && (
             <>
               {canPromote && (
@@ -519,12 +574,26 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           <DropdownMenuItem
             disabled={isBusy}
             onClick={() => {
+              const isBanning = !shouldActivate
               setConfirmState({
                 title: t.confirmTitle,
                 description: shouldActivate ? t.confirmActivateUser : t.confirmBanUser,
                 confirmLabel: statusLabel,
                 onConfirm: async () => {
-                  await updateUser(user.id, { status: shouldActivate ? "ACTIVE" : "BANNED" })
+                  if (isBanning) {
+                    const reason = window.prompt(
+                      adminExt.banReasonPrompt || "请输入封禁理由（可选）：",
+                      user.banReason || "",
+                    )
+                    if (reason === null) return
+                    await updateUser(user.id, {
+                      status: "BANNED",
+                      banReason: reason.trim() || null,
+                    })
+                    return
+                  }
+
+                  await updateUser(user.id, { status: "ACTIVE", banReason: null })
                 },
               })
             }}
@@ -631,7 +700,23 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
       label: t.status,
       width: "10%",
       sortable: true,
-      render: (user) => renderStatusBadge(user.status),
+      render: (user) => (
+        <div className="space-y-1">
+          <div className="flex flex-wrap gap-1">
+            {renderStatusBadge(user.status)}
+            {user.shadowBanned && (
+              <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
+                {adminExt.shadowHidden || "Shadowban"}
+              </span>
+            )}
+          </div>
+          {user.status === "BANNED" && user.banReason && (
+            <p className="max-w-[220px] truncate text-xs text-muted-foreground">
+              {(adminExt.banReasonLabel || "封禁理由") + "：" + user.banReason}
+            </p>
+          )}
+        </div>
+      ),
     },
     {
       key: "applicationCount",
@@ -932,6 +1017,11 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   {renderRoleBadge(user.role)}
                   {renderStatusBadge(user.status)}
+                  {user.status === "BANNED" && user.banReason && (
+                    <span className="max-w-[180px] truncate text-muted-foreground">
+                      {(adminExt.banReasonLabel || "封禁理由") + "：" + user.banReason}
+                    </span>
+                  )}
                   <span className="text-muted-foreground">
                     {t.applicationCount || "申请"}: {user.applicationCount}
                   </span>

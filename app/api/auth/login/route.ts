@@ -132,10 +132,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 禁用/封禁账户不允许登录
-    if (user.status === "INACTIVE" || user.status === "BANNED") {
+    // 禁用账户不允许登录
+    if (user.status === "INACTIVE") {
       return createApiErrorResponse(request, "apiErrors.auth.login.invalidCredentials", {
         status: 401,
+      })
+    }
+
+    // 封禁账户：返回专用错误码，可附带封禁原因
+    if (user.status === "BANNED") {
+      return createApiErrorResponse(request, "apiErrors.auth.login.banned", {
+        status: 403,
+        meta: user.banReason ? { reason: user.banReason } : undefined,
       })
     }
 

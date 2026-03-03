@@ -56,8 +56,17 @@ export async function POST(request: NextRequest) {
     // 登录验证码：检查邮箱是否存在
     if (data.purpose === "login" && db) {
       const user = await db.user.findUnique({ where: { email: data.email } })
-      if (!user || user.status !== "ACTIVE") {
+      if (!user) {
         // 安全考虑：不透露邮箱是否存在，但不发送邮件
+        return NextResponse.json({
+          success: true,
+          message: "Verification code sent successfully",
+        })
+      }
+
+      // 非活动状态（除 BANNED 外）不发送验证码
+      // BANNED 用户允许接收验证码，以便在登录时明确收到封禁提示。
+      if (user.status !== "ACTIVE" && user.status !== "BANNED") {
         return NextResponse.json({
           success: true,
           message: "Verification code sent successfully",

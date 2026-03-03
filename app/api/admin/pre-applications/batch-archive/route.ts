@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import { isShadowHiddenLockedForAdminMutation } from "@/lib/pre-application/shadowban"
 
 const batchArchiveSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(100),
@@ -29,12 +30,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { ids } = batchArchiveSchema.parse(body)
 
-    const result = await db.$transaction(async (tx) => {
-      const records = await tx.preApplication.findMany({
-        where: { id: { in: ids } },
-        select: { id: true, status: true },
-      })
+    const records = await db.preApplication.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, status: true },
+    })
 
+    const hasShadowLocked = records.some((record) =>
+      isShadowHiddenLockedForAdminMutation(record.status),
+    )
+
+    if (hasShadowLocked) {
+      return createApiErrorResponse(request, ApiErrorKeys.admin.preApplications.shadowbanLocked, {
+        status: 409,
+      })
+    }
+
+    const result = await db.$transaction(async (tx) => {
       const updated = await tx.preApplication.updateMany({
         where: { id: { in: ids } },
         data: { status: "ARCHIVED" },

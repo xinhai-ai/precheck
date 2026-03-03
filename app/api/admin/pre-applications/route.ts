@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
-import { PreApplicationStatus } from "@prisma/client"
+import { PreApplicationStatus, type Prisma } from "@prisma/client"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import { SHADOW_HIDDEN_STATUS } from "@/lib/pre-application/shadowban"
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,15 +47,11 @@ export async function GET(request: NextRequest) {
     const sortBy = allowedSortBy.has(sortByParam) ? sortByParam : "createdAt"
     const sortOrder = sortOrderParam === "asc" ? "asc" : "desc"
 
-    const where: {
-      status?: PreApplicationStatus | { in: PreApplicationStatus[] }
-      registerEmail?: { contains: string; mode: "insensitive" }
-      queryToken?: { contains: string; mode: "insensitive" }
-      fingerprintHash?: { contains: string; mode: "insensitive" }
-      resubmitCount?: number
-      codeSent?: boolean
-      OR?: Array<Record<string, unknown>>
-    } = {}
+    const where: Prisma.PreApplicationWhereInput = {}
+
+    if (!status) {
+      where.status = { not: SHADOW_HIDDEN_STATUS }
+    }
 
     if (status) {
       const statuses = status
@@ -112,6 +109,7 @@ export async function GET(request: NextRequest) {
       rejectedCount,
       disputedCount,
       archivedCount,
+      shadowHiddenCount,
     ] = await Promise.all([
       db.preApplication.findMany({
         where,
@@ -150,6 +148,7 @@ export async function GET(request: NextRequest) {
       db.preApplication.count({ where: { status: "REJECTED" } }),
       db.preApplication.count({ where: { status: "DISPUTED" } }),
       db.preApplication.count({ where: { status: "ARCHIVED" } }),
+      db.preApplication.count({ where: { status: SHADOW_HIDDEN_STATUS } }),
     ])
 
     const enrichedRecords = records.map((record) => {
@@ -168,6 +167,7 @@ export async function GET(request: NextRequest) {
         rejected: rejectedCount,
         disputed: disputedCount,
         archived: archivedCount,
+        shadowHidden: shadowHiddenCount,
       },
     })
   } catch (error) {

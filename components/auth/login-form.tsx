@@ -61,7 +61,11 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
     }
   }, [countdown])
 
-  const resolveErrorMessage = (payload?: string | { code?: string; message?: string }) => {
+  const resolveErrorMessage = (payload?: {
+    code?: string
+    message?: string
+    meta?: Record<string, unknown>
+  } | string) => {
     if (!payload) {
       return t.errors.failed
     }
@@ -73,6 +77,14 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
     if (typeof payload.code === "string") {
       const dictValue = getDictionaryEntry(dict, payload.code)
       if (dictValue) {
+        if (
+          payload.code === "apiErrors.auth.login.banned" &&
+          typeof payload.meta?.reason === "string" &&
+          payload.meta.reason.trim()
+        ) {
+          const reasonLabel = t.banReasonLabel || "原因"
+          return `${dictValue} (${reasonLabel}: ${payload.meta.reason.trim()})`
+        }
         return dictValue
       }
     }

@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session"
 import { writeAuditLog } from "@/lib/audit"
 import { isAllowedEmailDomainAsync, normalizeEmail } from "@/lib/pre-application/validation"
 import { getEssayLengthLimits } from "@/lib/pre-application/essay-limits"
-import { PreApplicationSource } from "@prisma/client"
+import { PreApplicationSource, PreApplicationStatus } from "@prisma/client"
 import { randomBytes } from "crypto"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
@@ -13,6 +13,11 @@ import { getQQGroups } from "@/lib/qq-groups"
 import { getRedisClient } from "@/lib/redis"
 import { parseFingerprintPayload } from "@/lib/fingerprint/payload"
 import { recordFingerprintEvent } from "@/lib/fingerprint/server"
+import {
+  mapStatusForUserView,
+  SHADOW_HIDDEN_STATUS,
+  shouldPersistAsShadowHidden,
+} from "@/lib/pre-application/shadowban"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -31,6 +36,15 @@ async function getMaxResubmitCount(): Promise<number> {
     select: { maxResubmitCount: true },
   })
   return settings?.maxResubmitCount ?? 2
+}
+
+async function isUserShadowBanned(userId: string): Promise<boolean> {
+  if (!db) return false
+  const shadow = await db.shadowBannedUser.findUnique({
+    where: { userId },
+    select: { userId: true },
+  })
+  return Boolean(shadow)
 }
 
 const preApplicationSchema = z.object({
@@ -75,18 +89,32 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const recordsForUserView = records.map((record) => ({
+      ...record,
+      status: mapStatusForUserView(record.status),
+      versions: record.versions.map((version) => ({
+        ...version,
+        status: mapStatusForUserView(version.status),
+      })),
+    }))
+
     // 获取排队信息
     let queueInfo = null
     const latest = records[0]
-    if (latest && latest.status === "PENDING") {
+    const latestForUserView = recordsForUserView[0]
+    if (latest && latestForUserView && latestForUserView.status === "PENDING") {
+      const pendingLikeStatuses: PreApplicationStatus[] = [
+        PreApplicationStatus.PENDING,
+        SHADOW_HIDDEN_STATUS,
+      ]
       // 统计所有待审核的数量
       const totalPending = await db.preApplication.count({
-        where: { status: "PENDING" },
+        where: { status: { in: pendingLikeStatuses } },
       })
       // 统计在当前用户之前的待审核数量（按创建时间排序）
       const aheadCount = await db.preApplication.count({
         where: {
-          status: "PENDING",
+          status: { in: pendingLikeStatuses },
           createdAt: { lt: latest.createdAt },
         },
       })
@@ -98,8 +126,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      records,
-      latest: records[0] ?? null,
+      records: recordsForUserView,
+      latest: recordsForUserView[0] ?? null,
       maxResubmitCount: await getMaxResubmitCount(),
       queueInfo,
     })
@@ -172,6 +200,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const shadowBanned = await isUserShadowBanned(user.id)
+    const persistedStatus = shouldPersistAsShadowHidden(shadowBanned)
+
     // 在事务外部生成 queryToken，避免 pgBouncer 兼容性问题
     const queryToken = await generateUniqueQueryToken()
 
@@ -186,6 +217,7 @@ export async function POST(request: NextRequest) {
           registerEmail,
           queryToken,
           group: data.group,
+          status: persistedStatus,
           version: 1,
           resubmitCount: 0,
         },
@@ -207,7 +239,7 @@ export async function POST(request: NextRequest) {
           sourceDetail: data.source === "OTHER" ? data.sourceDetail?.trim() || null : null,
           registerEmail,
           group: data.group,
-          status: "PENDING",
+          status: persistedStatus,
         },
       })
 
@@ -233,7 +265,13 @@ export async function POST(request: NextRequest) {
       preApplicationId: record.id,
     })
 
-    return NextResponse.json({ record, maxResubmitCount: await getMaxResubmitCount() })
+    return NextResponse.json({
+      record: {
+        ...record,
+        status: mapStatusForUserView(record.status),
+      },
+      maxResubmitCount: await getMaxResubmitCount(),
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
@@ -357,6 +395,10 @@ export async function PUT(request: NextRequest) {
 
     const newVersion = latest.version + 1
     const newResubmitCount = isResubmit ? latest.resubmitCount + 1 : latest.resubmitCount
+    const shadowBanned = await isUserShadowBanned(user.id)
+    const persistedStatus = shouldPersistAsShadowHidden(
+      shadowBanned || latest.status === SHADOW_HIDDEN_STATUS,
+    )
 
     const payload = {
       essay,
@@ -382,7 +424,7 @@ export async function PUT(request: NextRequest) {
         where: { id: latest.id },
         data: {
           ...payload,
-          status: "PENDING",
+          status: persistedStatus,
           guidance: null,
           reviewedAt: null,
           reviewedById: null,
@@ -408,7 +450,7 @@ export async function PUT(request: NextRequest) {
           sourceDetail: data.source === "OTHER" ? data.sourceDetail?.trim() || null : null,
           registerEmail,
           group: data.group,
-          status: "PENDING",
+          status: persistedStatus,
         },
       })
 
@@ -441,7 +483,10 @@ export async function PUT(request: NextRequest) {
     })
 
     return NextResponse.json({
-      record,
+      record: {
+        ...record,
+        status: mapStatusForUserView(record.status),
+      },
       maxResubmitCount: maxResubmitCount,
       remainingResubmits: maxResubmitCount === 0 ? -1 : maxResubmitCount - newResubmitCount,
     })

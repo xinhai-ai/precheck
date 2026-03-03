@@ -13,6 +13,7 @@ import { PreApplicationStatus } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import { isShadowHiddenLockedForAdminMutation } from "@/lib/pre-application/shadowban"
 
 const reviewSchema = z.object({
   action: z.enum(["APPROVE", "REJECT", "DISPUTE", "PENDING_REVIEW", "ON_HOLD"]),
@@ -68,6 +69,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     if (!record) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
+    }
+
+    if (isShadowHiddenLockedForAdminMutation(record.status)) {
+      return createApiErrorResponse(request, ApiErrorKeys.admin.preApplications.shadowbanLocked, {
+        status: 409,
+      })
     }
 
     // PENDING、DISPUTED、PENDING_REVIEW 和 ON_HOLD 状态都可以审核

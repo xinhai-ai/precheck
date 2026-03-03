@@ -93,6 +93,7 @@ export const ApiErrorKeys = {
       invalidInviteExpiry: "apiErrors.admin.preApplications.invalidInviteExpiry",
       expiryMustBeInFuture: "apiErrors.admin.preApplications.expiryMustBeInFuture",
       alreadyReviewed: "apiErrors.admin.preApplications.alreadyReviewed",
+      shadowbanLocked: "apiErrors.admin.preApplications.shadowbanLocked",
       aiNotConfigured: "apiErrors.admin.preApplications.aiNotConfigured",
       aiReviewFailed: "apiErrors.admin.preApplications.aiReviewFailed",
       duplicateCheckFailed: "apiErrors.admin.preApplications.duplicateCheckFailed",
@@ -121,6 +122,13 @@ export const ApiErrorKeys = {
       failedToDeleteIgnoredUser: "apiErrors.admin.riskControl.failedToDeleteIgnoredUser",
       userNotFound: "apiErrors.admin.riskControl.userNotFound",
       ignoredUserNotFound: "apiErrors.admin.riskControl.ignoredUserNotFound",
+    },
+    shadowBan: {
+      failedToFetch: "apiErrors.admin.shadowBan.failedToFetch",
+      failedToSave: "apiErrors.admin.shadowBan.failedToSave",
+      failedToDelete: "apiErrors.admin.shadowBan.failedToDelete",
+      userNotFound: "apiErrors.admin.shadowBan.userNotFound",
+      notFound: "apiErrors.admin.shadowBan.notFound",
     },
     resetDatabase: {
       failed: "apiErrors.admin.resetDatabase.failed",
