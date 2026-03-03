@@ -1771,8 +1771,10 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                         </span>
                         <p className="font-medium">
                           {(fingerprintDetail?.fingerprintStatus || selected.fingerprintStatus) === "OK"
-                            ? ((t as Record<string, string>).success || "成功")
-                            : ((t as Record<string, string>).failed || "失败")}
+                            ? (((t as unknown as Record<string, unknown>).success as string) ||
+                              "成功")
+                            : (((t as unknown as Record<string, unknown>).failed as string) ||
+                              "失败")}
                         </p>
                       </div>
                       <div>

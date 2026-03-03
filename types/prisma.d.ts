@@ -6,16 +6,11 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus =
-  | "PENDING"
-  | "APPROVED"
-  | "REJECTED"
-  | "DISPUTED"
-  | "ARCHIVED"
-  | "PENDING_REVIEW"
-  | "ON_HOLD"
+export type PreApplicationStatus = "PENDING" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
 
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
+
+export type FingerprintStatus = "OK" | "COLLECTION_FAILED"
 
 export type EmailLogStatus = "PENDING" | "SUCCESS" | "FAILED"
 
@@ -31,6 +26,8 @@ export interface User {
   role: Role
   status: UserStatus
   country: string | null
+  latestFingerprintHash: string | null
+  latestFingerprintAt: Date | null
   createdAt: Date
   updatedAt: Date
   accounts: Account[]
@@ -55,6 +52,9 @@ export interface User {
   privateChatsAsAdmin: PrivateChat[]
   privateChatMessages: PrivateChatMessage[]
   apiTokens: ApiToken[]
+  fingerprintEvents: FingerprintEvent[]
+  riskIgnoredEntry: RiskIgnoredUser | null
+  riskIgnoredCreated: RiskIgnoredUser[]
   resetToken: string | null
   resetTokenExpiry: Date | null
   reactivationToken: string | null
@@ -148,6 +148,9 @@ export interface PreApplication {
   inviteCodeId: string | null
   codeSent: boolean
   codeSentAt: Date | null
+  fingerprintHash: string | null
+  fingerprintCollectedAt: Date | null
+  fingerprintStatus: FingerprintStatus
   createdAt: Date
   updatedAt: Date
   holdUntil: Date | null
@@ -156,6 +159,7 @@ export interface PreApplication {
   inviteCode: InviteCode | null
   versions: PreApplicationVersion[]
   tickets: Ticket[]
+  fingerprintEvents: FingerprintEvent[]
 }
 
 export interface PreApplicationVersion {
@@ -174,6 +178,44 @@ export interface PreApplicationVersion {
   createdAt: Date
   preApplication: PreApplication
   reviewedBy: User | null
+}
+
+export interface FingerprintProfile {
+  id: string
+  fingerprintHash: string
+  firstSeenAt: Date
+  lastSeenAt: Date
+  createdAt: Date
+  updatedAt: Date
+  events: FingerprintEvent[]
+}
+
+export interface FingerprintEvent {
+  id: string
+  fingerprintId: string | null
+  fingerprintHash: string | null
+  eventType: string
+  status: FingerprintStatus
+  failureReason: string | null
+  userId: string | null
+  preApplicationId: string | null
+  ip: string | null
+  userAgent: string | null
+  createdAt: Date
+  fingerprint: FingerprintProfile | null
+  user: User | null
+  preApplication: PreApplication | null
+}
+
+export interface RiskIgnoredUser {
+  id: string
+  userId: string
+  reason: string
+  createdById: string
+  createdAt: Date
+  updatedAt: Date
+  user: User
+  createdBy: User
 }
 
 export interface InviteCode {

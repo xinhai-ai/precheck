@@ -15,6 +15,7 @@ import {
   Key,
   ScrollText,
   History,
+  ShieldAlert,
 } from "lucide-react"
 import { motion } from "framer-motion"
 import {
@@ -125,6 +126,13 @@ export function CommandMenu({ locale }: CommandMenuProps) {
       path: `/${locale}/admin/pre-applications`,
       icon: ClipboardList,
       shortcut: "⌘3",
+    },
+    {
+      id: "risk-control",
+      label: ((dict.admin as Record<string, unknown>).riskControl as string) || "Risk Control",
+      path: `/${locale}/admin/risk-control`,
+      icon: ShieldAlert,
+      shortcut: "⌘8",
     },
     {
       id: "invite-codes",

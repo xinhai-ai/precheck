@@ -10,6 +10,7 @@
 # production
 /build
 
+plans/
 # debug
 npm-debug.log*
 yarn-debug.log*

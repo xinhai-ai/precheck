@@ -154,6 +154,86 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/risk-control/fingerprint-groups": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取指纹风险分组",
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "riskLevel", in: "query", schema: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] } },
+          {
+            name: "sortBy",
+            in: "query",
+            schema: { type: "string", enum: ["userCount", "applicationCount", "lastSeenAt"] },
+          },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"] } },
+        ],
+        responses: {
+          "200": { description: "风险分组列表" },
+          "403": { description: "无权限" },
+        },
+      },
+    },
+    "/admin/risk-control/fingerprint-groups/{fingerprintHash}": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取指纹风险分组详情",
+        parameters: [
+          { name: "fingerprintHash", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "风险分组详情" },
+          "404": { description: "未找到" },
+        },
+      },
+    },
+    "/admin/risk-control/ignored-users": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取风险忽略用户列表",
+        responses: {
+          "200": { description: "忽略用户列表" },
+          "403": { description: "无权限" },
+        },
+      },
+      post: {
+        tags: ["Admin"],
+        summary: "新增/更新风险忽略用户",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["userId", "reason"],
+                properties: {
+                  userId: { type: "string" },
+                  reason: { type: "string", minLength: 5 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "保存成功" },
+          "400": { description: "参数错误" },
+          "403": { description: "无权限" },
+        },
+      },
+    },
+    "/admin/risk-control/ignored-users/{userId}": {
+      delete: {
+        tags: ["Admin"],
+        summary: "删除风险忽略用户",
+        parameters: [{ name: "userId", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "删除成功" },
+          "404": { description: "未找到" },
+        },
+      },
+    },
     "/admin/messages": {
       get: {
         tags: ["Admin"],

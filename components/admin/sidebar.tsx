@@ -8,6 +8,7 @@ import {
   Users,
   Settings,
   Shield,
+  ShieldAlert,
   Mail,
   ClipboardList,
   Key,
@@ -57,6 +58,12 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       name: dict.admin.preApplications,
       href: `/${locale}/admin/pre-applications`,
       icon: ClipboardList,
+      superAdminOnly: false,
+    },
+    {
+      name: ((dict.admin as Record<string, unknown>).riskControl as string) || "风险控制",
+      href: `/${locale}/admin/risk-control`,
+      icon: ShieldAlert,
       superAdminOnly: false,
     },
     {

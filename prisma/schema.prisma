@@ -17,44 +17,46 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  password      String?     // 可选，OAuth 用户无密码
-  name          String?
-  avatar        String?
-  role          Role        @default(USER)
-  status        UserStatus  @default(ACTIVE)
-  country       String?
+  id                    String     @id @default(cuid())
+  email                 String     @unique
+  emailVerified         DateTime?
+  password              String? // 可选，OAuth 用户无密码
+  name                  String?
+  avatar                String?
+  role                  Role       @default(USER)
+  status                UserStatus @default(ACTIVE)
+  country               String?
   latestFingerprintHash String?
   latestFingerprintAt   DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
   // OAuth 关联
-  accounts      Account[]
-  sessions      Session[]
-  posts         Post[]
-  messageRecipients MessageRecipient[]
-  messagesCreated   Message[] @relation("CreatedMessages")
-  messagesRevoked   Message[] @relation("RevokedMessages")
-  preApplications          PreApplication[]
-  preApplicationsReviewed PreApplication[] @relation("ReviewedPreApplications")
+  accounts                       Account[]
+  sessions                       Session[]
+  posts                          Post[]
+  messageRecipients              MessageRecipient[]
+  messagesCreated                Message[]               @relation("CreatedMessages")
+  messagesRevoked                Message[]               @relation("RevokedMessages")
+  preApplications                PreApplication[]
+  preApplicationsReviewed        PreApplication[]        @relation("ReviewedPreApplications")
   preApplicationVersionsReviewed PreApplicationVersion[] @relation("ReviewedVersions")
-  inviteCodesCreated     InviteCode[] @relation("InviteCodesCreated")
-  inviteCodesAssigned    InviteCode[] @relation("InviteCodesAssigned")
-  inviteCodesUsed        InviteCode[] @relation("InviteCodesUsed")
-  inviteCodesIssued      InviteCode[] @relation("InviteCodesIssued")
-  queryTokensCreated     InviteCodeQueryToken[] @relation("QueryTokensCreated")
-  auditLogs              AuditLog[] @relation("AuditActor")
-  tickets                Ticket[] @relation("UserTickets")
-  ticketMessages         TicketMessage[] @relation("TicketMessageAuthor")
-  chatMessages           ChatMessage[] @relation("ChatMessageSender")
-  privateChatsAsUser     PrivateChat[] @relation("PrivateChatUser")
-  privateChatsAsAdmin    PrivateChat[] @relation("PrivateChatAdmin")
-  privateChatMessages    PrivateChatMessage[] @relation("PrivateChatMessageSender")
-  apiTokens              ApiToken[]
-  fingerprintEvents      FingerprintEvent[] @relation("UserFingerprintEvents")
+  inviteCodesCreated             InviteCode[]            @relation("InviteCodesCreated")
+  inviteCodesAssigned            InviteCode[]            @relation("InviteCodesAssigned")
+  inviteCodesUsed                InviteCode[]            @relation("InviteCodesUsed")
+  inviteCodesIssued              InviteCode[]            @relation("InviteCodesIssued")
+  queryTokensCreated             InviteCodeQueryToken[]  @relation("QueryTokensCreated")
+  auditLogs                      AuditLog[]              @relation("AuditActor")
+  tickets                        Ticket[]                @relation("UserTickets")
+  ticketMessages                 TicketMessage[]         @relation("TicketMessageAuthor")
+  chatMessages                   ChatMessage[]           @relation("ChatMessageSender")
+  privateChatsAsUser             PrivateChat[]           @relation("PrivateChatUser")
+  privateChatsAsAdmin            PrivateChat[]           @relation("PrivateChatAdmin")
+  privateChatMessages            PrivateChatMessage[]    @relation("PrivateChatMessageSender")
+  apiTokens                      ApiToken[]
+  fingerprintEvents              FingerprintEvent[]      @relation("UserFingerprintEvents")
+  riskIgnoredEntry               RiskIgnoredUser?        @relation("RiskIgnoredTarget")
+  riskIgnoredCreated             RiskIgnoredUser[]       @relation("RiskIgnoredCreator")
 
   // 密码重置
   resetToken       String?   @unique
@@ -107,33 +109,33 @@ model VerificationToken {
 }
 
 model Post {
-  id          String     @id @default(cuid())
-  title       String
-  content     String?
-  published   Boolean    @default(false)
-  status      PostStatus @default(DRAFT)
-  views       Int        @default(0)
-  authorId    String
-  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String     @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean    @default(false)
+  status    PostStatus @default(DRAFT)
+  views     Int        @default(0)
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@index([authorId])
   @@index([status])
 }
 
 model Message {
-  id           String             @id @default(cuid())
-  title        String
-  content      String
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  createdById  String
-  revokedAt    DateTime?
-  revokedById  String?
-  createdBy    User               @relation("CreatedMessages", fields: [createdById], references: [id], onDelete: Cascade)
-  revokedBy    User?              @relation("RevokedMessages", fields: [revokedById], references: [id])
-  recipients   MessageRecipient[]
+  id          String             @id @default(cuid())
+  title       String
+  content     String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdById String
+  revokedAt   DateTime?
+  revokedById String?
+  createdBy   User               @relation("CreatedMessages", fields: [createdById], references: [id], onDelete: Cascade)
+  revokedBy   User?              @relation("RevokedMessages", fields: [revokedById], references: [id])
+  recipients  MessageRecipient[]
 
   @@index([createdById])
   @@index([revokedAt])
@@ -144,9 +146,9 @@ model MessageRecipient {
   userId    String
   readAt    DateTime?
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([messageId, userId])
   @@index([userId, readAt])
@@ -154,37 +156,37 @@ model MessageRecipient {
 }
 
 model PreApplication {
-  id            String                 @id @default(cuid())
-  userId        String?                // 可选，访客申请时为空
-  qqNumber      String?                // 访客申请时使用 QQ 号
-  essay         String
-  source        PreApplicationSource?
-  sourceDetail  String?
-  registerEmail String
-  queryToken    String?                @unique
-  group         String                 // 动态 QQ 群 ID
-  status        PreApplicationStatus   @default(PENDING)
-  guidance      String?
-  reviewedAt    DateTime?
-  reviewedById  String?
-  resubmitCount Int                    @default(0)  // 重新提交次数（驳回后）
-  version       Int                    @default(1)  // 乐观锁版本号
-  inviteCodeId  String?                @unique
-  codeSent      Boolean                @default(false)
-  codeSentAt    DateTime?
-  fingerprintHash String?
+  id                     String                @id @default(cuid())
+  userId                 String? // 可选，访客申请时为空
+  qqNumber               String? // 访客申请时使用 QQ 号
+  essay                  String
+  source                 PreApplicationSource?
+  sourceDetail           String?
+  registerEmail          String
+  queryToken             String?               @unique
+  group                  String // 动态 QQ 群 ID
+  status                 PreApplicationStatus  @default(PENDING)
+  guidance               String?
+  reviewedAt             DateTime?
+  reviewedById           String?
+  resubmitCount          Int                   @default(0) // 重新提交次数（驳回后）
+  version                Int                   @default(1) // 乐观锁版本号
+  inviteCodeId           String?               @unique
+  codeSent               Boolean               @default(false)
+  codeSentAt             DateTime?
+  fingerprintHash        String?
   fingerprintCollectedAt DateTime?
-  fingerprintStatus FingerprintStatus  @default(COLLECTION_FAILED)
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  holdUntil     DateTime?              // ON_HOLD 状态的截止时间
+  fingerprintStatus      FingerprintStatus     @default(COLLECTION_FAILED)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  holdUntil              DateTime? // ON_HOLD 状态的截止时间
 
-  user       User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy User?                     @relation("ReviewedPreApplications", fields: [reviewedById], references: [id])
-  inviteCode InviteCode?               @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
-  versions   PreApplicationVersion[]   // 版本历史
-  tickets    Ticket[]                  // 工单
-  fingerprintEvents FingerprintEvent[] @relation("PreApplicationFingerprintEvents")
+  user              User?                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy        User?                   @relation("ReviewedPreApplications", fields: [reviewedById], references: [id])
+  inviteCode        InviteCode?             @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
+  versions          PreApplicationVersion[] // 版本历史
+  tickets           Ticket[] // 工单
+  fingerprintEvents FingerprintEvent[]      @relation("PreApplicationFingerprintEvents")
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
@@ -195,22 +197,22 @@ model PreApplication {
 
 // 预申请版本历史表
 model PreApplicationVersion {
-  id                String                 @id @default(cuid())
-  preApplicationId  String
-  version           Int
-  essay             String
-  source            PreApplicationSource?
-  sourceDetail      String?
-  registerEmail     String
-  group             String                 // 动态 QQ 群 ID
-  status            PreApplicationStatus   // 当前状态（会在审核时更新）
-  guidance          String?                // 审核意见
-  reviewedAt        DateTime?              // 审核时间
-  reviewedById      String?                // 审核人 ID
-  createdAt         DateTime               @default(now())
+  id               String                @id @default(cuid())
+  preApplicationId String
+  version          Int
+  essay            String
+  source           PreApplicationSource?
+  sourceDetail     String?
+  registerEmail    String
+  group            String // 动态 QQ 群 ID
+  status           PreApplicationStatus // 当前状态（会在审核时更新）
+  guidance         String? // 审核意见
+  reviewedAt       DateTime? // 审核时间
+  reviewedById     String? // 审核人 ID
+  createdAt        DateTime              @default(now())
 
-  preApplication    PreApplication @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
-  reviewedBy        User?          @relation("ReviewedVersions", fields: [reviewedById], references: [id])
+  preApplication PreApplication @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
+  reviewedBy     User?          @relation("ReviewedVersions", fields: [reviewedById], references: [id])
 
   @@unique([preApplicationId, version])
   @@index([preApplicationId])
@@ -229,17 +231,17 @@ model FingerprintProfile {
 }
 
 model FingerprintEvent {
-  id               String             @id @default(cuid())
+  id               String            @id @default(cuid())
   fingerprintId    String?
   fingerprintHash  String?
   eventType        String
-  status           FingerprintStatus  @default(COLLECTION_FAILED)
+  status           FingerprintStatus @default(COLLECTION_FAILED)
   failureReason    String?
   userId           String?
   preApplicationId String?
   ip               String?
   userAgent        String?
-  createdAt        DateTime           @default(now())
+  createdAt        DateTime          @default(now())
 
   fingerprint    FingerprintProfile? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
   user           User?               @relation("UserFingerprintEvents", fields: [userId], references: [id], onDelete: SetNull)
@@ -252,33 +254,48 @@ model FingerprintEvent {
   @@index([eventType, createdAt])
 }
 
+model RiskIgnoredUser {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  reason      String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User @relation("RiskIgnoredTarget", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("RiskIgnoredCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([createdById])
+  @@index([createdAt])
+}
+
 model InviteCode {
-  id          String    @id @default(cuid())
-  code        String    @unique
-  expiresAt   DateTime?
-  assignedAt  DateTime?
-  assignedById String?
-  usedAt      DateTime?
-  usedById    String?
-  createdById String?
+  id             String    @id @default(cuid())
+  code           String    @unique
+  expiresAt      DateTime?
+  assignedAt     DateTime?
+  assignedById   String?
+  usedAt         DateTime?
+  usedById       String?
+  createdById    String?
   issuedToUserId String?
   issuedToEmail  String?
   issuedAt       DateTime?
   queryTokenId   String?
-  deletedAt   DateTime?
+  deletedAt      DateTime?
   // 有效性检测结果
   checkValid     Boolean?
   checkMessage   String?
   checkedAt      DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  assignedBy User? @relation("InviteCodesAssigned", fields: [assignedById], references: [id])
-  usedBy     User? @relation("InviteCodesUsed", fields: [usedById], references: [id])
-  createdBy  User? @relation("InviteCodesCreated", fields: [createdById], references: [id])
-  issuedToUser User? @relation("InviteCodesIssued", fields: [issuedToUserId], references: [id])
-  preApplication PreApplication? @relation("PreApplicationInviteCode")
-  queryToken InviteCodeQueryToken? @relation(fields: [queryTokenId], references: [id])
+  assignedBy     User?                 @relation("InviteCodesAssigned", fields: [assignedById], references: [id])
+  usedBy         User?                 @relation("InviteCodesUsed", fields: [usedById], references: [id])
+  createdBy      User?                 @relation("InviteCodesCreated", fields: [createdById], references: [id])
+  issuedToUser   User?                 @relation("InviteCodesIssued", fields: [issuedToUserId], references: [id])
+  preApplication PreApplication?       @relation("PreApplicationInviteCode")
+  queryToken     InviteCodeQueryToken? @relation(fields: [queryTokenId], references: [id])
 
   @@index([expiresAt])
   @@index([usedAt])
@@ -371,48 +388,48 @@ enum FingerprintStatus {
 }
 
 model SiteSettings {
-  id                String   @id @default("global")
-  siteName          String
-  siteDescription   String
-  contactEmail      String
-  userRegistration  Boolean  @default(true)
-  oauthLogin        Boolean  @default(true)
-  emailNotifications Boolean @default(true)
-  postModeration    Boolean  @default(false)
-  maintenanceMode   Boolean  @default(false)
-  adminApplicationEnabled Boolean @default(true)
-  auditLogEnabled   Boolean  @default(false)
-  preApplicationEssayHint String @default("建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。")
-  preApplicationEssayMinLength Int @default(50)
-  preApplicationEssayMaxLength Int @default(300)
-  allowedEmailDomains     Json   @default("[]")
-  reviewTemplatesApprove  Json   @default("[]")
-  reviewTemplatesApproveNoCode Json @default("[]") // 审核通过但无邀请码时的模板
-  reviewTemplatesReject   Json   @default("[]")
-  reviewTemplatesDispute  Json   @default("[]")
+  id                           String   @id @default("global")
+  siteName                     String
+  siteDescription              String
+  contactEmail                 String
+  userRegistration             Boolean  @default(true)
+  oauthLogin                   Boolean  @default(true)
+  emailNotifications           Boolean  @default(true)
+  postModeration               Boolean  @default(false)
+  maintenanceMode              Boolean  @default(false)
+  adminApplicationEnabled      Boolean  @default(true)
+  auditLogEnabled              Boolean  @default(false)
+  preApplicationEssayHint      String   @default("建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。")
+  preApplicationEssayMinLength Int      @default(50)
+  preApplicationEssayMaxLength Int      @default(300)
+  allowedEmailDomains          Json     @default("[]")
+  reviewTemplatesApprove       Json     @default("[]")
+  reviewTemplatesApproveNoCode Json     @default("[]") // 审核通过但无邀请码时的模板
+  reviewTemplatesReject        Json     @default("[]")
+  reviewTemplatesDispute       Json     @default("[]")
   // QQ 群配置 [{id, name, number, url, enabled}]
-  qqGroups                Json   @default("[]")
+  qqGroups                     Json     @default("[]")
   // 邀请码链接前缀，如 "https://example.com/invites/"
-  inviteCodeUrlPrefix     String @default("")
+  inviteCodeUrlPrefix          String   @default("")
   // 邮件配置
-  emailProvider           String   @default("env")  // "env" | "api" | "smtp"
-  selectedEmailApiConfigId String?
-  smtpHost                String?
-  smtpPort                Int?
-  smtpUser                String?
-  smtpPass                String?
-  smtpSecure              Boolean  @default(false)
+  emailProvider                String   @default("env") // "env" | "api" | "smtp"
+  selectedEmailApiConfigId     String?
+  smtpHost                     String?
+  smtpPort                     Int?
+  smtpUser                     String?
+  smtpPass                     String?
+  smtpSecure                   Boolean  @default(false)
   // 驳回后最大重新提交次数（0 = 无限制）
-  maxResubmitCount        Int      @default(2)
+  maxResubmitCount             Int      @default(2)
   // 邀请码有效期检测 API 配置
-  inviteCodeCheckApiUrl   String?
-  inviteCodeCheckApiKey   String?  // API Key 值
-  analyticsEnabled        Boolean  @default(true)
-  linuxdoAutoAdmin        Boolean  @default(false)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  inviteCodeCheckApiUrl        String?
+  inviteCodeCheckApiKey        String? // API Key 值
+  analyticsEnabled             Boolean  @default(true)
+  linuxdoAutoAdmin             Boolean  @default(false)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 
-  selectedEmailApiConfig  EmailApiConfig? @relation(fields: [selectedEmailApiConfigId], references: [id], onDelete: SetNull)
+  selectedEmailApiConfig EmailApiConfig? @relation(fields: [selectedEmailApiConfigId], references: [id], onDelete: SetNull)
 }
 
 // 邮件 API 配置（支持多个）
@@ -432,14 +449,14 @@ model EmailApiConfig {
 }
 
 model EmailLog {
-  id          String          @id @default(cuid())
-  to          String
-  subject     String
-  status      EmailLogStatus  @default(PENDING)
-  provider    String?
+  id           String         @id @default(cuid())
+  to           String
+  subject      String
+  status       EmailLogStatus @default(PENDING)
+  provider     String?
   errorMessage String?
-  metadata    Json?
-  createdAt   DateTime        @default(now())
+  metadata     Json?
+  createdAt    DateTime       @default(now())
 
   @@index([to])
   @@index([status])
@@ -462,18 +479,18 @@ enum TicketStatus {
 
 // 工单
 model Ticket {
-  id                 String        @id @default(cuid())
-  preApplicationId   String
-  userId             String
-  subject            String
-  status             TicketStatus  @default(OPEN)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  resolvedAt         DateTime?
+  id               String       @id @default(cuid())
+  preApplicationId String
+  userId           String
+  subject          String
+  status           TicketStatus @default(OPEN)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  resolvedAt       DateTime?
 
-  preApplication     PreApplication @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
-  user               User           @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
-  messages           TicketMessage[]
+  preApplication PreApplication  @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
+  user           User            @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  messages       TicketMessage[]
 
   @@index([status])
   @@index([userId])
@@ -482,30 +499,30 @@ model Ticket {
 
 // 工单消息
 model TicketMessage {
-  id         String   @id @default(cuid())
-  ticketId   String
-  authorId   String
-  content    String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
 
-  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author     User     @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, createdAt])
 }
 
 // 聊天消息
 model ChatMessage {
-  id         String    @id @default(cuid())
-  content    String
-  senderId   String
-  replyToId  String?
-  createdAt  DateTime  @default(now())
-  deletedAt  DateTime?
+  id        String    @id @default(cuid())
+  content   String
+  senderId  String
+  replyToId String?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
 
-  sender     User         @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  replyTo    ChatMessage? @relation("ChatMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies    ChatMessage[] @relation("ChatMessageReplies")
+  sender  User          @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo ChatMessage?  @relation("ChatMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies ChatMessage[] @relation("ChatMessageReplies")
 
   @@index([createdAt])
   @@index([senderId])
@@ -514,15 +531,15 @@ model ChatMessage {
 
 // 私信会话（用户与管理员之间）
 model PrivateChat {
-  id          String    @id @default(cuid())
-  userId      String
-  adminId     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  adminId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User      @relation("PrivateChatUser", fields: [userId], references: [id], onDelete: Cascade)
-  admin       User      @relation("PrivateChatAdmin", fields: [adminId], references: [id], onDelete: Cascade)
-  messages    PrivateChatMessage[]
+  user     User                 @relation("PrivateChatUser", fields: [userId], references: [id], onDelete: Cascade)
+  admin    User                 @relation("PrivateChatAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  messages PrivateChatMessage[]
 
   @@unique([userId, adminId])
   @@index([userId])
@@ -531,15 +548,15 @@ model PrivateChat {
 }
 
 model PrivateChatMessage {
-  id         String    @id @default(cuid())
-  chatId     String
-  senderId   String
-  content    String
-  createdAt  DateTime  @default(now())
-  readAt     DateTime?
+  id        String    @id @default(cuid())
+  chatId    String
+  senderId  String
+  content   String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
 
-  chat       PrivateChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender     User        @relation("PrivateChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  chat   PrivateChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User        @relation("PrivateChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([chatId, createdAt])
   @@index([senderId])

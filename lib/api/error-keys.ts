@@ -113,6 +113,15 @@ export const ApiErrorKeys = {
       failedToFetch: "apiErrors.admin.systemConfig.failedToFetch",
       failedToUpdate: "apiErrors.admin.systemConfig.failedToUpdate",
     },
+    riskControl: {
+      failedToFetchGroups: "apiErrors.admin.riskControl.failedToFetchGroups",
+      failedToFetchGroupDetail: "apiErrors.admin.riskControl.failedToFetchGroupDetail",
+      failedToFetchIgnoredUsers: "apiErrors.admin.riskControl.failedToFetchIgnoredUsers",
+      failedToSaveIgnoredUser: "apiErrors.admin.riskControl.failedToSaveIgnoredUser",
+      failedToDeleteIgnoredUser: "apiErrors.admin.riskControl.failedToDeleteIgnoredUser",
+      userNotFound: "apiErrors.admin.riskControl.userNotFound",
+      ignoredUserNotFound: "apiErrors.admin.riskControl.ignoredUserNotFound",
+    },
     resetDatabase: {
       failed: "apiErrors.admin.resetDatabase.failed",
     },
