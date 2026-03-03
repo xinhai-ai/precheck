@@ -39,6 +39,7 @@ export type FingerprintRiskDetailApplication = {
   id: string
   status: string
   registerEmail: string
+  essay: string
   createdAt: string
   user: { id: string; name: string | null; email: string } | null
 }

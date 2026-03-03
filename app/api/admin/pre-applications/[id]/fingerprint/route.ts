@@ -76,6 +76,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
           select: {
             id: true,
             registerEmail: true,
+            essay: true,
             status: true,
             queryToken: true,
             createdAt: true,
@@ -113,4 +114,3 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     })
   }
 }
-

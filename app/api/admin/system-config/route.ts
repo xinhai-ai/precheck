@@ -13,6 +13,7 @@ import {
   DEFAULT_ESSAY_MIN_LENGTH,
   normalizeEssayLengthLimits,
 } from "@/lib/pre-application/essay-limits"
+import { invalidateSiteSettingsCache } from "@/lib/site-settings"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
@@ -301,6 +302,8 @@ export async function PUT(request: NextRequest) {
       },
       request,
     })
+
+    await invalidateSiteSettingsCache()
 
     return NextResponse.json({
       preApplicationEssayHint: updated.preApplicationEssayHint,

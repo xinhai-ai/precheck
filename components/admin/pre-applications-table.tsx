@@ -156,6 +156,7 @@ type FingerprintRelatedUser = {
 type FingerprintRelatedApplication = {
   id: string
   registerEmail: string
+  essay: string
   status: string
   queryToken: string | null
   createdAt: string
@@ -1828,13 +1829,26 @@ export function AdminPreApplicationsTable({ locale, dict }: AdminPreApplications
                         <p className="text-xs text-muted-foreground">
                           {adminExt.relatedApplications || "关联申请"}
                         </p>
-                        <div className="max-h-28 space-y-1 overflow-y-auto rounded-md border bg-card p-2">
+                        <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border bg-card p-2">
                           {fingerprintDetail.relatedApplications.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
-                              <span className="truncate">
-                                {item.user?.name || item.user?.email || item.registerEmail}
-                              </span>
-                              <span className="text-muted-foreground">{item.status}</span>
+                            <div key={item.id} className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="truncate">
+                                  {item.user?.name || item.user?.email || item.registerEmail}
+                                </span>
+                                <span className="text-muted-foreground">{item.status}</span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground">
+                                {formatDateTime(item.createdAt, locale)}
+                              </p>
+                              <div className="rounded bg-background p-2">
+                                <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+                                  {t.preApplicationEssay}
+                                </p>
+                                <p className="whitespace-pre-wrap break-words text-[11px]">
+                                  {item.essay || "-"}
+                                </p>
+                              </div>
                             </div>
                           ))}
                         </div>

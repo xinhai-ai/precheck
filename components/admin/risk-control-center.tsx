@@ -801,11 +801,24 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                     ) : (
                       <div className="space-y-2">
                         {detail.relatedApplications.map((item) => (
-                          <div key={item.id} className="rounded-md border p-2">
-                            <p className="text-sm font-medium">{item.user?.name || item.registerEmail}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.status} · {formatDateTime(item.createdAt, locale)}
+                          <div key={item.id} className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium">
+                                {item.user?.name || item.user?.email || item.registerEmail}
+                              </p>
+                              <span className="text-muted-foreground">{item.status}</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              {formatDateTime(item.createdAt, locale)}
                             </p>
+                            <div className="rounded bg-background p-2">
+                              <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+                                {riskT.applicationEssay || "小作文"}
+                              </p>
+                              <p className="whitespace-pre-wrap break-words text-[11px]">
+                                {item.essay || "-"}
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>

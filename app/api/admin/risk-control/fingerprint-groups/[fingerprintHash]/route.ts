@@ -85,6 +85,7 @@ export async function GET(
             id: true,
             status: true,
             registerEmail: true,
+            essay: true,
             createdAt: true,
             user: {
               select: {
@@ -202,6 +203,7 @@ export async function GET(
         id: item.id,
         status: item.status,
         registerEmail: item.registerEmail,
+        essay: item.essay,
         createdAt: item.createdAt.toISOString(),
         user: item.user,
       })),

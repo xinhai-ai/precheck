@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session"
 import { locales } from "@/lib/i18n/config"
 import { writeAuditLog } from "@/lib/audit"
 import { db } from "@/lib/db"
+import { invalidateSiteSettingsCache } from "@/lib/site-settings"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 
 export async function POST(request: NextRequest) {
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
       revalidatePath(`/${locale}/dashboard`)
       revalidatePath(`/${locale}/admin`)
     })
+    await invalidateSiteSettingsCache()
 
     if (db) {
       await writeAuditLog(db, {
