@@ -12,6 +12,7 @@ DO $$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'BANNED', 'D
 DO $$ BEGIN CREATE TYPE "PostStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'PENDING', 'REJECTED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "PreApplicationStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'DISPUTED', 'ARCHIVED', 'PENDING_REVIEW', 'ON_HOLD'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "PreApplicationSource" AS ENUM ('TIEBA', 'BILIBILI', 'DOUYIN', 'XIAOHONGSHU', 'OTHER'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE "PreApplicationAdminNoteAction" AS ENUM ('CREATED', 'UPDATED', 'DELETED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "EmailLogStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "TicketStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
@@ -276,6 +277,33 @@ CREATE TABLE IF NOT EXISTS "PreApplicationVersion" (
   CONSTRAINT "PreApplicationVersion_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- 预申请管理员备注表
+CREATE TABLE IF NOT EXISTS "PreApplicationAdminNote" (
+  "id"               TEXT NOT NULL PRIMARY KEY,
+  "preApplicationId" TEXT NOT NULL,
+  "content"          TEXT NOT NULL,
+  "createdById"      TEXT NOT NULL,
+  "updatedById"      TEXT NOT NULL,
+  "deletedAt"        TIMESTAMP(3),
+  "createdAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "PreApplicationAdminNote_preApplicationId_fkey" FOREIGN KEY ("preApplicationId") REFERENCES "PreApplication"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "PreApplicationAdminNote_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "PreApplicationAdminNote_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- 预申请管理员备注历史表
+CREATE TABLE IF NOT EXISTS "PreApplicationAdminNoteRevision" (
+  "id"         TEXT NOT NULL PRIMARY KEY,
+  "noteId"     TEXT NOT NULL,
+  "action"     "PreApplicationAdminNoteAction" NOT NULL,
+  "content"    TEXT NOT NULL,
+  "editedById" TEXT NOT NULL,
+  "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "PreApplicationAdminNoteRevision_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "PreApplicationAdminNote"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "PreApplicationAdminNoteRevision_editedById_fkey" FOREIGN KEY ("editedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- ============================================
 -- 7. 审计日志
 -- ============================================
@@ -429,6 +457,10 @@ CREATE INDEX IF NOT EXISTS "PreApplication_registerEmail_idx" ON "PreApplication
 CREATE INDEX IF NOT EXISTS "PreApplication_qqNumber_idx" ON "PreApplication"("qqNumber");
 CREATE UNIQUE INDEX IF NOT EXISTS "PreApplicationVersion_preApplicationId_version_key" ON "PreApplicationVersion"("preApplicationId", "version");
 CREATE INDEX IF NOT EXISTS "PreApplicationVersion_preApplicationId_idx" ON "PreApplicationVersion"("preApplicationId");
+CREATE INDEX IF NOT EXISTS "PreApplicationAdminNote_preApplicationId_createdAt_idx" ON "PreApplicationAdminNote"("preApplicationId", "createdAt");
+CREATE INDEX IF NOT EXISTS "PreApplicationAdminNote_createdById_createdAt_idx" ON "PreApplicationAdminNote"("createdById", "createdAt");
+CREATE INDEX IF NOT EXISTS "PreApplicationAdminNote_deletedAt_idx" ON "PreApplicationAdminNote"("deletedAt");
+CREATE INDEX IF NOT EXISTS "PreApplicationAdminNoteRevision_noteId_createdAt_idx" ON "PreApplicationAdminNoteRevision"("noteId", "createdAt");
 CREATE INDEX IF NOT EXISTS "AuditLog_entityType_entityId_idx" ON "AuditLog"("entityType", "entityId");
 CREATE INDEX IF NOT EXISTS "AuditLog_actorId_createdAt_idx" ON "AuditLog"("actorId", "createdAt");
 CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");

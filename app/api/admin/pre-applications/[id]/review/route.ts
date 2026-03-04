@@ -255,7 +255,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           status: "DISPUTED",
           reviewerName,
           guidance: guidanceWithCode,
-          essay: record.essay,
           locale: currentLocale,
         })
 
@@ -487,7 +486,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         status: isApproved ? "APPROVED" : "REJECTED",
         reviewerName,
         guidance: isApproved ? guidanceWithCode : guidance,
-        essay: record.essay,
         locale: currentLocale,
       })
 

@@ -97,6 +97,15 @@ export const ApiErrorKeys = {
       aiNotConfigured: "apiErrors.admin.preApplications.aiNotConfigured",
       aiReviewFailed: "apiErrors.admin.preApplications.aiReviewFailed",
       duplicateCheckFailed: "apiErrors.admin.preApplications.duplicateCheckFailed",
+      notes: {
+        failedToFetch: "apiErrors.admin.preApplications.notes.failedToFetch",
+        failedToCreate: "apiErrors.admin.preApplications.notes.failedToCreate",
+        failedToUpdate: "apiErrors.admin.preApplications.notes.failedToUpdate",
+        failedToDelete: "apiErrors.admin.preApplications.notes.failedToDelete",
+        notFound: "apiErrors.admin.preApplications.notes.notFound",
+        permissionDenied: "apiErrors.admin.preApplications.notes.permissionDenied",
+        alreadyDeleted: "apiErrors.admin.preApplications.notes.alreadyDeleted",
+      },
     },
     posts: {
       failedToFetch: "apiErrors.admin.posts.failedToFetch",

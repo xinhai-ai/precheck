@@ -10,6 +10,8 @@ export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "R
 
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
+export type PreApplicationAdminNoteAction = "CREATED" | "UPDATED" | "DELETED"
+
 export type FingerprintStatus = "OK" | "COLLECTION_FAILED"
 
 export type EmailLogStatus = "PENDING" | "SUCCESS" | "FAILED"
@@ -40,6 +42,9 @@ export interface User {
   preApplications: PreApplication[]
   preApplicationsReviewed: PreApplication[]
   preApplicationVersionsReviewed: PreApplicationVersion[]
+  preApplicationAdminNotesCreated: PreApplicationAdminNote[]
+  preApplicationAdminNotesUpdated: PreApplicationAdminNote[]
+  preApplicationAdminNoteRevisions: PreApplicationAdminNoteRevision[]
   inviteCodesCreated: InviteCode[]
   inviteCodesAssigned: InviteCode[]
   inviteCodesUsed: InviteCode[]
@@ -161,6 +166,7 @@ export interface PreApplication {
   reviewedBy: User | null
   inviteCode: InviteCode | null
   versions: PreApplicationVersion[]
+  adminNotes: PreApplicationAdminNote[]
   tickets: Ticket[]
   fingerprintEvents: FingerprintEvent[]
 }
@@ -181,6 +187,32 @@ export interface PreApplicationVersion {
   createdAt: Date
   preApplication: PreApplication
   reviewedBy: User | null
+}
+
+export interface PreApplicationAdminNote {
+  id: string
+  preApplicationId: string
+  content: string
+  createdById: string
+  updatedById: string
+  deletedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  preApplication: PreApplication
+  createdBy: User
+  updatedBy: User
+  revisions: PreApplicationAdminNoteRevision[]
+}
+
+export interface PreApplicationAdminNoteRevision {
+  id: string
+  noteId: string
+  action: PreApplicationAdminNoteAction
+  content: string
+  editedById: string
+  createdAt: Date
+  note: PreApplicationAdminNote
+  editedBy: User
 }
 
 export interface FingerprintProfile {

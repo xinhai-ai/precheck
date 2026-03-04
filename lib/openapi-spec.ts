@@ -131,7 +131,11 @@ export const openApiSpec = {
           { name: "queryToken", in: "query", schema: { type: "string" } },
           { name: "fingerprintHash", in: "query", schema: { type: "string" } },
           { name: "reviewRound", in: "query", schema: { type: "integer", minimum: 1 } },
-          { name: "inviteStatus", in: "query", schema: { type: "string", enum: ["issued", "none"] } },
+          {
+            name: "inviteStatus",
+            in: "query",
+            schema: { type: "string", enum: ["issued", "none"] },
+          },
           { name: "page", in: "query", schema: { type: "integer", default: 1 } },
           { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
           {
@@ -243,6 +247,96 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/pre-applications/{id}/notes": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取预申请管理员备注",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "备注列表" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "申请不存在" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+      post: {
+        tags: ["Admin"],
+        summary: "创建预申请管理员备注",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["content"],
+                properties: {
+                  content: { type: "string", minLength: 1, maxLength: 2000 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "创建成功" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "申请不存在" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+    },
+    "/admin/pre-applications/{id}/notes/{noteId}": {
+      patch: {
+        tags: ["Admin"],
+        summary: "更新预申请管理员备注",
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+          { name: "noteId", in: "path", required: true, schema: { type: "string" } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["content"],
+                properties: {
+                  content: { type: "string", minLength: 1, maxLength: 2000 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "更新成功" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "备注不存在" },
+          "409": { description: "备注已删除" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+      delete: {
+        tags: ["Admin"],
+        summary: "删除预申请管理员备注（软删除）",
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+          { name: "noteId", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "删除成功" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "备注不存在" },
+          "409": { description: "备注已删除" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+    },
     "/admin/risk-control/fingerprint-groups": {
       get: {
         tags: ["Admin"],
@@ -251,7 +345,11 @@ export const openApiSpec = {
           { name: "page", in: "query", schema: { type: "integer", default: 1 } },
           { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
           { name: "search", in: "query", schema: { type: "string" } },
-          { name: "riskLevel", in: "query", schema: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] } },
+          {
+            name: "riskLevel",
+            in: "query",
+            schema: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+          },
           {
             name: "sortBy",
             in: "query",

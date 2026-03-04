@@ -34,6 +34,8 @@ import {
   ChevronDown,
   Download,
   MoreHorizontal,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -81,6 +83,7 @@ import { cn } from "@/lib/utils"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
 import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
 import { extractPureCode } from "@/lib/invite-code/utils"
+import { MAX_PRE_APPLICATION_ADMIN_NOTE_LENGTH } from "@/lib/pre-application/admin-note-utils"
 
 // AI 审核结果类型
 type AIReviewResult = {
@@ -200,6 +203,27 @@ type PreApplicationVersion = {
   reviewedAt: string | null
   createdAt: string
   reviewedBy: { id: string; name: string | null; email: string } | null
+}
+
+type PreApplicationAdminNoteRevision = {
+  id: string
+  action: "CREATED" | "UPDATED" | "DELETED"
+  content: string
+  createdAt: string
+  editedBy: { id: string; name: string | null; email: string }
+}
+
+type PreApplicationAdminNote = {
+  id: string
+  content: string
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+  createdBy: { id: string; name: string | null; email: string }
+  updatedBy: { id: string; name: string | null; email: string }
+  revisions: PreApplicationAdminNoteRevision[]
+  canEdit: boolean
+  canDelete: boolean
 }
 
 interface AdminPreApplicationsTableProps {
@@ -349,6 +373,14 @@ export function AdminPreApplicationsTable({
   const [submitting, setSubmitting] = useState(false)
   const [historyRecords, setHistoryRecords] = useState<PreApplicationVersion[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [noteRecords, setNoteRecords] = useState<PreApplicationAdminNote[]>([])
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [noteSubmitting, setNoteSubmitting] = useState(false)
+  const [noteSavingId, setNoteSavingId] = useState<string | null>(null)
+  const [noteDeletingId, setNoteDeletingId] = useState<string | null>(null)
+  const [newNoteContent, setNewNoteContent] = useState("")
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteContent, setEditingNoteContent] = useState("")
   const [inviteOptions, setInviteOptions] = useState<
     Array<{ id: string; code: string; expiresAt: string | null; usedAt: string | null }>
   >([])
@@ -544,7 +576,11 @@ export function AdminPreApplicationsTable({
       if (selected?.id === record.id) {
         setSelected((prev) =>
           prev
-            ? { ...prev, codeSent: newValue, codeSentAt: newValue ? new Date().toISOString() : null }
+            ? {
+                ...prev,
+                codeSent: newValue,
+                codeSentAt: newValue ? new Date().toISOString() : null,
+              }
             : prev,
         )
       }
@@ -649,6 +685,138 @@ export function AdminPreApplicationsTable({
       setHistoryRecords([])
     } finally {
       setHistoryLoading(false)
+    }
+  }
+
+  const loadNotes = async (recordId: string) => {
+    setNotesLoading(true)
+    try {
+      const res = await fetch(`/api/admin/pre-applications/${recordId}/notes`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = resolveApiErrorMessage(data, dict) ?? t.fetchFailed
+        throw new Error(message)
+      }
+
+      const data = await res.json()
+      setNoteRecords(data.records || [])
+    } catch (error) {
+      console.error("Pre-application notes error:", error)
+      toast.error(error instanceof Error ? error.message : t.fetchFailed)
+      setNoteRecords([])
+    } finally {
+      setNotesLoading(false)
+    }
+  }
+
+  const handleCreateNote = async () => {
+    if (!selected) return
+    const content = newNoteContent.trim()
+    if (!content) {
+      toast.error(adminExt.preApplicationNoteContentRequired || t.reviewGuidanceRequired)
+      return
+    }
+
+    setNoteSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/pre-applications/${selected.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
+        throw new Error(message)
+      }
+
+      const data = await res.json()
+      if (data.record) {
+        setNoteRecords((prev) => [data.record, ...prev])
+      }
+      setNewNoteContent("")
+      toast.success(adminExt.preApplicationNoteCreateSuccess || "备注已添加")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.actionFailed)
+    } finally {
+      setNoteSubmitting(false)
+    }
+  }
+
+  const startEditNote = (note: PreApplicationAdminNote) => {
+    setEditingNoteId(note.id)
+    setEditingNoteContent(note.content)
+  }
+
+  const cancelEditNote = () => {
+    setEditingNoteId(null)
+    setEditingNoteContent("")
+  }
+
+  const handleSaveNote = async (note: PreApplicationAdminNote) => {
+    if (!selected) return
+    const content = editingNoteContent.trim()
+    if (!content) {
+      toast.error(adminExt.preApplicationNoteContentRequired || t.reviewGuidanceRequired)
+      return
+    }
+
+    setNoteSavingId(note.id)
+    try {
+      const res = await fetch(`/api/admin/pre-applications/${selected.id}/notes/${note.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
+        throw new Error(message)
+      }
+
+      const data = await res.json()
+      if (data.record) {
+        setNoteRecords((prev) => prev.map((item) => (item.id === note.id ? data.record : item)))
+      }
+      cancelEditNote()
+      toast.success(adminExt.preApplicationNoteUpdateSuccess || "备注已更新")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.actionFailed)
+    } finally {
+      setNoteSavingId(null)
+    }
+  }
+
+  const handleDeleteNote = async (note: PreApplicationAdminNote) => {
+    if (!selected) return
+    const confirmed = window.confirm(
+      adminExt.preApplicationNoteDeleteConfirm || "确定删除该备注吗？",
+    )
+    if (!confirmed) return
+
+    setNoteDeletingId(note.id)
+    try {
+      const res = await fetch(`/api/admin/pre-applications/${selected.id}/notes/${note.id}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
+        throw new Error(message)
+      }
+
+      setNoteRecords((prev) => prev.filter((item) => item.id !== note.id))
+      if (editingNoteId === note.id) {
+        cancelEditNote()
+      }
+      toast.success(adminExt.preApplicationNoteDeleteSuccess || "备注已删除")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.actionFailed)
+    } finally {
+      setNoteDeletingId(null)
     }
   }
 
@@ -808,8 +976,12 @@ export function AdminPreApplicationsTable({
   const openDialog = (record: AdminPreApplication) => {
     setSelected(record)
     setHistoryRecords([])
+    setNoteRecords([])
     setFingerprintDetail(null)
     setFingerprintError(null)
+    setNewNoteContent("")
+    setEditingNoteId(null)
+    setEditingNoteContent("")
     // 重置 AI 审核状态
     setAIReviewResult(null)
     setAIReviewError(null)
@@ -835,6 +1007,7 @@ export function AdminPreApplicationsTable({
     }
     setDialogOpen(true)
     loadHistory(record.id)
+    loadNotes(record.id)
     loadFingerprintDetail(record.id)
   }
 
@@ -1099,7 +1272,7 @@ export function AdminPreApplicationsTable({
                       ? "bg-rose-100 text-rose-600 dark:bg-rose-900/30"
                       : record.status === "SHADOW_HIDDEN"
                         ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300"
-                      : "bg-purple-100 text-purple-600 dark:bg-purple-900/30",
+                        : "bg-purple-100 text-purple-600 dark:bg-purple-900/30",
               )}
             >
               <User className="h-4 w-4" />
@@ -1174,9 +1347,7 @@ export function AdminPreApplicationsTable({
         width: "14%",
         render: (record) => (
           <Button
-            variant={
-              isReviewEditableStatus(record.status) ? "default" : "outline"
-            }
+            variant={isReviewEditableStatus(record.status) ? "default" : "outline"}
             size="sm"
             className="h-8 gap-1.5 text-xs"
             onClick={() => openDialog(record)}
@@ -1307,12 +1478,18 @@ export function AdminPreApplicationsTable({
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-blue-900 dark:text-blue-200">{g.name}</p>
                     {g.number && (
-                      <p className="font-mono text-xs text-blue-600 dark:text-blue-400">{g.number}</p>
+                      <p className="font-mono text-xs text-blue-600 dark:text-blue-400">
+                        {g.number}
+                      </p>
                     )}
                   </div>
                   {g.url && (
                     <a href={g.url} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40"
+                      >
                         <ExternalLink className="h-3 w-3" />
                         {t.qqGroupJoinLink || "加入"}
                       </Button>
@@ -1643,7 +1820,7 @@ export function AdminPreApplicationsTable({
                             ? "bg-rose-100 text-rose-600 dark:bg-rose-900/30"
                             : record.status === "SHADOW_HIDDEN"
                               ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300"
-                            : "bg-purple-100 text-purple-600 dark:bg-purple-900/30",
+                              : "bg-purple-100 text-purple-600 dark:bg-purple-900/30",
                     )}
                   >
                     <User className="h-5 w-5" />
@@ -1689,9 +1866,7 @@ export function AdminPreApplicationsTable({
                     </div>
                     <Button
                       className="mt-3 w-full h-8 gap-1.5 text-xs"
-                      variant={
-                        isReviewEditableStatus(record.status) ? "default" : "outline"
-                      }
+                      variant={isReviewEditableStatus(record.status) ? "default" : "outline"}
                       onClick={() => openDialog(record)}
                     >
                       {isReviewEditableStatus(record.status) ? (
@@ -1855,7 +2030,7 @@ export function AdminPreApplicationsTable({
                 </div>
               </div>
 
-              {/* 指纹信息 */} 
+              {/* 指纹信息 */}
               <div className="rounded-xl border bg-gradient-to-br from-muted/50 to-muted/20 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                   <Key className="h-4 w-4 text-primary" />
@@ -1891,7 +2066,9 @@ export function AdminPreApplicationsTable({
                               className="h-5 w-5 text-muted-foreground hover:text-foreground"
                               onClick={() => {
                                 navigator.clipboard.writeText(
-                                  fingerprintDetail?.fingerprintHash || selected.fingerprintHash || "",
+                                  fingerprintDetail?.fingerprintHash ||
+                                    selected.fingerprintHash ||
+                                    "",
                                 )
                                 toast.success(t.aiReviewCopied || "已复制")
                               }}
@@ -1906,11 +2083,12 @@ export function AdminPreApplicationsTable({
                           {adminExt.fingerprintStatus || "采集状态"}
                         </span>
                         <p className="font-medium">
-                          {(fingerprintDetail?.fingerprintStatus || selected.fingerprintStatus) === "OK"
-                            ? (((t as unknown as Record<string, unknown>).success as string) ||
-                              "成功")
-                            : (((t as unknown as Record<string, unknown>).failed as string) ||
-                              "失败")}
+                          {(fingerprintDetail?.fingerprintStatus || selected.fingerprintStatus) ===
+                          "OK"
+                            ? ((t as unknown as Record<string, unknown>).success as string) ||
+                              "成功"
+                            : ((t as unknown as Record<string, unknown>).failed as string) ||
+                              "失败"}
                         </p>
                       </div>
                       <div>
@@ -1929,9 +2107,7 @@ export function AdminPreApplicationsTable({
                         <span className="text-xs text-muted-foreground">
                           {adminExt.relatedUsers || "关联用户"}
                         </span>
-                        <p className="font-medium">
-                          {fingerprintDetail?.relatedUsersCount ?? 0}
-                        </p>
+                        <p className="font-medium">{fingerprintDetail?.relatedUsersCount ?? 0}</p>
                       </div>
                       <div>
                         <span className="text-xs text-muted-foreground">
@@ -1950,7 +2126,10 @@ export function AdminPreApplicationsTable({
                         </p>
                         <div className="max-h-28 space-y-1 overflow-y-auto rounded-md border bg-card p-2">
                           {fingerprintDetail.relatedUsers.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between gap-2 text-xs"
+                            >
                               <span className="truncate">{item.name || item.email}</span>
                               <span className="text-muted-foreground">{item.role}</span>
                             </div>
@@ -1966,7 +2145,10 @@ export function AdminPreApplicationsTable({
                         </p>
                         <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border bg-card p-2">
                           {fingerprintDetail.relatedApplications.map((item) => (
-                            <div key={item.id} className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                            <div
+                              key={item.id}
+                              className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs"
+                            >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="truncate">
                                   {item.user?.name || item.user?.email || item.registerEmail}
@@ -2341,6 +2523,202 @@ export function AdminPreApplicationsTable({
                       </AccordionItem>
                     ))}
                   </Accordion>
+                )}
+              </div>
+
+              {/* 管理员备注 */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <FileText className="h-4 w-4 text-primary" />
+                  {adminExt.preApplicationNotesTitle || "管理员备注"}
+                </div>
+
+                <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
+                  <Textarea
+                    value={newNoteContent}
+                    onChange={(event) => setNewNoteContent(event.target.value)}
+                    rows={3}
+                    maxLength={MAX_PRE_APPLICATION_ADMIN_NOTE_LENGTH}
+                    className="resize-none"
+                    placeholder={
+                      adminExt.preApplicationNotePlaceholder ||
+                      "记录内部备注，仅管理员可见，不会发送给用户"
+                    }
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {newNoteContent.trim().length}/{MAX_PRE_APPLICATION_ADMIN_NOTE_LENGTH}
+                    </span>
+                    <Button
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      onClick={handleCreateNote}
+                      disabled={noteSubmitting || !newNoteContent.trim()}
+                    >
+                      {noteSubmitting ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {t.saving}
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-3.5 w-3.5" />
+                          {adminExt.preApplicationNoteAdd || "添加备注"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {notesLoading && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t.loading}
+                  </div>
+                )}
+
+                {!notesLoading && noteRecords.length === 0 && (
+                  <p className="text-sm italic text-muted-foreground">
+                    {adminExt.preApplicationNoteEmpty || "暂无备注"}
+                  </p>
+                )}
+
+                {!notesLoading && noteRecords.length > 0 && (
+                  <div className="space-y-2">
+                    {noteRecords.map((note) => (
+                      <div key={note.id} className="rounded-xl border bg-card p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1 text-xs text-muted-foreground">
+                            <p>
+                              {adminExt.preApplicationNoteCreatedBy || "创建者"}：{" "}
+                              {note.createdBy.name || note.createdBy.email} ·{" "}
+                              {formatDateTime(note.createdAt, locale)}
+                            </p>
+                            <p>
+                              {adminExt.preApplicationNoteUpdatedBy || "最后编辑"}：{" "}
+                              {note.updatedBy.name || note.updatedBy.email} ·{" "}
+                              {formatDateTime(note.updatedAt, locale)}
+                            </p>
+                          </div>
+                          {(note.canEdit || note.canDelete) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {note.canEdit && (
+                                  <DropdownMenuItem onClick={() => startEditNote(note)}>
+                                    <Pencil className="mr-2 h-3.5 w-3.5" />
+                                    {adminExt.preApplicationNoteEdit || "编辑"}
+                                  </DropdownMenuItem>
+                                )}
+                                {note.canDelete && (
+                                  <DropdownMenuItem
+                                    disabled={noteDeletingId === note.id}
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => handleDeleteNote(note)}
+                                  >
+                                    {noteDeletingId === note.id ? (
+                                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                    )}
+                                    {adminExt.preApplicationNoteDelete || "删除"}
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+
+                        {editingNoteId === note.id ? (
+                          <div className="mt-2 space-y-2">
+                            <Textarea
+                              value={editingNoteContent}
+                              onChange={(event) => setEditingNoteContent(event.target.value)}
+                              rows={3}
+                              maxLength={MAX_PRE_APPLICATION_ADMIN_NOTE_LENGTH}
+                              className="resize-none"
+                            />
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                onClick={cancelEditNote}
+                                disabled={noteSavingId === note.id}
+                              >
+                                {adminExt.preApplicationNoteCancel || t.reviewCancel}
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-8 gap-1.5"
+                                onClick={() => handleSaveNote(note)}
+                                disabled={noteSavingId === note.id || !editingNoteContent.trim()}
+                              >
+                                {noteSavingId === note.id ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    {t.saving}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="h-3.5 w-3.5" />
+                                    {adminExt.preApplicationNoteSave || "保存"}
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 whitespace-pre-wrap rounded-md border bg-muted/20 p-2 text-sm">
+                            {note.content}
+                          </p>
+                        )}
+
+                        {note.revisions.length > 0 && (
+                          <Accordion type="single" collapsible className="mt-2 rounded-md border">
+                            <AccordionItem
+                              value={`note-history-${note.id}`}
+                              className="border-none"
+                            >
+                              <AccordionTrigger className="px-3 py-2 text-xs hover:no-underline">
+                                {adminExt.preApplicationNoteHistory || "修改历史"} (
+                                {note.revisions.length})
+                              </AccordionTrigger>
+                              <AccordionContent className="space-y-2 px-3 pb-3">
+                                {note.revisions.map((revision) => {
+                                  const actionLabel =
+                                    revision.action === "CREATED"
+                                      ? adminExt.preApplicationNoteActionCreated || "创建"
+                                      : revision.action === "UPDATED"
+                                        ? adminExt.preApplicationNoteActionUpdated || "编辑"
+                                        : adminExt.preApplicationNoteActionDeleted || "删除"
+                                  return (
+                                    <div
+                                      key={revision.id}
+                                      className="rounded-md border bg-background p-2"
+                                    >
+                                      <p className="text-xs text-muted-foreground">
+                                        {actionLabel} ·{" "}
+                                        {revision.editedBy.name || revision.editedBy.email} ·{" "}
+                                        {formatDateTime(revision.createdAt, locale)}
+                                      </p>
+                                      <p className="mt-1 whitespace-pre-wrap text-xs">
+                                        {revision.content}
+                                      </p>
+                                    </div>
+                                  )
+                                })}
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

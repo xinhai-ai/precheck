@@ -33,33 +33,36 @@ model User {
   updatedAt             DateTime   @updatedAt
 
   // OAuth 关联
-  accounts                       Account[]
-  sessions                       Session[]
-  posts                          Post[]
-  messageRecipients              MessageRecipient[]
-  messagesCreated                Message[]               @relation("CreatedMessages")
-  messagesRevoked                Message[]               @relation("RevokedMessages")
-  preApplications                PreApplication[]
-  preApplicationsReviewed        PreApplication[]        @relation("ReviewedPreApplications")
-  preApplicationVersionsReviewed PreApplicationVersion[] @relation("ReviewedVersions")
-  inviteCodesCreated             InviteCode[]            @relation("InviteCodesCreated")
-  inviteCodesAssigned            InviteCode[]            @relation("InviteCodesAssigned")
-  inviteCodesUsed                InviteCode[]            @relation("InviteCodesUsed")
-  inviteCodesIssued              InviteCode[]            @relation("InviteCodesIssued")
-  queryTokensCreated             InviteCodeQueryToken[]  @relation("QueryTokensCreated")
-  auditLogs                      AuditLog[]              @relation("AuditActor")
-  tickets                        Ticket[]                @relation("UserTickets")
-  ticketMessages                 TicketMessage[]         @relation("TicketMessageAuthor")
-  chatMessages                   ChatMessage[]           @relation("ChatMessageSender")
-  privateChatsAsUser             PrivateChat[]           @relation("PrivateChatUser")
-  privateChatsAsAdmin            PrivateChat[]           @relation("PrivateChatAdmin")
-  privateChatMessages            PrivateChatMessage[]    @relation("PrivateChatMessageSender")
-  apiTokens                      ApiToken[]
-  fingerprintEvents              FingerprintEvent[]      @relation("UserFingerprintEvents")
-  riskIgnoredEntry               RiskIgnoredUser?        @relation("RiskIgnoredTarget")
-  riskIgnoredCreated             RiskIgnoredUser[]       @relation("RiskIgnoredCreator")
-  shadowBannedEntry              ShadowBannedUser?       @relation("ShadowBannedTarget")
-  shadowBannedCreated            ShadowBannedUser[]      @relation("ShadowBannedCreator")
+  accounts                         Account[]
+  sessions                         Session[]
+  posts                            Post[]
+  messageRecipients                MessageRecipient[]
+  messagesCreated                  Message[]                         @relation("CreatedMessages")
+  messagesRevoked                  Message[]                         @relation("RevokedMessages")
+  preApplications                  PreApplication[]
+  preApplicationsReviewed          PreApplication[]                  @relation("ReviewedPreApplications")
+  preApplicationVersionsReviewed   PreApplicationVersion[]           @relation("ReviewedVersions")
+  preApplicationAdminNotesCreated  PreApplicationAdminNote[]         @relation("PreApplicationAdminNotesCreated")
+  preApplicationAdminNotesUpdated  PreApplicationAdminNote[]         @relation("PreApplicationAdminNotesUpdated")
+  preApplicationAdminNoteRevisions PreApplicationAdminNoteRevision[] @relation("PreApplicationAdminNoteRevisionsEdited")
+  inviteCodesCreated               InviteCode[]                      @relation("InviteCodesCreated")
+  inviteCodesAssigned              InviteCode[]                      @relation("InviteCodesAssigned")
+  inviteCodesUsed                  InviteCode[]                      @relation("InviteCodesUsed")
+  inviteCodesIssued                InviteCode[]                      @relation("InviteCodesIssued")
+  queryTokensCreated               InviteCodeQueryToken[]            @relation("QueryTokensCreated")
+  auditLogs                        AuditLog[]                        @relation("AuditActor")
+  tickets                          Ticket[]                          @relation("UserTickets")
+  ticketMessages                   TicketMessage[]                   @relation("TicketMessageAuthor")
+  chatMessages                     ChatMessage[]                     @relation("ChatMessageSender")
+  privateChatsAsUser               PrivateChat[]                     @relation("PrivateChatUser")
+  privateChatsAsAdmin              PrivateChat[]                     @relation("PrivateChatAdmin")
+  privateChatMessages              PrivateChatMessage[]              @relation("PrivateChatMessageSender")
+  apiTokens                        ApiToken[]
+  fingerprintEvents                FingerprintEvent[]                @relation("UserFingerprintEvents")
+  riskIgnoredEntry                 RiskIgnoredUser?                  @relation("RiskIgnoredTarget")
+  riskIgnoredCreated               RiskIgnoredUser[]                 @relation("RiskIgnoredCreator")
+  shadowBannedEntry                ShadowBannedUser?                 @relation("ShadowBannedTarget")
+  shadowBannedCreated              ShadowBannedUser[]                @relation("ShadowBannedCreator")
 
   // 密码重置
   resetToken       String?   @unique
@@ -184,12 +187,13 @@ model PreApplication {
   updatedAt              DateTime              @updatedAt
   holdUntil              DateTime? // ON_HOLD 状态的截止时间
 
-  user              User?                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy        User?                   @relation("ReviewedPreApplications", fields: [reviewedById], references: [id])
-  inviteCode        InviteCode?             @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
+  user              User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy        User?                     @relation("ReviewedPreApplications", fields: [reviewedById], references: [id])
+  inviteCode        InviteCode?               @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
   versions          PreApplicationVersion[] // 版本历史
+  adminNotes        PreApplicationAdminNote[]
   tickets           Ticket[] // 工单
-  fingerprintEvents FingerprintEvent[]      @relation("PreApplicationFingerprintEvents")
+  fingerprintEvents FingerprintEvent[]        @relation("PreApplicationFingerprintEvents")
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
@@ -219,6 +223,40 @@ model PreApplicationVersion {
 
   @@unique([preApplicationId, version])
   @@index([preApplicationId])
+}
+
+model PreApplicationAdminNote {
+  id               String    @id @default(cuid())
+  preApplicationId String
+  content          String
+  createdById      String
+  updatedById      String
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  preApplication PreApplication                    @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
+  createdBy      User                              @relation("PreApplicationAdminNotesCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy      User                              @relation("PreApplicationAdminNotesUpdated", fields: [updatedById], references: [id], onDelete: Cascade)
+  revisions      PreApplicationAdminNoteRevision[]
+
+  @@index([preApplicationId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([deletedAt])
+}
+
+model PreApplicationAdminNoteRevision {
+  id         String                        @id @default(cuid())
+  noteId     String
+  action     PreApplicationAdminNoteAction
+  content    String
+  editedById String
+  createdAt  DateTime                      @default(now())
+
+  note     PreApplicationAdminNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  editedBy User                    @relation("PreApplicationAdminNoteRevisionsEdited", fields: [editedById], references: [id], onDelete: Cascade)
+
+  @@index([noteId, createdAt])
 }
 
 model FingerprintProfile {
@@ -399,6 +437,12 @@ enum PreApplicationSource {
   DOUYIN
   XIAOHONGSHU
   OTHER
+}
+
+enum PreApplicationAdminNoteAction {
+  CREATED
+  UPDATED
+  DELETED
 }
 
 enum FingerprintStatus {
