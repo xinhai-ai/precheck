@@ -119,38 +119,127 @@ export const openApiSpec = {
         tags: ["Admin"],
         summary: "预申请列表",
         parameters: [
-          { name: "status", in: "query", schema: { type: "string" } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string" },
+            description:
+              "状态筛选，支持逗号分隔多个值：PENDING,DISPUTED,PENDING_REVIEW,ON_HOLD,APPROVED,REJECTED,ARCHIVED,SHADOW_HIDDEN",
+          },
+          { name: "registerEmail", in: "query", schema: { type: "string" } },
+          { name: "queryToken", in: "query", schema: { type: "string" } },
+          { name: "fingerprintHash", in: "query", schema: { type: "string" } },
+          { name: "reviewRound", in: "query", schema: { type: "integer", minimum: 1 } },
+          { name: "inviteStatus", in: "query", schema: { type: "string", enum: ["issued", "none"] } },
           { name: "page", in: "query", schema: { type: "integer", default: 1 } },
-          { name: "pageSize", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          {
+            name: "sortBy",
+            in: "query",
+            schema: {
+              type: "string",
+              enum: [
+                "createdAt",
+                "updatedAt",
+                "status",
+                "registerEmail",
+                "resubmitCount",
+                "inviteCodeId",
+                "codeSent",
+              ],
+              default: "createdAt",
+            },
+            description: "按 createdAt 排序时，实际按最新版本时间（latestVersionCreatedAt）排序",
+          },
+          {
+            name: "sortOrder",
+            in: "query",
+            schema: { type: "string", enum: ["asc", "desc"], default: "desc" },
+          },
         ],
         responses: {
-          "200": { description: "预申请列表" },
+          "200": {
+            description: "预申请列表",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    records: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          status: { type: "string" },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          latestVersionCreatedAt: { type: "string", format: "date-time" },
+                          reviewRound: { type: "integer" },
+                        },
+                      },
+                    },
+                    total: { type: "integer" },
+                    page: { type: "integer" },
+                    limit: { type: "integer" },
+                    stats: {
+                      type: "object",
+                      properties: {
+                        pending: { type: "integer" },
+                        approved: { type: "integer" },
+                        rejected: { type: "integer" },
+                        disputed: { type: "integer" },
+                        archived: { type: "integer" },
+                        shadowHidden: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
           "403": { description: "无权限" },
+          "503": { description: "数据库未配置" },
         },
       },
     },
     "/admin/pre-applications/{id}/review": {
-      put: {
+      post: {
         tags: ["Admin"],
         summary: "审核预申请",
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         requestBody: {
+          required: true,
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["status"],
+                required: ["action", "guidance"],
                 properties: {
-                  status: { type: "string", enum: ["approved", "rejected"] },
-                  reason: { type: "string" },
+                  action: {
+                    type: "string",
+                    enum: ["APPROVE", "REJECT", "DISPUTE", "PENDING_REVIEW", "ON_HOLD"],
+                  },
+                  guidance: { type: "string", minLength: 1, maxLength: 2000 },
+                  inviteCode: { type: "string" },
+                  inviteExpiresAt: { type: "string", format: "date-time" },
+                  codeSent: { type: "boolean" },
+                  locale: { type: "string" },
                 },
               },
             },
           },
         },
         responses: {
-          "200": { description: "审核完成" },
+          "200": { description: "审核完成（可能包含 emailSent/emailError）" },
+          "400": { description: "参数错误或状态不允许审核" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限（仅 ADMIN 可审核）" },
           "404": { description: "申请不存在" },
+          "409": { description: "Shadowban 锁定，禁止修改" },
+          "503": { description: "数据库未配置" },
         },
       },
     },
