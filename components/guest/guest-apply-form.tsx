@@ -18,7 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ClipboardList, Loader2, Clock, CheckCircle2, XCircle, HelpCircle } from "lucide-react"
+import {
+  ClipboardList,
+  Loader2,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  Globe2,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { preApplicationSources } from "@/lib/pre-application/constants"
 import type { QQGroupConfig } from "@/lib/pre-application/constants"
@@ -99,6 +107,19 @@ type GuestRecord = {
   } | null
 }
 
+type SubmitQuotaStatus = {
+  dailyGlobalLimit: number
+  dailyUserLimit: number
+  submitStartTime: string
+  submitEndTime: string
+  isWithinSubmitWindow: boolean
+  quotaServiceAvailable: boolean
+  userUsedToday: number | null
+  userRemainingToday: number | null
+  globalUsedToday: number | null
+  globalRemainingToday: number | null
+}
+
 export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) {
   const [essayMinChars, setEssayMinChars] = useState(50)
   const [essayMaxChars, setEssayMaxChars] = useState(300)
@@ -106,6 +127,7 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
   const [loadingGroups, setLoadingGroups] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [record, setRecord] = useState<GuestRecord | null>(null)
+  const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
   const [qqGroups, setQqGroups] = useState<QQGroupConfig[]>([])
   const [essayHint, setEssayHint] = useState(dict.fields.essayHint)
   const allowedDomains = useAllowedEmailDomains()
@@ -130,6 +152,7 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
       if (res.ok) {
         const data = await res.json()
         if (data.record) setRecord(data.record)
+        setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
       }
     } catch (error) {
       console.error("Load guest application error:", error)
@@ -321,6 +344,84 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
   const isValidEmail =
     formData.registerEmail.includes("@") && formData.registerEmail.split("@")[1]?.length > 0
 
+  const renderQuotaCard = () => {
+    if (!submitQuotaStatus) return null
+
+    return (
+      <Card className="border-0 shadow-md">
+        <CardHeader className="bg-gradient-to-r from-muted/50 to-transparent border-b">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Globe2 className="h-5 w-5" />
+            {locale === "zh" ? "今日提交配额" : "Today's Submission Quota"}
+          </CardTitle>
+          <CardDescription>
+            {locale === "zh"
+              ? "显示个人与全站今日配额，以及当前是否在可提交时间段"
+              : "Shows personal/global daily quota and whether submissions are currently open"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {locale === "zh" ? "个人剩余" : "Personal Remaining"}
+              </p>
+              <p className="text-xl font-semibold">
+                {submitQuotaStatus.userRemainingToday ?? "-"} / {submitQuotaStatus.dailyUserLimit}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {locale === "zh" ? "今日已用" : "Used Today"}: {submitQuotaStatus.userUsedToday ?? "-"}
+              </p>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {locale === "zh" ? "全站剩余" : "Global Remaining"}
+              </p>
+              <p className="text-xl font-semibold">
+                {submitQuotaStatus.globalRemainingToday ?? "-"} / {submitQuotaStatus.dailyGlobalLimit}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {locale === "zh" ? "今日已用" : "Used Today"}:{" "}
+                {submitQuotaStatus.globalUsedToday ?? "-"}
+              </p>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {locale === "zh" ? "提交时间段" : "Submit Window"}
+              </p>
+              <Badge
+                variant={submitQuotaStatus.isWithinSubmitWindow ? "default" : "secondary"}
+                className={cn(
+                  submitQuotaStatus.isWithinSubmitWindow
+                    ? "bg-emerald-600 hover:bg-emerald-600"
+                    : "bg-amber-500/20 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300",
+                )}
+              >
+                {submitQuotaStatus.isWithinSubmitWindow
+                  ? locale === "zh"
+                    ? "当前可提交"
+                    : "Open Now"
+                  : locale === "zh"
+                    ? "当前不可提交"
+                    : "Closed Now"}
+              </Badge>
+              <p className="text-xs text-muted-foreground">
+                {submitQuotaStatus.submitStartTime} - {submitQuotaStatus.submitEndTime} (Asia/Shanghai)
+              </p>
+            </div>
+          </div>
+          {!submitQuotaStatus.quotaServiceAvailable && (
+            <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+              {locale === "zh"
+                ? "配额服务状态暂不可用，展示数据可能延迟。"
+                : "Quota service is temporarily unavailable, displayed data may be delayed."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -344,6 +445,8 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
             <p className="text-sm text-muted-foreground">QQ: {qqNumber}</p>
           </div>
         </div>
+
+        {renderQuotaCard()}
 
         <Card className="border-0 shadow-md">
           <CardHeader className="bg-gradient-to-r from-muted/50 to-transparent border-b">
@@ -462,6 +565,8 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
           </p>
         </div>
       </div>
+
+      {renderQuotaCard()}
 
       <Card className="border-0 shadow-md">
         <CardHeader>

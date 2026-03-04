@@ -39,6 +39,7 @@ import {
   MessageCircle,
   Copy,
   Check,
+  Globe2,
 } from "lucide-react"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
@@ -109,6 +110,19 @@ type PreApplicationRecord = {
     assignedAt: string | null
   } | null
   versions?: PreApplicationVersion[]
+}
+
+type SubmitQuotaStatus = {
+  dailyGlobalLimit: number
+  dailyUserLimit: number
+  submitStartTime: string
+  submitEndTime: string
+  isWithinSubmitWindow: boolean
+  quotaServiceAvailable: boolean
+  userUsedToday: number | null
+  userRemainingToday: number | null
+  globalUsedToday: number | null
+  globalRemainingToday: number | null
 }
 
 interface PreApplicationFormProps {
@@ -187,6 +201,7 @@ export function PreApplicationForm({
     position: number
     aheadCount: number
   } | null>(null)
+  const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
   const allowedDomains = useAllowedEmailDomains()
   const [formData, setFormData] = useState({
     essay: "",
@@ -309,6 +324,7 @@ export function PreApplicationForm({
       setRecords(nextRecords)
       if (data.maxResubmitCount) setMaxResubmitCount(data.maxResubmitCount)
       if (data.queueInfo) setQueueInfo(data.queueInfo)
+      setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("pre-application:updated", {
@@ -341,7 +357,23 @@ export function PreApplicationForm({
   }
 
   useEffect(() => {
-    if (!initialRecords) loadRecord()
+    if (!initialRecords) {
+      loadRecord()
+      return
+    }
+
+    const loadQuotaStatus = async () => {
+      try {
+        const res = await fetch("/api/pre-application")
+        if (!res.ok) return
+        const data = await res.json()
+        setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
+      } catch {
+        // ignore quota status fetch failures
+      }
+    }
+
+    loadQuotaStatus()
   }, [])
 
   // 审核通过但无码时，自动检查是否有可用邀请码
@@ -841,6 +873,77 @@ export function PreApplicationForm({
   function renderMainContent() {
     return (
       <div className="space-y-6">
+        {submitQuotaStatus && (
+          <Card className="border-0 shadow-md overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-muted/50 to-transparent border-b">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Globe2 className="h-5 w-5" />
+                {(t.submitQuotaTitle as string) || "今日提交配额"}
+              </CardTitle>
+              <CardDescription>
+                {(t.submitQuotaDesc as string) ||
+                  "显示个人与全站今日配额，以及当前是否在可提交时间段"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 md:p-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border bg-muted/30 p-4 space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {(t.submitQuotaPersonal as string) || "个人剩余"}
+                  </p>
+                  <p className="text-xl font-semibold">
+                    {submitQuotaStatus.userRemainingToday ?? "-"} / {submitQuotaStatus.dailyUserLimit}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(t.submitQuotaUsed as string) || "今日已用"}:{" "}
+                    {submitQuotaStatus.userUsedToday ?? "-"}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4 space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {(t.submitQuotaGlobal as string) || "全站剩余"}
+                  </p>
+                  <p className="text-xl font-semibold">
+                    {submitQuotaStatus.globalRemainingToday ?? "-"} /{" "}
+                    {submitQuotaStatus.dailyGlobalLimit}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(t.submitQuotaUsed as string) || "今日已用"}:{" "}
+                    {submitQuotaStatus.globalUsedToday ?? "-"}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {(t.submitQuotaWindow as string) || "提交时间段"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={submitQuotaStatus.isWithinSubmitWindow ? "default" : "secondary"}
+                      className={cn(
+                        submitQuotaStatus.isWithinSubmitWindow
+                          ? "bg-emerald-600 hover:bg-emerald-600"
+                          : "bg-amber-500/20 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300",
+                      )}
+                    >
+                      {submitQuotaStatus.isWithinSubmitWindow
+                        ? ((t.submitQuotaWindowOpen as string) || "当前可提交")
+                        : ((t.submitQuotaWindowClosed as string) || "当前不可提交")}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {submitQuotaStatus.submitStartTime} - {submitQuotaStatus.submitEndTime} (Asia/Shanghai)
+                  </p>
+                </div>
+              </div>
+              {!submitQuotaStatus.quotaServiceAvailable && (
+                <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+                  {(t.submitQuotaServiceUnavailable as string) || "配额服务状态暂不可用，展示数据可能延迟。"}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* 审核信息卡片 */}
         {latest && hasReviewInfo && (
           <motion.div

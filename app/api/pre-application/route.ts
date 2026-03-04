@@ -23,7 +23,10 @@ import {
   isWithinShanghaiSubmitWindow,
 } from "@/lib/pre-application/submit-limits-utils"
 import { getPreApplicationSubmitLimits } from "@/lib/pre-application/submit-limits"
-import { consumePreApplicationSubmitQuota } from "@/lib/pre-application/submit-quota"
+import {
+  consumePreApplicationSubmitQuota,
+  getPreApplicationSubmitQuotaSnapshot,
+} from "@/lib/pre-application/submit-quota"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -116,6 +119,51 @@ async function enforcePreApplicationSubmitLimits(
   })
 }
 
+async function getSubmitQuotaStatus(identity: string) {
+  const limits = await getPreApplicationSubmitLimits()
+  const now = new Date()
+  const quotaInfo = getShanghaiDayQuotaInfo(now)
+  const isWithinSubmitWindow = isWithinShanghaiSubmitWindow(
+    now,
+    limits.submitStartTime,
+    limits.submitEndTime,
+  )
+  const snapshot = await getPreApplicationSubmitQuotaSnapshot({
+    identity,
+    dayKey: quotaInfo.dayKey,
+    dailyGlobalLimit: limits.dailyGlobalLimit,
+    dailyUserLimit: limits.dailyUserLimit,
+  })
+
+  if (!snapshot.ok) {
+    return {
+      dailyGlobalLimit: limits.dailyGlobalLimit,
+      dailyUserLimit: limits.dailyUserLimit,
+      submitStartTime: limits.submitStartTime,
+      submitEndTime: limits.submitEndTime,
+      isWithinSubmitWindow,
+      quotaServiceAvailable: false,
+      userUsedToday: null,
+      userRemainingToday: null,
+      globalUsedToday: null,
+      globalRemainingToday: null,
+    }
+  }
+
+  return {
+    dailyGlobalLimit: limits.dailyGlobalLimit,
+    dailyUserLimit: limits.dailyUserLimit,
+    submitStartTime: limits.submitStartTime,
+    submitEndTime: limits.submitEndTime,
+    isWithinSubmitWindow,
+    quotaServiceAvailable: true,
+    userUsedToday: snapshot.userUsedToday,
+    userRemainingToday: snapshot.userRemainingToday,
+    globalUsedToday: snapshot.globalUsedToday,
+    globalRemainingToday: snapshot.globalRemainingToday,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -184,6 +232,7 @@ export async function GET(request: NextRequest) {
       latest: recordsForUserView[0] ?? null,
       maxResubmitCount: await getMaxResubmitCount(),
       queueInfo,
+      submitQuotaStatus: await getSubmitQuotaStatus(`user:${user.id}`),
     })
   } catch (error) {
     console.error("Pre-application fetch error:", error)
@@ -330,6 +379,7 @@ export async function POST(request: NextRequest) {
         status: mapStatusForUserView(record.status),
       },
       maxResubmitCount: await getMaxResubmitCount(),
+      submitQuotaStatus: await getSubmitQuotaStatus(`user:${user.id}`),
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -553,6 +603,7 @@ export async function PUT(request: NextRequest) {
       },
       maxResubmitCount: maxResubmitCount,
       remainingResubmits: maxResubmitCount === 0 ? -1 : maxResubmitCount - newResubmitCount,
+      submitQuotaStatus: await getSubmitQuotaStatus(`user:${user.id}`),
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

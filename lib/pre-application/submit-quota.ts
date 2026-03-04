@@ -38,11 +38,31 @@ export type PreApplicationSubmitQuotaConsumeInput = {
   dailyUserLimit: number
 }
 
+export type PreApplicationSubmitQuotaSnapshotInput = {
+  identity: string
+  dayKey: string
+  dailyGlobalLimit: number
+  dailyUserLimit: number
+}
+
 export type PreApplicationSubmitQuotaConsumeResult =
   | { ok: true }
   | {
       ok: false
       reason: "user_limit_exceeded" | "global_limit_exceeded" | "service_unavailable"
+    }
+
+export type PreApplicationSubmitQuotaSnapshotResult =
+  | {
+      ok: true
+      userUsedToday: number
+      userRemainingToday: number
+      globalUsedToday: number
+      globalRemainingToday: number
+    }
+  | {
+      ok: false
+      reason: "service_unavailable"
     }
 
 export function buildSubmitQuotaKeys(input: {
@@ -97,6 +117,44 @@ export async function consumePreApplicationSubmitQuota(
     return { ok: false, reason: "service_unavailable" }
   } catch (error) {
     console.error("Failed to consume pre-application submit quota:", error)
+    return { ok: false, reason: "service_unavailable" }
+  }
+}
+
+function toCounter(raw: string | null): number {
+  if (!raw) return 0
+  const parsed = Number.parseInt(raw, 10)
+  if (!Number.isFinite(parsed) || parsed < 0) return 0
+  return parsed
+}
+
+export async function getPreApplicationSubmitQuotaSnapshot(
+  input: PreApplicationSubmitQuotaSnapshotInput,
+): Promise<PreApplicationSubmitQuotaSnapshotResult> {
+  const redis = getRedisClient()
+  if (!redis) {
+    return { ok: false, reason: "service_unavailable" }
+  }
+
+  const { globalKey, userKey } = buildSubmitQuotaKeys({
+    dayKey: input.dayKey,
+    identity: input.identity,
+  })
+
+  try {
+    const [globalRaw, userRaw] = await redis.mget(globalKey, userKey)
+    const globalUsedToday = toCounter(globalRaw)
+    const userUsedToday = toCounter(userRaw)
+
+    return {
+      ok: true,
+      userUsedToday,
+      userRemainingToday: Math.max(0, input.dailyUserLimit - userUsedToday),
+      globalUsedToday,
+      globalRemainingToday: Math.max(0, input.dailyGlobalLimit - globalUsedToday),
+    }
+  } catch (error) {
+    console.error("Failed to load pre-application submit quota snapshot:", error)
     return { ok: false, reason: "service_unavailable" }
   }
 }

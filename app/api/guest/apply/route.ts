@@ -14,7 +14,10 @@ import {
   getShanghaiDayQuotaInfo,
   isWithinShanghaiSubmitWindow,
 } from "@/lib/pre-application/submit-limits-utils"
-import { consumePreApplicationSubmitQuota } from "@/lib/pre-application/submit-quota"
+import {
+  consumePreApplicationSubmitQuota,
+  getPreApplicationSubmitQuotaSnapshot,
+} from "@/lib/pre-application/submit-quota"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -77,6 +80,51 @@ async function enforceGuestSubmitLimits(qqNumber: string): Promise<NextResponse 
   }
 
   return NextResponse.json({ error: "提交限流服务不可用，请稍后重试" }, { status: 503 })
+}
+
+async function getGuestSubmitQuotaStatus(qqNumber: string) {
+  const limits = await getPreApplicationSubmitLimits()
+  const now = new Date()
+  const quotaInfo = getShanghaiDayQuotaInfo(now)
+  const isWithinSubmitWindow = isWithinShanghaiSubmitWindow(
+    now,
+    limits.submitStartTime,
+    limits.submitEndTime,
+  )
+  const snapshot = await getPreApplicationSubmitQuotaSnapshot({
+    identity: `qq:${qqNumber}`,
+    dayKey: quotaInfo.dayKey,
+    dailyGlobalLimit: limits.dailyGlobalLimit,
+    dailyUserLimit: limits.dailyUserLimit,
+  })
+
+  if (!snapshot.ok) {
+    return {
+      dailyGlobalLimit: limits.dailyGlobalLimit,
+      dailyUserLimit: limits.dailyUserLimit,
+      submitStartTime: limits.submitStartTime,
+      submitEndTime: limits.submitEndTime,
+      isWithinSubmitWindow,
+      quotaServiceAvailable: false,
+      userUsedToday: null,
+      userRemainingToday: null,
+      globalUsedToday: null,
+      globalRemainingToday: null,
+    }
+  }
+
+  return {
+    dailyGlobalLimit: limits.dailyGlobalLimit,
+    dailyUserLimit: limits.dailyUserLimit,
+    submitStartTime: limits.submitStartTime,
+    submitEndTime: limits.submitEndTime,
+    isWithinSubmitWindow,
+    quotaServiceAvailable: true,
+    userUsedToday: snapshot.userUsedToday,
+    userRemainingToday: snapshot.userRemainingToday,
+    globalUsedToday: snapshot.globalUsedToday,
+    globalRemainingToday: snapshot.globalRemainingToday,
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -216,7 +264,11 @@ export async function POST(request: NextRequest) {
       request,
     })
 
-    return NextResponse.json({ success: true, queryToken: record.queryToken })
+    return NextResponse.json({
+      success: true,
+      queryToken: record.queryToken,
+      submitQuotaStatus: await getGuestSubmitQuotaStatus(qqNumber),
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -254,7 +306,10 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json({ record })
+    return NextResponse.json({
+      record,
+      submitQuotaStatus: await getGuestSubmitQuotaStatus(qqNumber),
+    })
   } catch (error) {
     console.error("Guest application fetch error:", error)
     return NextResponse.json({ error: "查询失败" }, { status: 500 })
