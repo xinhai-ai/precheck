@@ -15,7 +15,6 @@ type PreApplicationReviewEmailOptions = {
   status: "APPROVED" | "REJECTED" | "DISPUTED"
   reviewerName: string
   guidance: string
-  essay?: string
   inviteCode?: string | null
   inviteExpiresAt?: Date | null
   locale: string
@@ -156,7 +155,6 @@ export function buildPreApplicationReviewEmail({
   status,
   reviewerName,
   guidance,
-  essay,
   inviteCode,
   inviteExpiresAt,
   locale,
@@ -202,7 +200,6 @@ export function buildPreApplicationReviewEmail({
   const inviteExpiresLine =
     inviteExpiresAt && inviteCode ? replaceTokens(t.inviteExpires, tokens) : ""
   const footer = replaceTokens(t.footer, tokens)
-  const essayTitle = t.essayTitle ?? (locale === "zh" ? "你的申请内容" : "Your Application")
 
   let accentColor: string
   let accentBg: string
@@ -268,22 +265,6 @@ export function buildPreApplicationReviewEmail({
     </table>`
       : ""
 
-  const essayBlock = essay
-    ? `
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;">
-      <tr>
-        <td style="background:#f9fafb;border-radius:8px;padding:16px;border-left:4px solid #6366f1;">
-          <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;">
-            ${essayTitle}
-          </p>
-          <p style="margin:0;font-size:14px;line-height:1.6;color:#374151;white-space:pre-wrap;">
-            ${essay}
-          </p>
-        </td>
-      </tr>
-    </table>`
-    : ""
-
   const content = `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
       <tr>
@@ -296,7 +277,6 @@ export function buildPreApplicationReviewEmail({
     </table>
     <h1 style="${baseStyles.title}">${title}</h1>
     <p style="${baseStyles.text}">${intro}</p>
-    ${essayBlock}
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;">
       <tr>
         <td style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;">
@@ -336,7 +316,6 @@ export function buildPreApplicationReviewEmail({
     "",
     intro,
     "",
-    ...(essay ? [`${essayTitle}:`, essay, ""] : []),
     reviewerLine,
     guidanceLine,
     ...(inviteCodeLine ? [inviteCodeLine] : []),
