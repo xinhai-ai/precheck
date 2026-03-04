@@ -136,6 +136,7 @@ type AdminPreApplication = {
   reviewedAt: string | null
   createdAt: string
   updatedAt: string
+  latestVersionCreatedAt?: string | null
   user: { id: string; name: string | null; email: string } | null
   reviewedBy: { id: string; name: string | null; email: string } | null
   inviteCode: { id: string; code: string; expiresAt: string | null; usedAt: string | null } | null
@@ -287,6 +288,9 @@ const isReviewEditableStatus = (status: AdminPreApplication["status"]) =>
   status === "DISPUTED" ||
   status === "PENDING_REVIEW" ||
   status === "ON_HOLD"
+
+const getLatestVersionTime = (record: AdminPreApplication) =>
+  record.latestVersionCreatedAt ?? record.createdAt
 
 export function AdminPreApplicationsTable({
   locale,
@@ -1159,7 +1163,7 @@ export function AdminPreApplicationsTable({
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              {formatDateTime(record.createdAt, locale)}
+              {formatDateTime(getLatestVersionTime(record), locale)}
             </span>
           </div>
         ),
@@ -1680,7 +1684,7 @@ export function AdminPreApplicationsTable({
                       )}
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {formatDateTime(record.createdAt, locale)}
+                        {formatDateTime(getLatestVersionTime(record), locale)}
                       </span>
                     </div>
                     <Button

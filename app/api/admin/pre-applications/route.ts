@@ -101,6 +101,76 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    const preApplicationSelect = {
+      id: true,
+      essay: true,
+      source: true,
+      sourceDetail: true,
+      registerEmail: true,
+      queryToken: true,
+      group: true,
+      status: true,
+      guidance: true,
+      reviewedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      resubmitCount: true,
+      codeSent: true,
+      codeSentAt: true,
+      fingerprintHash: true,
+      fingerprintCollectedAt: true,
+      fingerprintStatus: true,
+      user: { select: { id: true, name: true, email: true } },
+      reviewedBy: { select: { id: true, name: true, email: true } },
+      inviteCode: {
+        select: { id: true, code: true, expiresAt: true, usedAt: true, assignedAt: true },
+      },
+      versions: {
+        orderBy: { version: "desc" as const },
+        take: 1,
+        select: { createdAt: true },
+      },
+    } satisfies Prisma.PreApplicationSelect
+
+    const recordsPromise =
+      sortBy === "createdAt"
+        ? db.preApplicationVersion
+            .groupBy({
+              by: ["preApplicationId"],
+              where: { preApplication: where },
+              _max: { createdAt: true },
+              orderBy: { _max: { createdAt: sortOrder } },
+              skip,
+              take: limit,
+            })
+            .then(async (groups) => {
+              if (groups.length === 0) {
+                return []
+              }
+
+              const idOrder = new Map(groups.map((group, index) => [group.preApplicationId, index]))
+              const ids = groups.map((group) => group.preApplicationId)
+              const rows = await db.preApplication.findMany({
+                where: { id: { in: ids } },
+                select: preApplicationSelect,
+              })
+
+              rows.sort(
+                (a, b) =>
+                  (idOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+                  (idOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+              )
+
+              return rows
+            })
+        : db.preApplication.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: { [sortBy]: sortOrder },
+            select: preApplicationSelect,
+          })
+
     const [
       records,
       total,
@@ -111,37 +181,7 @@ export async function GET(request: NextRequest) {
       archivedCount,
       shadowHiddenCount,
     ] = await Promise.all([
-      db.preApplication.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        select: {
-          id: true,
-          essay: true,
-          source: true,
-          sourceDetail: true,
-          registerEmail: true,
-          queryToken: true,
-          group: true,
-          status: true,
-          guidance: true,
-          reviewedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          resubmitCount: true,
-          codeSent: true,
-          codeSentAt: true,
-          fingerprintHash: true,
-          fingerprintCollectedAt: true,
-          fingerprintStatus: true,
-          user: { select: { id: true, name: true, email: true } },
-          reviewedBy: { select: { id: true, name: true, email: true } },
-          inviteCode: {
-            select: { id: true, code: true, expiresAt: true, usedAt: true, assignedAt: true },
-          },
-        },
-      }),
+      recordsPromise,
       db.preApplication.count({ where }),
       db.preApplication.count({ where: { status: "PENDING" } }),
       db.preApplication.count({ where: { status: "APPROVED" } }),
@@ -153,7 +193,9 @@ export async function GET(request: NextRequest) {
 
     const enrichedRecords = records.map((record) => {
       const reviewRound = record.resubmitCount + 1
-      return { ...record, reviewRound }
+      const latestVersionCreatedAt = record.versions[0]?.createdAt ?? record.createdAt
+      const { versions, ...rest } = record
+      return { ...rest, reviewRound, latestVersionCreatedAt }
     })
 
     return NextResponse.json({
