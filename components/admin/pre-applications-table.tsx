@@ -1890,7 +1890,13 @@ export function AdminPreApplicationsTable({
       </Card>
 
       {/* 审核抽屉 */}
-      <Drawer open={dialogOpen} onOpenChange={setDialogOpen} direction="right" dismissible={false}>
+      <Drawer
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        direction="right"
+        dismissible={false}
+        handleOnly
+      >
         <DrawerContent className="h-full data-[vaul-drawer-direction=right]:w-[92vw] data-[vaul-drawer-direction=right]:sm:max-w-xl">
           <DrawerHeader className="sticky top-0 z-10 border-b bg-background px-4 py-4">
             <div className="flex items-center justify-between">
@@ -2162,7 +2168,7 @@ export function AdminPreApplicationsTable({
                                 <p className="mb-1 text-[11px] font-medium text-muted-foreground">
                                   {t.preApplicationEssay}
                                 </p>
-                                <p className="whitespace-pre-wrap break-words text-[11px]">
+                                <p className="whitespace-pre-wrap break-words text-[11px] select-text">
                                   {item.essay || "-"}
                                 </p>
                               </div>
@@ -2186,7 +2192,11 @@ export function AdminPreApplicationsTable({
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-4">
                     <div className="rounded-lg border bg-card p-4 text-sm">
-                      <PostContent content={selected.essay} emptyMessage={t.preApplicationEssay} />
+                      <PostContent
+                        content={selected.essay}
+                        emptyMessage={t.preApplicationEssay}
+                        className="select-text"
+                      />
                     </div>
 
                     {/* AI 辅助工具栏 */}
@@ -2498,6 +2508,7 @@ export function AdminPreApplicationsTable({
                             <PostContent
                               content={item.essay}
                               emptyMessage={t.preApplicationEssay}
+                              className="select-text"
                             />
                           </div>
                           {item.reviewedAt ? (
