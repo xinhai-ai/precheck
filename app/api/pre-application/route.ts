@@ -18,6 +18,12 @@ import {
   SHADOW_HIDDEN_STATUS,
   shouldPersistAsShadowHidden,
 } from "@/lib/pre-application/shadowban"
+import {
+  getShanghaiDayQuotaInfo,
+  isWithinShanghaiSubmitWindow,
+} from "@/lib/pre-application/submit-limits-utils"
+import { getPreApplicationSubmitLimits } from "@/lib/pre-application/submit-limits"
+import { consumePreApplicationSubmitQuota } from "@/lib/pre-application/submit-quota"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -60,6 +66,54 @@ const preApplicationSchema = z.object({
 async function isValidGroupId(groupId: string): Promise<boolean> {
   const groups = await getQQGroups()
   return groups.some((g) => g.id === groupId)
+}
+
+async function enforcePreApplicationSubmitLimits(
+  request: NextRequest,
+  identity: string,
+): Promise<NextResponse | null> {
+  const limits = await getPreApplicationSubmitLimits()
+  const now = new Date()
+
+  if (!isWithinShanghaiSubmitWindow(now, limits.submitStartTime, limits.submitEndTime)) {
+    return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitWindowClosed, {
+      status: 403,
+      meta: {
+        detail: `当前仅允许在 ${limits.submitStartTime}-${limits.submitEndTime}（Asia/Shanghai）提交`,
+      },
+    })
+  }
+
+  const quotaInfo = getShanghaiDayQuotaInfo(now)
+  const quotaResult = await consumePreApplicationSubmitQuota({
+    identity,
+    dayKey: quotaInfo.dayKey,
+    ttlSeconds: quotaInfo.ttlSeconds,
+    dailyGlobalLimit: limits.dailyGlobalLimit,
+    dailyUserLimit: limits.dailyUserLimit,
+  })
+
+  if (quotaResult.ok) {
+    return null
+  }
+
+  if (quotaResult.reason === "user_limit_exceeded") {
+    return createApiErrorResponse(request, ApiErrorKeys.preApplication.dailyUserLimitExceeded, {
+      status: 429,
+      meta: { detail: `每日最多提交 ${limits.dailyUserLimit} 次` },
+    })
+  }
+
+  if (quotaResult.reason === "global_limit_exceeded") {
+    return createApiErrorResponse(request, ApiErrorKeys.preApplication.dailyGlobalLimitExceeded, {
+      status: 429,
+      meta: { detail: `全站每日提交上限为 ${limits.dailyGlobalLimit} 次` },
+    })
+  }
+
+  return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitRateServiceUnavailable, {
+    status: 503,
+  })
 }
 
 export async function GET(request: NextRequest) {
@@ -198,6 +252,11 @@ export async function POST(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.alreadySubmitted, {
         status: 409,
       })
+    }
+
+    const limitError = await enforcePreApplicationSubmitLimits(request, `user:${user.id}`)
+    if (limitError) {
+      return limitError
     }
 
     const shadowBanned = await isUserShadowBanned(user.id)
@@ -391,6 +450,11 @@ export async function PUT(request: NextRequest) {
           detail: `已达到最大重新提交次数限制 (${maxResubmitCount} 次)`,
         },
       })
+    }
+
+    const limitError = await enforcePreApplicationSubmitLimits(request, `user:${user.id}`)
+    if (limitError) {
+      return limitError
     }
 
     const newVersion = latest.version + 1

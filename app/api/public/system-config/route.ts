@@ -6,6 +6,13 @@ import {
   DEFAULT_ESSAY_MIN_LENGTH,
   normalizeEssayLengthLimits,
 } from "@/lib/pre-application/essay-limits"
+import {
+  DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+  DEFAULT_PREAPP_DAILY_USER_LIMIT,
+  DEFAULT_PREAPP_SUBMIT_END_TIME,
+  DEFAULT_PREAPP_SUBMIT_START_TIME,
+  normalizeSubmitLimits,
+} from "@/lib/pre-application/submit-limits-utils"
 
 export async function GET() {
   try {
@@ -14,6 +21,10 @@ export async function GET() {
         preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
         preApplicationEssayMinLength: DEFAULT_ESSAY_MIN_LENGTH,
         preApplicationEssayMaxLength: DEFAULT_ESSAY_MAX_LENGTH,
+        preApplicationDailyGlobalLimit: DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+        preApplicationDailyUserLimit: DEFAULT_PREAPP_DAILY_USER_LIMIT,
+        preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
+        preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
       })
     }
@@ -24,6 +35,10 @@ export async function GET() {
         preApplicationEssayHint: true,
         preApplicationEssayMinLength: true,
         preApplicationEssayMaxLength: true,
+        preApplicationDailyGlobalLimit: true,
+        preApplicationDailyUserLimit: true,
+        preApplicationSubmitStartTime: true,
+        preApplicationSubmitEndTime: true,
         allowedEmailDomains: true,
       },
     })
@@ -33,6 +48,10 @@ export async function GET() {
         preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
         preApplicationEssayMinLength: DEFAULT_ESSAY_MIN_LENGTH,
         preApplicationEssayMaxLength: DEFAULT_ESSAY_MAX_LENGTH,
+        preApplicationDailyGlobalLimit: DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+        preApplicationDailyUserLimit: DEFAULT_PREAPP_DAILY_USER_LIMIT,
+        preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
+        preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
       })
     }
@@ -41,11 +60,21 @@ export async function GET() {
       settings.preApplicationEssayMinLength,
       settings.preApplicationEssayMaxLength,
     )
+    const submitLimits = normalizeSubmitLimits({
+      dailyGlobalLimit: settings.preApplicationDailyGlobalLimit,
+      dailyUserLimit: settings.preApplicationDailyUserLimit,
+      submitStartTime: settings.preApplicationSubmitStartTime,
+      submitEndTime: settings.preApplicationSubmitEndTime,
+    })
 
     return NextResponse.json({
       preApplicationEssayHint: settings.preApplicationEssayHint,
       preApplicationEssayMinLength: limits.min,
       preApplicationEssayMaxLength: limits.max,
+      preApplicationDailyGlobalLimit: submitLimits.dailyGlobalLimit,
+      preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
+      preApplicationSubmitStartTime: submitLimits.submitStartTime,
+      preApplicationSubmitEndTime: submitLimits.submitEndTime,
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
@@ -57,6 +86,10 @@ export async function GET() {
         preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
         preApplicationEssayMinLength: DEFAULT_ESSAY_MIN_LENGTH,
         preApplicationEssayMaxLength: DEFAULT_ESSAY_MAX_LENGTH,
+        preApplicationDailyGlobalLimit: DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+        preApplicationDailyUserLimit: DEFAULT_PREAPP_DAILY_USER_LIMIT,
+        preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
+        preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
       },
       { status: 500 },

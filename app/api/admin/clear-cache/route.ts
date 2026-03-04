@@ -5,6 +5,7 @@ import { locales } from "@/lib/i18n/config"
 import { writeAuditLog } from "@/lib/audit"
 import { db } from "@/lib/db"
 import { invalidateSiteSettingsCache } from "@/lib/site-settings"
+import { invalidateSubmitLimitsCache } from "@/lib/pre-application/submit-limits"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 
 export async function POST(request: NextRequest) {
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
       revalidatePath(`/${locale}/admin`)
     })
     await invalidateSiteSettingsCache()
+    await invalidateSubmitLimitsCache()
 
     if (db) {
       await writeAuditLog(db, {

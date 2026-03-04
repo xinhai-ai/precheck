@@ -30,6 +30,7 @@ import {
   MessageSquare,
   Trash2,
   RefreshCw,
+  Clock,
   ChevronDown,
   Users,
   Link as LinkIcon,
@@ -87,6 +88,10 @@ type SystemConfig = {
   inviteCodeCheckApiUrl: string | null
   inviteCodeCheckApiKey: string | null
   maxResubmitCount: number
+  preApplicationDailyGlobalLimit: number
+  preApplicationDailyUserLimit: number
+  preApplicationSubmitStartTime: string
+  preApplicationSubmitEndTime: string
 }
 
 type EmailApiConfig = {
@@ -316,10 +321,29 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
     }
   }, [activeTab])
 
+  const parseTimeToMinutes = (value: string): number | null => {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value)
+    if (!match) return null
+
+    const hour = Number(match[1])
+    const minute = Number(match[2])
+    return hour * 60 + minute
+  }
+
   const handleSaveAll = async () => {
     if (!settings || !systemConfig) return
     if (systemConfig.preApplicationEssayMinLength > systemConfig.preApplicationEssayMaxLength) {
       toast.error(t.preApplicationEssayLengthInvalid || "预申请最小字符数不能大于最大字符数")
+      return
+    }
+    const submitStartMinutes = parseTimeToMinutes(systemConfig.preApplicationSubmitStartTime)
+    const submitEndMinutes = parseTimeToMinutes(systemConfig.preApplicationSubmitEndTime)
+    if (submitStartMinutes === null || submitEndMinutes === null) {
+      toast.error(t.preApplicationSubmitWindowInvalidFormat || "提交时间范围格式无效，请使用 HH:mm")
+      return
+    }
+    if (submitStartMinutes >= submitEndMinutes) {
+      toast.error(t.preApplicationSubmitWindowInvalid || "提交开始时间必须早于结束时间")
       return
     }
     setSaving(true)
@@ -1088,6 +1112,116 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                           }
                           className="w-20 text-center"
                         />
+                      </div>
+                    )}
+                    {systemConfig && (
+                      <div className="flex items-center justify-between py-4">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              "bg-primary/10 text-primary",
+                            )}
+                          >
+                            <Users className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {t.preApplicationDailySubmitLimit || "预申请每日提交限额"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {t.preApplicationDailySubmitLimitDesc ||
+                                "限制全站与单个用户每天可提交的预申请次数"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            title={t.preApplicationDailyGlobalLimit || "全站每日上限"}
+                            placeholder={t.preApplicationDailyGlobalLimit || "全站"}
+                            value={systemConfig.preApplicationDailyGlobalLimit}
+                            onChange={(e) =>
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationDailyGlobalLimit: Math.max(
+                                  1,
+                                  Number(e.target.value) || 1,
+                                ),
+                              })
+                            }
+                            className="w-24 text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">/</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            title={t.preApplicationDailyUserLimit || "单用户每日上限"}
+                            placeholder={t.preApplicationDailyUserLimit || "单用户"}
+                            value={systemConfig.preApplicationDailyUserLimit}
+                            onChange={(e) =>
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationDailyUserLimit: Math.max(
+                                  1,
+                                  Number(e.target.value) || 1,
+                                ),
+                              })
+                            }
+                            className="w-24 text-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {systemConfig && (
+                      <div className="flex items-center justify-between py-4">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              "bg-primary/10 text-primary",
+                            )}
+                          >
+                            <Clock className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {t.preApplicationSubmitWindow || "预申请提交时间范围"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {t.preApplicationSubmitWindowDesc ||
+                                "仅允许在该时间段内提交（Asia/Shanghai）"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="time"
+                            title={t.preApplicationSubmitStartTime || "开始时间"}
+                            value={systemConfig.preApplicationSubmitStartTime}
+                            onChange={(e) =>
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationSubmitStartTime: e.target.value,
+                              })
+                            }
+                            className="w-28 text-center"
+                          />
+                          <span className="text-xs text-muted-foreground">~</span>
+                          <Input
+                            type="time"
+                            title={t.preApplicationSubmitEndTime || "结束时间"}
+                            value={systemConfig.preApplicationSubmitEndTime}
+                            onChange={(e) =>
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationSubmitEndTime: e.target.value,
+                              })
+                            }
+                            className="w-28 text-center"
+                          />
+                        </div>
                       </div>
                     )}
                     {systemConfig && (

@@ -14,6 +14,15 @@ import {
   normalizeEssayLengthLimits,
 } from "@/lib/pre-application/essay-limits"
 import { invalidateSiteSettingsCache } from "@/lib/site-settings"
+import { invalidateSubmitLimitsCache } from "@/lib/pre-application/submit-limits"
+import {
+  DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+  DEFAULT_PREAPP_DAILY_USER_LIMIT,
+  DEFAULT_PREAPP_SUBMIT_END_TIME,
+  DEFAULT_PREAPP_SUBMIT_START_TIME,
+  normalizeSubmitLimits,
+  parseSubmitTimeToMinutes,
+} from "@/lib/pre-application/submit-limits-utils"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
@@ -32,6 +41,10 @@ const systemConfigSchema = z.object({
   preApplicationEssayHint: z.string().min(10).max(500),
   preApplicationEssayMinLength: z.number().int().min(1).max(5000),
   preApplicationEssayMaxLength: z.number().int().min(1).max(5000),
+  preApplicationDailyGlobalLimit: z.number().int().min(1).optional(),
+  preApplicationDailyUserLimit: z.number().int().min(1).optional(),
+  preApplicationSubmitStartTime: z.string().optional(),
+  preApplicationSubmitEndTime: z.string().optional(),
   allowedEmailDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).min(1),
   auditLogEnabled: z.boolean().optional(),
   reviewTemplatesApprove: z.array(z.string()).optional(),
@@ -78,6 +91,10 @@ export async function GET(request: NextRequest) {
         preApplicationEssayHint: true,
         preApplicationEssayMinLength: true,
         preApplicationEssayMaxLength: true,
+        preApplicationDailyGlobalLimit: true,
+        preApplicationDailyUserLimit: true,
+        preApplicationSubmitStartTime: true,
+        preApplicationSubmitEndTime: true,
         allowedEmailDomains: true,
         auditLogEnabled: true,
         reviewTemplatesApprove: true,
@@ -104,6 +121,10 @@ export async function GET(request: NextRequest) {
         preApplicationEssayHint: "建议 100 字左右,避免夸赞社区与版主,只说明你的目的与需求。",
         preApplicationEssayMinLength: DEFAULT_ESSAY_MIN_LENGTH,
         preApplicationEssayMaxLength: DEFAULT_ESSAY_MAX_LENGTH,
+        preApplicationDailyGlobalLimit: DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+        preApplicationDailyUserLimit: DEFAULT_PREAPP_DAILY_USER_LIMIT,
+        preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
+        preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
         auditLogEnabled: false,
         reviewTemplatesApprove: [],
@@ -129,11 +150,21 @@ export async function GET(request: NextRequest) {
       settings.preApplicationEssayMinLength,
       settings.preApplicationEssayMaxLength,
     )
+    const submitLimits = normalizeSubmitLimits({
+      dailyGlobalLimit: settings.preApplicationDailyGlobalLimit,
+      dailyUserLimit: settings.preApplicationDailyUserLimit,
+      submitStartTime: settings.preApplicationSubmitStartTime,
+      submitEndTime: settings.preApplicationSubmitEndTime,
+    })
 
     return NextResponse.json({
       preApplicationEssayHint: settings.preApplicationEssayHint,
       preApplicationEssayMinLength: limits.min,
       preApplicationEssayMaxLength: limits.max,
+      preApplicationDailyGlobalLimit: submitLimits.dailyGlobalLimit,
+      preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
+      preApplicationSubmitStartTime: submitLimits.submitStartTime,
+      preApplicationSubmitEndTime: submitLimits.submitEndTime,
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
@@ -197,6 +228,45 @@ export async function PUT(request: NextRequest) {
       where: { id: "global" },
     })
 
+    const submitStartTime =
+      data.preApplicationSubmitStartTime ??
+      before?.preApplicationSubmitStartTime ??
+      DEFAULT_PREAPP_SUBMIT_START_TIME
+    const submitEndTime =
+      data.preApplicationSubmitEndTime ??
+      before?.preApplicationSubmitEndTime ??
+      DEFAULT_PREAPP_SUBMIT_END_TIME
+
+    const startMinutes = parseSubmitTimeToMinutes(submitStartTime)
+    const endMinutes = parseSubmitTimeToMinutes(submitEndTime)
+
+    if (startMinutes === null || endMinutes === null) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "提交时间范围格式无效，请使用 HH:mm（如 09:00）" },
+      })
+    }
+
+    if (startMinutes >= endMinutes) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "提交时间开始值必须早于结束值" },
+      })
+    }
+
+    const submitLimits = normalizeSubmitLimits({
+      dailyGlobalLimit:
+        data.preApplicationDailyGlobalLimit ??
+        before?.preApplicationDailyGlobalLimit ??
+        DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
+      dailyUserLimit:
+        data.preApplicationDailyUserLimit ??
+        before?.preApplicationDailyUserLimit ??
+        DEFAULT_PREAPP_DAILY_USER_LIMIT,
+      submitStartTime,
+      submitEndTime,
+    })
+
     const updated = await db.siteSettings.upsert({
       where: { id: "global" },
       create: {
@@ -207,6 +277,10 @@ export async function PUT(request: NextRequest) {
         preApplicationEssayHint: data.preApplicationEssayHint,
         preApplicationEssayMinLength: data.preApplicationEssayMinLength,
         preApplicationEssayMaxLength: data.preApplicationEssayMaxLength,
+        preApplicationDailyGlobalLimit: submitLimits.dailyGlobalLimit,
+        preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
+        preApplicationSubmitStartTime: submitLimits.submitStartTime,
+        preApplicationSubmitEndTime: submitLimits.submitEndTime,
         allowedEmailDomains: data.allowedEmailDomains,
         auditLogEnabled: data.auditLogEnabled ?? false,
         reviewTemplatesApprove: data.reviewTemplatesApprove ?? [],
@@ -232,6 +306,10 @@ export async function PUT(request: NextRequest) {
         preApplicationEssayHint: data.preApplicationEssayHint,
         preApplicationEssayMinLength: data.preApplicationEssayMinLength,
         preApplicationEssayMaxLength: data.preApplicationEssayMaxLength,
+        preApplicationDailyGlobalLimit: submitLimits.dailyGlobalLimit,
+        preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
+        preApplicationSubmitStartTime: submitLimits.submitStartTime,
+        preApplicationSubmitEndTime: submitLimits.submitEndTime,
         allowedEmailDomains: data.allowedEmailDomains,
         ...(data.auditLogEnabled !== undefined && { auditLogEnabled: data.auditLogEnabled }),
         ...(data.reviewTemplatesApprove !== undefined && {
@@ -281,6 +359,10 @@ export async function PUT(request: NextRequest) {
           "preApplicationEssayHint",
           "preApplicationEssayMinLength",
           "preApplicationEssayMaxLength",
+          "preApplicationDailyGlobalLimit",
+          "preApplicationDailyUserLimit",
+          "preApplicationSubmitStartTime",
+          "preApplicationSubmitEndTime",
           "allowedEmailDomains",
           "auditLogEnabled",
           "reviewTemplatesApprove",
@@ -304,11 +386,16 @@ export async function PUT(request: NextRequest) {
     })
 
     await invalidateSiteSettingsCache()
+    await invalidateSubmitLimitsCache()
 
     return NextResponse.json({
       preApplicationEssayHint: updated.preApplicationEssayHint,
       preApplicationEssayMinLength: updated.preApplicationEssayMinLength,
       preApplicationEssayMaxLength: updated.preApplicationEssayMaxLength,
+      preApplicationDailyGlobalLimit: updated.preApplicationDailyGlobalLimit,
+      preApplicationDailyUserLimit: updated.preApplicationDailyUserLimit,
+      preApplicationSubmitStartTime: updated.preApplicationSubmitStartTime,
+      preApplicationSubmitEndTime: updated.preApplicationSubmitEndTime,
       allowedEmailDomains: updated.allowedEmailDomains,
       auditLogEnabled: updated.auditLogEnabled,
       reviewTemplatesApprove: updated.reviewTemplatesApprove,

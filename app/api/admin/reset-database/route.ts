@@ -4,6 +4,7 @@ import { isSuperAdmin } from "@/lib/auth/permissions"
 import { db } from "@/lib/db"
 import { writeAuditLog } from "@/lib/audit"
 import { invalidateSiteSettingsCache } from "@/lib/site-settings"
+import { invalidateSubmitLimitsCache } from "@/lib/pre-application/submit-limits"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
       db.user.deleteMany({ where: { role: { not: "ADMIN" } } }),
     ])
     await invalidateSiteSettingsCache()
+    await invalidateSubmitLimitsCache()
 
     await writeAuditLog(db, {
       action: "SYSTEM_RESET_DATABASE",

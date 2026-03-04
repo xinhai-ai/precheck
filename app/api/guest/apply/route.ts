@@ -9,6 +9,12 @@ import { PreApplicationSource } from "@prisma/client"
 import { randomBytes } from "crypto"
 import { getQQVerifyStatus, QQ_VERIFY_CONFIG } from "@/lib/qq-verify"
 import { fetchQQGroups } from "@/lib/qq-groups"
+import { getPreApplicationSubmitLimits } from "@/lib/pre-application/submit-limits"
+import {
+  getShanghaiDayQuotaInfo,
+  isWithinShanghaiSubmitWindow,
+} from "@/lib/pre-application/submit-limits-utils"
+import { consumePreApplicationSubmitQuota } from "@/lib/pre-application/submit-quota"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -31,6 +37,46 @@ const guestApplicationSchema = z.object({
 async function isValidGroupId(groupId: string): Promise<boolean> {
   const groups = await fetchQQGroups()
   return groups.some((g) => g.id === groupId)
+}
+
+async function enforceGuestSubmitLimits(qqNumber: string): Promise<NextResponse | null> {
+  const limits = await getPreApplicationSubmitLimits()
+  const now = new Date()
+
+  if (!isWithinShanghaiSubmitWindow(now, limits.submitStartTime, limits.submitEndTime)) {
+    return NextResponse.json(
+      {
+        error: `当前仅允许在 ${limits.submitStartTime}-${limits.submitEndTime}（Asia/Shanghai）提交`,
+      },
+      { status: 403 },
+    )
+  }
+
+  const quotaInfo = getShanghaiDayQuotaInfo(now)
+  const quotaResult = await consumePreApplicationSubmitQuota({
+    identity: `qq:${qqNumber}`,
+    dayKey: quotaInfo.dayKey,
+    ttlSeconds: quotaInfo.ttlSeconds,
+    dailyGlobalLimit: limits.dailyGlobalLimit,
+    dailyUserLimit: limits.dailyUserLimit,
+  })
+
+  if (quotaResult.ok) {
+    return null
+  }
+
+  if (quotaResult.reason === "user_limit_exceeded") {
+    return NextResponse.json({ error: `每日最多提交 ${limits.dailyUserLimit} 次` }, { status: 429 })
+  }
+
+  if (quotaResult.reason === "global_limit_exceeded") {
+    return NextResponse.json(
+      { error: `今日提交量已达上限（${limits.dailyGlobalLimit}）` },
+      { status: 429 },
+    )
+  }
+
+  return NextResponse.json({ error: "提交限流服务不可用，请稍后重试" }, { status: 503 })
 }
 
 export async function POST(request: NextRequest) {
@@ -95,6 +141,16 @@ export async function POST(request: NextRequest) {
 
     if (!(await isValidGroupId(data.group))) {
       return NextResponse.json({ error: "无效的群组" }, { status: 400 })
+    }
+
+    const existingByQQ = await db.preApplication.count({ where: { qqNumber } })
+    if (existingByQQ > 0) {
+      return NextResponse.json({ error: "该 QQ 号已经提交过申请" }, { status: 409 })
+    }
+
+    const limitError = await enforceGuestSubmitLimits(qqNumber)
+    if (limitError) {
+      return limitError
     }
 
     const queryToken = await generateUniqueQueryToken()

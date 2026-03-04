@@ -224,5 +224,9 @@ export const ApiErrorKeys = {
     aiPreviewNotConfigured: "apiErrors.preApplication.aiPreviewNotConfigured",
     aiPreviewFailed: "apiErrors.preApplication.aiPreviewFailed",
     editTooFrequent: "apiErrors.preApplication.editTooFrequent",
+    submitWindowClosed: "apiErrors.preApplication.submitWindowClosed",
+    dailyUserLimitExceeded: "apiErrors.preApplication.dailyUserLimitExceeded",
+    dailyGlobalLimitExceeded: "apiErrors.preApplication.dailyGlobalLimitExceeded",
+    submitRateServiceUnavailable: "apiErrors.preApplication.submitRateServiceUnavailable",
   },
 } as const

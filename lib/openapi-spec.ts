@@ -455,7 +455,32 @@ export const openApiSpec = {
         tags: ["Admin"],
         summary: "获取系统配置",
         responses: {
-          "200": { description: "系统配置" },
+          "200": {
+            description: "系统配置",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    preApplicationEssayHint: { type: "string" },
+                    preApplicationEssayMinLength: { type: "integer" },
+                    preApplicationEssayMaxLength: { type: "integer" },
+                    preApplicationDailyGlobalLimit: { type: "integer" },
+                    preApplicationDailyUserLimit: { type: "integer" },
+                    preApplicationSubmitStartTime: {
+                      type: "string",
+                      description: "HH:mm，Asia/Shanghai",
+                    },
+                    preApplicationSubmitEndTime: {
+                      type: "string",
+                      description: "HH:mm，Asia/Shanghai",
+                    },
+                    maxResubmitCount: { type: "integer" },
+                  },
+                },
+              },
+            },
+          },
           "403": { description: "无权限" },
         },
       },
@@ -466,7 +491,25 @@ export const openApiSpec = {
           required: true,
           content: {
             "application/json": {
-              schema: { type: "object" },
+              schema: {
+                type: "object",
+                properties: {
+                  preApplicationEssayHint: { type: "string" },
+                  preApplicationEssayMinLength: { type: "integer" },
+                  preApplicationEssayMaxLength: { type: "integer" },
+                  preApplicationDailyGlobalLimit: { type: "integer", minimum: 1 },
+                  preApplicationDailyUserLimit: { type: "integer", minimum: 1 },
+                  preApplicationSubmitStartTime: {
+                    type: "string",
+                    pattern: "^([01]\\\\d|2[0-3]):([0-5]\\\\d)$",
+                  },
+                  preApplicationSubmitEndTime: {
+                    type: "string",
+                    pattern: "^([01]\\\\d|2[0-3]):([0-5]\\\\d)$",
+                  },
+                  maxResubmitCount: { type: "integer", minimum: 0 },
+                },
+              },
             },
           },
         },
@@ -694,7 +737,7 @@ export const openApiSpec = {
       },
       post: {
         tags: ["PreApplication"],
-        summary: "提交预申请",
+        summary: "提交预申请（按 Asia/Shanghai 时段与每日限额控制）",
         requestBody: {
           required: true,
           content: {
@@ -732,12 +775,15 @@ export const openApiSpec = {
           "200": { description: "提交成功" },
           "400": { description: "参数错误 / 已提交 / 邮箱域名不合法" },
           "401": { description: "未认证" },
+          "403": { description: "不在允许提交时间段" },
+          "429": { description: "超过个人或全站每日提交限额" },
+          "503": { description: "限流服务不可用" },
           "500": { description: "服务器错误" },
         },
       },
       put: {
         tags: ["PreApplication"],
-        summary: "更新/重新提交预申请（驳回后）",
+        summary: "更新/重新提交预申请（驳回后，按时段与每日限额控制）",
         requestBody: {
           required: true,
           content: {
@@ -765,6 +811,9 @@ export const openApiSpec = {
           "200": { description: "更新成功" },
           "400": { description: "参数错误 / 超过重新提交次数限制" },
           "401": { description: "未认证" },
+          "403": { description: "不在允许提交时间段" },
+          "429": { description: "超过个人或全站每日提交限额" },
+          "503": { description: "限流服务不可用" },
           "409": { description: "版本冲突" },
         },
       },
@@ -776,7 +825,35 @@ export const openApiSpec = {
         tags: ["Public"],
         summary: "获取公开系统配置",
         responses: {
-          "200": { description: "系统配置" },
+          "200": {
+            description: "系统配置",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    preApplicationEssayHint: { type: "string" },
+                    preApplicationEssayMinLength: { type: "integer" },
+                    preApplicationEssayMaxLength: { type: "integer" },
+                    preApplicationDailyGlobalLimit: { type: "integer" },
+                    preApplicationDailyUserLimit: { type: "integer" },
+                    preApplicationSubmitStartTime: {
+                      type: "string",
+                      description: "HH:mm，Asia/Shanghai",
+                    },
+                    preApplicationSubmitEndTime: {
+                      type: "string",
+                      description: "HH:mm，Asia/Shanghai",
+                    },
+                    allowedEmailDomains: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },

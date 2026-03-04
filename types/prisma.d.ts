@@ -318,6 +318,10 @@ export interface SiteSettings {
   smtpPass: string | null
   smtpSecure: boolean
   maxResubmitCount: number
+  preApplicationDailyGlobalLimit: number
+  preApplicationDailyUserLimit: number
+  preApplicationSubmitStartTime: string
+  preApplicationSubmitEndTime: string
   inviteCodeCheckApiUrl: string | null
   inviteCodeCheckApiKey: string | null
   analyticsEnabled: boolean
