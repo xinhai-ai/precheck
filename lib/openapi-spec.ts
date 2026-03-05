@@ -421,6 +421,290 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/users": {
+      get: {
+        tags: ["Admin"],
+        summary: "用户列表（仅超级管理员）",
+        parameters: [
+          { name: "search", in: "query", schema: { type: "string" } },
+          {
+            name: "sortBy",
+            in: "query",
+            schema: { type: "string", enum: ["createdAt", "email", "name", "role", "status"] },
+          },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"] } },
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 10 } },
+          {
+            name: "role",
+            in: "query",
+            schema: { type: "string", enum: ["all", "USER", "ADMIN", "SUPER_ADMIN"] },
+          },
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string", enum: ["all", "ACTIVE", "INACTIVE", "BANNED", "DELETED"] },
+          },
+          { name: "provider", in: "query", schema: { type: "string" } },
+          { name: "linuxdoTL3", in: "query", schema: { type: "boolean" } },
+          { name: "fingerprintHash", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          "200": {
+            description: "用户列表",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    users: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          email: { type: "string", format: "email" },
+                          name: { type: "string", nullable: true },
+                          role: { type: "string" },
+                          status: { type: "string" },
+                          banReason: { type: "string", nullable: true },
+                          preApplicationSubmitBannedUntil: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          createdAt: { type: "string", format: "date-time" },
+                          latestFingerprintHash: { type: "string", nullable: true },
+                          latestFingerprintAt: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          applicationCount: { type: "integer" },
+                          reviewCount: { type: "integer" },
+                          shadowBanned: { type: "boolean" },
+                          shadowBanReason: { type: "string", nullable: true },
+                          shadowBannedAt: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                        },
+                      },
+                    },
+                    total: { type: "integer" },
+                    page: { type: "integer" },
+                    limit: { type: "integer" },
+                    stats: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        admins: { type: "integer" },
+                        active: { type: "integer" },
+                        banned: { type: "integer" },
+                        linuxdo: { type: "integer" },
+                        linuxdoTL3Admins: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+    },
+    "/admin/users/{id}": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取单个用户（仅超级管理员）",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "用户详情",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    email: { type: "string", format: "email" },
+                    name: { type: "string", nullable: true },
+                    role: { type: "string" },
+                    status: { type: "string" },
+                    banReason: { type: "string", nullable: true },
+                    preApplicationSubmitBannedUntil: {
+                      type: "string",
+                      format: "date-time",
+                      nullable: true,
+                    },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "用户不存在" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+      put: {
+        tags: ["Admin"],
+        summary: "更新用户（仅超级管理员）",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  role: { type: "string", enum: ["USER", "ADMIN", "SUPER_ADMIN"] },
+                  status: { type: "string", enum: ["ACTIVE", "INACTIVE", "BANNED"] },
+                  banReason: { type: "string", maxLength: 500, nullable: true },
+                  preApplicationSubmitBanDays: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 3650,
+                    nullable: true,
+                    description: "提交封禁天数（24h 滚动）；null 表示解除提交封禁",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "更新成功" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "用户不存在" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+      delete: {
+        tags: ["Admin"],
+        summary: "删除用户（仅超级管理员）",
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+          {
+            name: "hard",
+            in: "query",
+            schema: { type: "boolean" },
+            description: "true 时彻底删除；否则软删除为 DELETED 状态",
+          },
+        ],
+        responses: {
+          "200": { description: "删除成功" },
+          "400": { description: "参数错误（如不能删除自己）" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "用户不存在" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+    },
+    "/admin/users/export": {
+      get: {
+        tags: ["Admin"],
+        summary: "导出用户列表 CSV（仅超级管理员）",
+        parameters: [
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "role", in: "query", schema: { type: "string" } },
+          { name: "status", in: "query", schema: { type: "string" } },
+          { name: "provider", in: "query", schema: { type: "string" } },
+          { name: "linuxdoTL3", in: "query", schema: { type: "boolean" } },
+          { name: "fingerprintHash", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          "200": {
+            description: "CSV 文件",
+            content: {
+              "text/csv": {
+                schema: { type: "string", format: "binary" },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+    },
+    "/admin/users/batch-role": {
+      post: {
+        tags: ["Admin"],
+        summary: "批量更新用户角色（仅超级管理员）",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["userIds", "role"],
+                properties: {
+                  userIds: { type: "array", minItems: 1, maxItems: 100, items: { type: "string" } },
+                  role: { type: "string", enum: ["USER", "ADMIN"] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "更新结果" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+    },
+    "/admin/users/batch-create": {
+      post: {
+        tags: ["Admin"],
+        summary: "批量创建用户（仅超级管理员）",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["emails"],
+                properties: {
+                  emails: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 100,
+                    items: { type: "string", format: "email" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "创建结果" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+    },
     "/admin/messages": {
       get: {
         tags: ["Admin"],
@@ -841,6 +1125,19 @@ export const openApiSpec = {
                         globalRemainingToday: { type: "integer", nullable: true },
                       },
                     },
+                    submitBanStatus: {
+                      type: "object",
+                      nullable: true,
+                      properties: {
+                        isSubmitBanned: { type: "boolean" },
+                        submitBannedUntil: {
+                          type: "string",
+                          format: "date-time",
+                          nullable: true,
+                        },
+                        remainingSeconds: { type: "integer" },
+                      },
+                    },
                   },
                 },
               },
@@ -887,9 +1184,10 @@ export const openApiSpec = {
         },
         responses: {
           "200": { description: "提交成功" },
-          "400": { description: "参数错误 / 已提交 / 邮箱域名不合法" },
+          "400": { description: "参数错误 / 邮箱域名不合法" },
+          "409": { description: "已提交，不能重复创建" },
           "401": { description: "未认证" },
-          "403": { description: "不在允许提交时间段" },
+          "403": { description: "不在允许提交时间段或提交权限被封禁" },
           "429": { description: "超过个人或全站每日提交限额" },
           "503": { description: "限流服务不可用" },
           "500": { description: "服务器错误" },
@@ -925,7 +1223,8 @@ export const openApiSpec = {
           "200": { description: "更新成功" },
           "400": { description: "参数错误 / 超过重新提交次数限制" },
           "401": { description: "未认证" },
-          "403": { description: "不在允许提交时间段" },
+          "403": { description: "不在允许提交时间段或提交权限被封禁" },
+          "404": { description: "未找到预申请记录" },
           "429": { description: "超过个人或全站每日提交限额" },
           "503": { description: "限流服务不可用" },
           "409": { description: "版本冲突" },
