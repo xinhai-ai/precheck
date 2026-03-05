@@ -6,11 +6,23 @@ import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import {
+  PRE_APPLICATION_SUBMIT_BAN_MAX_DAYS,
+  PRE_APPLICATION_SUBMIT_BAN_MIN_DAYS,
+  getSubmitBanUntilFromDays,
+} from "@/lib/pre-application/submit-ban-utils"
 
 const updateUserSchema = z.object({
   role: z.enum(["USER", "ADMIN", "SUPER_ADMIN"]).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "BANNED"]).optional(),
   banReason: z.string().trim().max(500).nullable().optional(),
+  preApplicationSubmitBanDays: z
+    .number()
+    .int()
+    .min(PRE_APPLICATION_SUBMIT_BAN_MIN_DAYS)
+    .max(PRE_APPLICATION_SUBMIT_BAN_MAX_DAYS)
+    .nullable()
+    .optional(),
 })
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -41,6 +53,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         role: true,
         status: true,
         banReason: true,
+        preApplicationSubmitBannedUntil: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -114,6 +127,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       role?: "USER" | "ADMIN" | "SUPER_ADMIN"
       status?: "ACTIVE" | "INACTIVE" | "BANNED"
       banReason?: string | null
+      preApplicationSubmitBannedUntil?: Date | null
     } = {
       ...(data.role !== undefined ? { role: data.role } : {}),
       ...(data.status !== undefined ? { status: data.status } : {}),
@@ -127,6 +141,16 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       nextData.banReason = data.banReason?.trim() || null
     }
 
+    if (data.preApplicationSubmitBanDays !== undefined) {
+      if (data.preApplicationSubmitBanDays === null) {
+        nextData.preApplicationSubmitBannedUntil = null
+      } else {
+        nextData.preApplicationSubmitBannedUntil = getSubmitBanUntilFromDays(
+          data.preApplicationSubmitBanDays,
+        )
+      }
+    }
+
     const updatedUser = await db.user.update({
       where: { id },
       data: nextData,
@@ -137,6 +161,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         role: true,
         status: true,
         banReason: true,
+        preApplicationSubmitBannedUntil: true,
         createdAt: true,
         updatedAt: true,
       },

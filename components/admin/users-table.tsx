@@ -110,6 +110,7 @@ interface AdminUser {
   latestFingerprintHash?: string | null
   latestFingerprintAt?: string | null
   banReason?: string | null
+  preApplicationSubmitBannedUntil?: string | null
   shadowBanned?: boolean
   shadowBanReason?: string | null
   shadowBannedAt?: string | null
@@ -286,7 +287,12 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
 
   const updateUser = async (
     id: string,
-    payload: { role?: string; status?: string; banReason?: string | null },
+    payload: {
+      role?: string
+      status?: string
+      banReason?: string | null
+      preApplicationSubmitBanDays?: number | null
+    },
   ) => {
     setBusyId(id)
     setError("")
@@ -469,11 +475,18 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     )
   }
 
+  const isSubmitBanActive = (bannedUntil?: string | null) => {
+    if (!bannedUntil) return false
+    const ms = new Date(bannedUntil).getTime()
+    return Number.isFinite(ms) && ms > Date.now()
+  }
+
   const renderActions = (user: AdminUser) => {
     const isBusy = busyId === user.id
     const isSuperAdmin = currentUserRole === "SUPER_ADMIN"
     const canPromote = user.role === "USER" && isSuperAdmin
     const canDemote = user.role === "ADMIN" && isSuperAdmin
+    const isSubmitBanned = isSubmitBanActive(user.preApplicationSubmitBannedUntil)
     const shouldActivate = user.status !== "ACTIVE"
     const statusLabel = shouldActivate ? t.activate : t.ban
 
@@ -533,6 +546,45 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           )}
           {isSuperAdmin && user.role !== "SUPER_ADMIN" && (
             <>
+              <DropdownMenuItem
+                disabled={isBusy}
+                onClick={() => {
+                  if (isSubmitBanned) {
+                    setConfirmState({
+                      title: t.confirmTitle,
+                      description: adminExt.confirmSubmitUnbanUser || "确定解除该用户的提交封禁？",
+                      confirmLabel: adminExt.submitUnbanUser || "解除提交封禁",
+                      onConfirm: async () => {
+                        await updateUser(user.id, { preApplicationSubmitBanDays: null })
+                      },
+                    })
+                    return
+                  }
+
+                  const input = window.prompt(
+                    adminExt.submitBanDaysPrompt || "请输入提交封禁天数（正整数）：",
+                    "1",
+                  )
+                  if (input === null) return
+
+                  const days = Number.parseInt(input.trim(), 10)
+                  if (!Number.isInteger(days) || days < 1 || days > 3650) {
+                    toast.error(adminExt.submitBanDaysInvalid || "请输入 1-3650 的整数天数")
+                    return
+                  }
+
+                  void updateUser(user.id, { preApplicationSubmitBanDays: days })
+                }}
+              >
+                {isSubmitBanned ? (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                ) : (
+                  <Ban className="mr-2 h-4 w-4" />
+                )}
+                {isSubmitBanned
+                  ? adminExt.submitUnbanUser || "解除提交封禁"
+                  : adminExt.submitBanUser || "封禁提交权限"}
+              </DropdownMenuItem>
               {canPromote && (
                 <DropdownMenuItem
                   disabled={isBusy}
@@ -709,12 +761,25 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
                 {adminExt.shadowHidden || "Shadowban"}
               </span>
             )}
+            {isSubmitBanActive(user.preApplicationSubmitBannedUntil) && (
+              <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                {adminExt.submitBanBadge || "提交已封禁"}
+              </span>
+            )}
           </div>
           {user.status === "BANNED" && user.banReason && (
             <p className="max-w-[220px] truncate text-xs text-muted-foreground">
               {(adminExt.banReasonLabel || "封禁理由") + "：" + user.banReason}
             </p>
           )}
+          {isSubmitBanActive(user.preApplicationSubmitBannedUntil) &&
+            user.preApplicationSubmitBannedUntil && (
+              <p className="max-w-[220px] truncate text-xs text-muted-foreground">
+                {(adminExt.submitBanUntilLabel || "封禁至") +
+                  "：" +
+                  new Date(user.preApplicationSubmitBannedUntil).toLocaleString(locale)}
+              </p>
+            )}
         </div>
       ),
     },
@@ -901,7 +966,11 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           {t.searchAction}
         </Button>
         <Button onClick={handleExport} variant="secondary" disabled={exporting} className="gap-2">
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {exporting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
           {adminExt.export || "导出"}
         </Button>
         {currentUserRole === "SUPER_ADMIN" && (
@@ -1017,11 +1086,24 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   {renderRoleBadge(user.role)}
                   {renderStatusBadge(user.status)}
+                  {isSubmitBanActive(user.preApplicationSubmitBannedUntil) && (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      {adminExt.submitBanBadge || "提交已封禁"}
+                    </span>
+                  )}
                   {user.status === "BANNED" && user.banReason && (
                     <span className="max-w-[180px] truncate text-muted-foreground">
                       {(adminExt.banReasonLabel || "封禁理由") + "：" + user.banReason}
                     </span>
                   )}
+                  {isSubmitBanActive(user.preApplicationSubmitBannedUntil) &&
+                    user.preApplicationSubmitBannedUntil && (
+                      <span className="text-muted-foreground">
+                        {(adminExt.submitBanUntilLabel || "封禁至") +
+                          "：" +
+                          new Date(user.preApplicationSubmitBannedUntil).toLocaleString(locale)}
+                      </span>
+                    )}
                   <span className="text-muted-foreground">
                     {t.applicationCount || "申请"}: {user.applicationCount}
                   </span>

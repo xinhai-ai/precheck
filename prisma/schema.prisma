@@ -26,6 +26,7 @@ model User {
   role                  Role       @default(USER)
   status                UserStatus @default(ACTIVE)
   banReason             String?
+  preApplicationSubmitBannedUntil DateTime?
   country               String?
   latestFingerprintHash String?
   latestFingerprintAt   DateTime?

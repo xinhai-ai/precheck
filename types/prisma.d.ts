@@ -6,7 +6,15 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
+export type PreApplicationStatus =
+  | "PENDING"
+  | "SHADOW_HIDDEN"
+  | "APPROVED"
+  | "REJECTED"
+  | "DISPUTED"
+  | "ARCHIVED"
+  | "PENDING_REVIEW"
+  | "ON_HOLD"
 
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
@@ -28,6 +36,7 @@ export interface User {
   role: Role
   status: UserStatus
   banReason: string | null
+  preApplicationSubmitBannedUntil: Date | null
   country: string | null
   latestFingerprintHash: string | null
   latestFingerprintAt: Date | null

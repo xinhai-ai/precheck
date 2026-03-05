@@ -27,6 +27,7 @@ import {
   consumePreApplicationSubmitQuota,
   getPreApplicationSubmitQuotaSnapshot,
 } from "@/lib/pre-application/submit-quota"
+import { getSubmitBanRemainingSeconds } from "@/lib/pre-application/submit-ban-utils"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -54,6 +55,44 @@ async function isUserShadowBanned(userId: string): Promise<boolean> {
     select: { userId: true },
   })
   return Boolean(shadow)
+}
+
+type SubmitBanStatus = {
+  isSubmitBanned: boolean
+  submitBannedUntil: string | null
+  remainingSeconds: number
+}
+
+async function getSubmitBanStatus(userId: string, clearExpired: boolean): Promise<SubmitBanStatus> {
+  if (!db) {
+    return { isSubmitBanned: false, submitBannedUntil: null, remainingSeconds: 0 }
+  }
+
+  const row = await db.user.findUnique({
+    where: { id: userId },
+    select: { preApplicationSubmitBannedUntil: true },
+  })
+
+  const bannedUntil = row?.preApplicationSubmitBannedUntil ?? null
+  const remainingSeconds = getSubmitBanRemainingSeconds(bannedUntil)
+
+  if (!bannedUntil || remainingSeconds <= 0) {
+    if (clearExpired && bannedUntil) {
+      await db.user
+        .update({
+          where: { id: userId },
+          data: { preApplicationSubmitBannedUntil: null },
+        })
+        .catch(() => {})
+    }
+    return { isSubmitBanned: false, submitBannedUntil: null, remainingSeconds: 0 }
+  }
+
+  return {
+    isSubmitBanned: true,
+    submitBannedUntil: bannedUntil.toISOString(),
+    remainingSeconds,
+  }
 }
 
 const preApplicationSchema = z.object({
@@ -233,6 +272,7 @@ export async function GET(request: NextRequest) {
       maxResubmitCount: await getMaxResubmitCount(),
       queueInfo,
       submitQuotaStatus: await getSubmitQuotaStatus(`user:${user.id}`),
+      submitBanStatus: await getSubmitBanStatus(user.id, true),
     })
   } catch (error) {
     console.error("Pre-application fetch error:", error)
@@ -252,6 +292,17 @@ export async function POST(request: NextRequest) {
 
     if (!db) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
+    }
+
+    const submitBanStatus = await getSubmitBanStatus(user.id, true)
+    if (submitBanStatus.isSubmitBanned) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitBanned, {
+        status: 403,
+        meta: {
+          remainingSeconds: submitBanStatus.remainingSeconds,
+          submitBannedUntil: submitBanStatus.submitBannedUntil,
+        },
+      })
     }
 
     const body = await request.json()
@@ -409,6 +460,17 @@ export async function PUT(request: NextRequest) {
 
     if (!db) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
+    }
+
+    const submitBanStatus = await getSubmitBanStatus(user.id, true)
+    if (submitBanStatus.isSubmitBanned) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitBanned, {
+        status: 403,
+        meta: {
+          remainingSeconds: submitBanStatus.remainingSeconds,
+          submitBannedUntil: submitBanStatus.submitBannedUntil,
+        },
+      })
     }
 
     // 5 分钟内只能修改一次

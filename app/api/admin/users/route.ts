@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
           role: true,
           status: true,
           banReason: true,
+          preApplicationSubmitBannedUntil: true,
           createdAt: true,
           latestFingerprintHash: true,
           latestFingerprintAt: true,

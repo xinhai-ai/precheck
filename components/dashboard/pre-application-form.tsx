@@ -135,6 +135,12 @@ type SubmitQuotaStatus = {
   globalRemainingToday: number | null
 }
 
+type SubmitBanStatus = {
+  isSubmitBanned: boolean
+  submitBannedUntil: string | null
+  remainingSeconds: number
+}
+
 interface PreApplicationFormProps {
   locale: Locale
   dict: Dictionary
@@ -212,6 +218,7 @@ export function PreApplicationForm({
     aheadCount: number
   } | null>(null)
   const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
+  const [submitBanStatus, setSubmitBanStatus] = useState<SubmitBanStatus | null>(null)
   const [draft, setDraft] = useState<PreApplicationDraft | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
   const [clearingDraft, setClearingDraft] = useState(false)
@@ -263,6 +270,7 @@ export function PreApplicationForm({
   // 管理员可以删除自己的申请记录（用于测试）
   const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
   const canDelete = isAdmin && latest
+  const isSubmitBanned = submitBanStatus?.isSubmitBanned ?? false
 
   // 删除申请记录
   const handleDelete = async () => {
@@ -345,8 +353,9 @@ export function PreApplicationForm({
       setRecords(nextRecords)
       setDraft((draftData?.draft as PreApplicationDraft | null) ?? null)
       if (data.maxResubmitCount) setMaxResubmitCount(data.maxResubmitCount)
-      if (data.queueInfo) setQueueInfo(data.queueInfo)
+      setQueueInfo(data.queueInfo ?? null)
       setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
+      setSubmitBanStatus((data.submitBanStatus as SubmitBanStatus | null) ?? null)
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("pre-application:updated", {
@@ -559,6 +568,24 @@ export function PreApplicationForm({
   const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString(locale) : "-"
 
+  const formatRemainingDuration = (remainingSeconds: number) => {
+    const total = Math.max(0, Math.floor(remainingSeconds))
+    const days = Math.floor(total / 86400)
+    const hours = Math.floor((total % 86400) / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
+    const safeMinutes = Math.max(1, minutes)
+
+    if (locale === "zh") {
+      if (days > 0) return `${days}天${hours}小时`
+      if (hours > 0) return `${hours}小时${safeMinutes}分钟`
+      return `${safeMinutes}分钟`
+    }
+
+    if (days > 0) return `${days}d ${hours}h`
+    if (hours > 0) return `${hours}h ${safeMinutes}m`
+    return `${safeMinutes}m`
+  }
+
   const handleSaveDraft = async () => {
     if (latest?.status === "APPROVED") {
       return
@@ -704,6 +731,33 @@ export function PreApplicationForm({
           errorObject && typeof errorObject === "object" && typeof errorObject.code === "string"
             ? errorObject.code
             : undefined
+        const errorMeta =
+          errorObject &&
+          typeof errorObject === "object" &&
+          "meta" in errorObject &&
+          typeof (errorObject as { meta?: unknown }).meta === "object"
+            ? ((errorObject as { meta?: Record<string, unknown> }).meta ?? undefined)
+            : undefined
+
+        if (res.status === 403 && errorCode === ApiErrorKeys.preApplication.submitBanned) {
+          const remainingSeconds =
+            errorMeta && typeof errorMeta.remainingSeconds === "number"
+              ? errorMeta.remainingSeconds
+              : null
+
+          if (remainingSeconds && remainingSeconds > 0) {
+            const template =
+              ((t as Record<string, unknown>).submitBanErrorWithRemaining as string) ||
+              "你的提交权限已被管理员暂时封禁，剩余 {time}"
+            toast.error(template.replace("{time}", formatRemainingDuration(remainingSeconds)))
+          } else {
+            toast.error(message)
+          }
+
+          await loadRecord(false)
+          return
+        }
+
         if (res.status === 409 && errorCode === ApiErrorKeys.preApplication.versionConflict) {
           toast.error(message)
           await loadRecord()
@@ -802,7 +856,8 @@ export function PreApplicationForm({
   if (loading) return <FormSkeleton />
 
   const hasHistory = latest?.versions && latest.versions.length > 1
-  const canSubmitForm = !latest || latest.status === "PENDING" || canResubmit || canEditDisputed
+  const canSubmitForm =
+    !isSubmitBanned && (!latest || latest.status === "PENDING" || canResubmit || canEditDisputed)
   const showForm = !latest || latest.status !== "APPROVED"
 
   return (
@@ -988,6 +1043,35 @@ export function PreApplicationForm({
   function renderMainContent() {
     return (
       <div className="space-y-6">
+        {submitBanStatus?.isSubmitBanned && (
+          <Card className="border-rose-200 bg-rose-50/60 dark:border-rose-900/50 dark:bg-rose-950/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-rose-700 dark:text-rose-300">
+                {(t.submitBanTitle as string) || "提交权限已封禁"}
+              </CardTitle>
+              <CardDescription className="text-rose-700/80 dark:text-rose-300/80">
+                {(t.submitBanDescription as string) || "管理员已暂时禁止你的预申请正式提交。"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm text-rose-800 dark:text-rose-200">
+              <p>
+                {((t.submitBanRemaining as string) || "剩余时间：{time}").replace(
+                  "{time}",
+                  formatRemainingDuration(submitBanStatus.remainingSeconds),
+                )}
+              </p>
+              {submitBanStatus.submitBannedUntil && (
+                <p>
+                  {((t.submitBanUntil as string) || "解封时间：{time}").replace(
+                    "{time}",
+                    formatDate(submitBanStatus.submitBannedUntil),
+                  )}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {submitQuotaStatus && (
           <Card className="border-0 shadow-md overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-muted/50 to-transparent border-b">

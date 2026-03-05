@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
         name: true,
         role: true,
         status: true,
+        preApplicationSubmitBannedUntil: true,
         createdAt: true,
         latestFingerprintHash: true,
         latestFingerprintAt: true,
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest) {
       "name",
       "role",
       "status",
+      "preApplicationSubmitBannedUntil",
       "createdAt",
       "latestFingerprintHash",
       "latestFingerprintAt",
@@ -118,6 +120,7 @@ export async function GET(request: NextRequest) {
         item.name || "",
         item.role,
         item.status,
+        item.preApplicationSubmitBannedUntil?.toISOString() || "",
         item.createdAt.toISOString(),
         item.latestFingerprintHash || "",
         item.latestFingerprintAt?.toISOString() || "",
@@ -140,4 +143,3 @@ export async function GET(request: NextRequest) {
     })
   }
 }
-
