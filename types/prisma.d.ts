@@ -40,6 +40,7 @@ export interface User {
   messagesCreated: Message[]
   messagesRevoked: Message[]
   preApplications: PreApplication[]
+  preApplicationDraft: PreApplicationDraft | null
   preApplicationsReviewed: PreApplication[]
   preApplicationVersionsReviewed: PreApplicationVersion[]
   preApplicationAdminNotesCreated: PreApplicationAdminNote[]
@@ -213,6 +214,19 @@ export interface PreApplicationAdminNoteRevision {
   createdAt: Date
   note: PreApplicationAdminNote
   editedBy: User
+}
+
+export interface PreApplicationDraft {
+  id: string
+  userId: string
+  essay: string
+  source: PreApplicationSource | null
+  sourceDetail: string | null
+  registerEmail: string
+  group: string
+  createdAt: Date
+  updatedAt: Date
+  user: User
 }
 
 export interface FingerprintProfile {

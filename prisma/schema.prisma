@@ -40,6 +40,7 @@ model User {
   messagesCreated                  Message[]                         @relation("CreatedMessages")
   messagesRevoked                  Message[]                         @relation("RevokedMessages")
   preApplications                  PreApplication[]
+  preApplicationDraft              PreApplicationDraft?
   preApplicationsReviewed          PreApplication[]                  @relation("ReviewedPreApplications")
   preApplicationVersionsReviewed   PreApplicationVersion[]           @relation("ReviewedVersions")
   preApplicationAdminNotesCreated  PreApplicationAdminNote[]         @relation("PreApplicationAdminNotesCreated")
@@ -257,6 +258,22 @@ model PreApplicationAdminNoteRevision {
   editedBy User                    @relation("PreApplicationAdminNoteRevisionsEdited", fields: [editedById], references: [id], onDelete: Cascade)
 
   @@index([noteId, createdAt])
+}
+
+model PreApplicationDraft {
+  id            String                @id @default(cuid())
+  userId        String                @unique
+  essay         String                @default("")
+  source        PreApplicationSource?
+  sourceDetail  String?
+  registerEmail String                @default("")
+  group         String                @default("")
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
 }
 
 model FingerprintProfile {

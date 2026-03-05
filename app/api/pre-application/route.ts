@@ -351,6 +351,10 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      await tx.preApplicationDraft.deleteMany({
+        where: { userId: user.id },
+      })
+
       return preApp
     })
 
@@ -566,6 +570,10 @@ export async function PUT(request: NextRequest) {
           group: data.group,
           status: persistedStatus,
         },
+      })
+
+      await tx.preApplicationDraft.deleteMany({
+        where: { userId: user.id },
       })
 
       return updated

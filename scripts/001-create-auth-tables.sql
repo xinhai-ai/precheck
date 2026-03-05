@@ -277,6 +277,20 @@ CREATE TABLE IF NOT EXISTS "PreApplicationVersion" (
   CONSTRAINT "PreApplicationVersion_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- 预申请草稿表（每用户一条）
+CREATE TABLE IF NOT EXISTS "PreApplicationDraft" (
+  "id"            TEXT NOT NULL PRIMARY KEY,
+  "userId"        TEXT NOT NULL UNIQUE,
+  "essay"         TEXT NOT NULL DEFAULT '',
+  "source"        "PreApplicationSource",
+  "sourceDetail"  TEXT,
+  "registerEmail" TEXT NOT NULL DEFAULT '',
+  "group"         TEXT NOT NULL DEFAULT '',
+  "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "PreApplicationDraft_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- 预申请管理员备注表
 CREATE TABLE IF NOT EXISTS "PreApplicationAdminNote" (
   "id"               TEXT NOT NULL PRIMARY KEY,
@@ -457,6 +471,8 @@ CREATE INDEX IF NOT EXISTS "PreApplication_registerEmail_idx" ON "PreApplication
 CREATE INDEX IF NOT EXISTS "PreApplication_qqNumber_idx" ON "PreApplication"("qqNumber");
 CREATE UNIQUE INDEX IF NOT EXISTS "PreApplicationVersion_preApplicationId_version_key" ON "PreApplicationVersion"("preApplicationId", "version");
 CREATE INDEX IF NOT EXISTS "PreApplicationVersion_preApplicationId_idx" ON "PreApplicationVersion"("preApplicationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "PreApplicationDraft_userId_key" ON "PreApplicationDraft"("userId");
+CREATE INDEX IF NOT EXISTS "PreApplicationDraft_updatedAt_idx" ON "PreApplicationDraft"("updatedAt");
 CREATE INDEX IF NOT EXISTS "PreApplicationAdminNote_preApplicationId_createdAt_idx" ON "PreApplicationAdminNote"("preApplicationId", "createdAt");
 CREATE INDEX IF NOT EXISTS "PreApplicationAdminNote_createdById_createdAt_idx" ON "PreApplicationAdminNote"("createdById", "createdAt");
 CREATE INDEX IF NOT EXISTS "PreApplicationAdminNote_deletedAt_idx" ON "PreApplicationAdminNote"("deletedAt");

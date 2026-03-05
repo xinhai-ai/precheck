@@ -932,6 +932,90 @@ export const openApiSpec = {
         },
       },
     },
+    "/pre-application/draft": {
+      get: {
+        tags: ["PreApplication"],
+        summary: "获取当前用户预申请草稿",
+        responses: {
+          "200": {
+            description: "草稿详情",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    draft: {
+                      type: "object",
+                      nullable: true,
+                      properties: {
+                        id: { type: "string" },
+                        essay: { type: "string" },
+                        source: {
+                          type: "string",
+                          enum: ["TIEBA", "BILIBILI", "DOUYIN", "XIAOHONGSHU", "OTHER"],
+                          nullable: true,
+                        },
+                        sourceDetail: { type: "string", nullable: true },
+                        registerEmail: { type: "string" },
+                        group: { type: "string" },
+                        createdAt: { type: "string", format: "date-time" },
+                        updatedAt: { type: "string", format: "date-time" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "500": { description: "获取草稿失败" },
+        },
+      },
+      put: {
+        tags: ["PreApplication"],
+        summary: "保存当前用户预申请草稿（不触发正式提交流程）",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  essay: {
+                    type: "string",
+                    nullable: true,
+                    description: "草稿小作文，仅校验最大长度",
+                  },
+                  source: {
+                    type: "string",
+                    enum: ["TIEBA", "BILIBILI", "DOUYIN", "XIAOHONGSHU", "OTHER"],
+                    nullable: true,
+                  },
+                  sourceDetail: { type: "string", maxLength: 100, nullable: true },
+                  registerEmail: { type: "string", nullable: true },
+                  group: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "保存成功" },
+          "400": { description: "参数错误 / 草稿超出最大长度 / 群组无效" },
+          "401": { description: "未认证" },
+          "500": { description: "保存草稿失败" },
+        },
+      },
+      delete: {
+        tags: ["PreApplication"],
+        summary: "清空当前用户预申请草稿",
+        responses: {
+          "200": { description: "清空成功" },
+          "401": { description: "未认证" },
+          "500": { description: "清空草稿失败" },
+        },
+      },
+    },
 
     // ── Public ──
     "/public/system-config": {

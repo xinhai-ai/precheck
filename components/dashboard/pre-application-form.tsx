@@ -112,6 +112,16 @@ type PreApplicationRecord = {
   versions?: PreApplicationVersion[]
 }
 
+type PreApplicationDraft = {
+  id: string
+  essay: string
+  source: string | null
+  sourceDetail: string | null
+  registerEmail: string
+  group: string
+  updatedAt: string
+}
+
 type SubmitQuotaStatus = {
   dailyGlobalLimit: number
   dailyUserLimit: number
@@ -202,6 +212,9 @@ export function PreApplicationForm({
     aheadCount: number
   } | null>(null)
   const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
+  const [draft, setDraft] = useState<PreApplicationDraft | null>(null)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [clearingDraft, setClearingDraft] = useState(false)
   const allowedDomains = useAllowedEmailDomains()
   const [formData, setFormData] = useState({
     essay: "",
@@ -314,14 +327,23 @@ export function PreApplicationForm({
     }
   }
 
-  const loadRecord = async () => {
-    setLoading(true)
+  const loadRecord = async (withLoading = true) => {
+    if (withLoading) {
+      setLoading(true)
+    }
     try {
-      const res = await fetch("/api/pre-application")
+      const [res, draftRes] = await Promise.all([
+        fetch("/api/pre-application"),
+        fetch("/api/pre-application/draft"),
+      ])
       if (!res.ok) throw new Error(t.loadFailed)
-      const data = await res.json()
+      const [data, draftData] = await Promise.all([
+        res.json(),
+        draftRes.ok ? draftRes.json() : Promise.resolve({ draft: null }),
+      ])
       const nextRecords = data.records || []
       setRecords(nextRecords)
+      setDraft((draftData?.draft as PreApplicationDraft | null) ?? null)
       if (data.maxResubmitCount) setMaxResubmitCount(data.maxResubmitCount)
       if (data.queueInfo) setQueueInfo(data.queueInfo)
       setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
@@ -336,7 +358,9 @@ export function PreApplicationForm({
       console.error("Pre-application load error:", error)
       toast.error(t.loadFailed)
     } finally {
-      setLoading(false)
+      if (withLoading) {
+        setLoading(false)
+      }
     }
   }
 
@@ -358,22 +382,11 @@ export function PreApplicationForm({
 
   useEffect(() => {
     if (!initialRecords) {
-      loadRecord()
+      loadRecord(true)
       return
     }
 
-    const loadQuotaStatus = async () => {
-      try {
-        const res = await fetch("/api/pre-application")
-        if (!res.ok) return
-        const data = await res.json()
-        setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
-      } catch {
-        // ignore quota status fetch failures
-      }
-    }
-
-    loadQuotaStatus()
+    loadRecord(false)
   }, [])
 
   // 审核通过但无码时，自动检查是否有可用邀请码
@@ -427,15 +440,29 @@ export function PreApplicationForm({
   }, [])
 
   useEffect(() => {
-    if (!latest || latest.status === "APPROVED") return
+    if (draft) {
+      setFormData({
+        essay: draft.essay || "",
+        source: draft.source || "",
+        sourceDetail: draft.sourceDetail || "",
+        registerEmail: draft.registerEmail || userEmail || "",
+        group: draft.group || qqGroups[0]?.id || "GROUP_ONE",
+      })
+      return
+    }
+
+    if (!latest || latest.status === "APPROVED") {
+      return
+    }
+
     setFormData({
       essay: latest.essay || "",
       source: latest.source || "",
       sourceDetail: latest.sourceDetail || "",
-      registerEmail: latest.registerEmail || "",
-      group: latest.group || "GROUP_ONE",
+      registerEmail: latest.registerEmail || userEmail || "",
+      group: latest.group || qqGroups[0]?.id || "GROUP_ONE",
     })
-  }, [latest?.id])
+  }, [draft?.id, draft?.updatedAt, latest?.id, latest?.status, qqGroups, userEmail])
 
   useEffect(() => {
     if (formData.source !== "OTHER" && formData.sourceDetail) {
@@ -532,6 +559,93 @@ export function PreApplicationForm({
   const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString(locale) : "-"
 
+  const handleSaveDraft = async () => {
+    if (latest?.status === "APPROVED") {
+      return
+    }
+
+    setSavingDraft(true)
+    try {
+      const res = await fetch("/api/pre-application/draft", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          essay: formData.essay,
+          source: formData.source || null,
+          sourceDetail: formData.source === "OTHER" ? formData.sourceDetail : null,
+          registerEmail: formData.registerEmail,
+          group: formData.group,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message =
+          resolveApiErrorMessage(data, dict) ??
+          ((t as Record<string, unknown>).draftSaveFailed as string) ??
+          "保存草稿失败"
+        toast.error(message)
+        return
+      }
+
+      const data = await res.json()
+      setDraft((data?.draft as PreApplicationDraft | null) ?? null)
+      toast.success(((t as Record<string, unknown>).draftSaveSuccess as string) ?? "草稿已保存")
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : (((t as Record<string, unknown>).draftSaveFailed as string) ?? "保存草稿失败"),
+      )
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
+  const handleClearDraft = async () => {
+    setClearingDraft(true)
+    try {
+      const res = await fetch("/api/pre-application/draft", { method: "DELETE" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message =
+          resolveApiErrorMessage(data, dict) ??
+          ((t as Record<string, unknown>).draftDeleteFailed as string) ??
+          "清空草稿失败"
+        toast.error(message)
+        return
+      }
+
+      setDraft(null)
+      toast.success(((t as Record<string, unknown>).draftDeleteSuccess as string) ?? "草稿已清空")
+      if (latest && latest.status !== "APPROVED") {
+        setFormData({
+          essay: latest.essay || "",
+          source: latest.source || "",
+          sourceDetail: latest.sourceDetail || "",
+          registerEmail: latest.registerEmail || userEmail || "",
+          group: latest.group || qqGroups[0]?.id || "GROUP_ONE",
+        })
+      } else if (!latest) {
+        setFormData({
+          essay: "",
+          source: "",
+          sourceDetail: "",
+          registerEmail: userEmail || "",
+          group: qqGroups[0]?.id || "GROUP_ONE",
+        })
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : (((t as Record<string, unknown>).draftDeleteFailed as string) ?? "清空草稿失败"),
+      )
+    } finally {
+      setClearingDraft(false)
+    }
+  }
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
@@ -600,6 +714,7 @@ export function PreApplicationForm({
       }
 
       toast.success(method === "PUT" ? t.updateSuccess : t.submitSuccess)
+      setDraft(null)
       await loadRecord()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.submitFailed)
@@ -687,8 +802,8 @@ export function PreApplicationForm({
   if (loading) return <FormSkeleton />
 
   const hasHistory = latest?.versions && latest.versions.length > 1
-  // 显示表单的条件：无记录、PENDING、可重新提交的REJECTED、可修改的DISPUTED
-  const showForm = !latest || latest.status === "PENDING" || canResubmit || canEditDisputed
+  const canSubmitForm = !latest || latest.status === "PENDING" || canResubmit || canEditDisputed
+  const showForm = !latest || latest.status !== "APPROVED"
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -892,7 +1007,8 @@ export function PreApplicationForm({
                     {(t.submitQuotaPersonal as string) || "个人剩余"}
                   </p>
                   <p className="text-xl font-semibold">
-                    {submitQuotaStatus.userRemainingToday ?? "-"} / {submitQuotaStatus.dailyUserLimit}
+                    {submitQuotaStatus.userRemainingToday ?? "-"} /{" "}
+                    {submitQuotaStatus.dailyUserLimit}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {(t.submitQuotaUsed as string) || "今日已用"}:{" "}
@@ -926,18 +1042,20 @@ export function PreApplicationForm({
                       )}
                     >
                       {submitQuotaStatus.isWithinSubmitWindow
-                        ? ((t.submitQuotaWindowOpen as string) || "当前可提交")
-                        : ((t.submitQuotaWindowClosed as string) || "当前不可提交")}
+                        ? (t.submitQuotaWindowOpen as string) || "当前可提交"
+                        : (t.submitQuotaWindowClosed as string) || "当前不可提交"}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {submitQuotaStatus.submitStartTime} - {submitQuotaStatus.submitEndTime} (Asia/Shanghai)
+                    {submitQuotaStatus.submitStartTime} - {submitQuotaStatus.submitEndTime}{" "}
+                    (Asia/Shanghai)
                   </p>
                 </div>
               </div>
               {!submitQuotaStatus.quotaServiceAvailable && (
                 <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-                  {(t.submitQuotaServiceUnavailable as string) || "配额服务状态暂不可用，展示数据可能延迟。"}
+                  {(t.submitQuotaServiceUnavailable as string) ||
+                    "配额服务状态暂不可用，展示数据可能延迟。"}
                 </p>
               )}
             </CardContent>
@@ -1246,6 +1364,27 @@ export function PreApplicationForm({
                 <CardDescription>
                   {t.allowedDomainsTitle}：{allowedDomainsText}
                 </CardDescription>
+                {draft && (
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span>
+                      {(
+                        ((t as Record<string, unknown>).draftSavedAt as string) ||
+                        "已保存草稿：{time}"
+                      ).replace("{time}", formatDate(draft.updatedAt))}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-xs"
+                      disabled={clearingDraft || savingDraft}
+                      onClick={handleClearDraft}
+                    >
+                      {clearingDraft
+                        ? ((t as Record<string, unknown>).clearingDraft as string) || "清空中..."
+                        : ((t as Record<string, unknown>).clearDraft as string) || "清空草稿"}
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -1463,30 +1602,48 @@ export function PreApplicationForm({
                   </div>
                 </div>
 
-                <Button
-                  onClick={handleSubmit}
-                  disabled={
-                    submitting ||
-                    (latest?.status === "REJECTED" && !canResubmit && !canEditDisputed)
-                  }
-                  className="w-full sm:w-auto"
-                  size="lg"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t.submitting}
-                    </>
-                  ) : latest?.status === "REJECTED" ? (
-                    t.resubmit || "重新提交"
-                  ) : latest?.status === "DISPUTED" ? (
-                    t.editDisputed || "提交修改"
-                  ) : latest ? (
-                    t.update
-                  ) : (
-                    t.submit
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                  {latest?.status !== "APPROVED" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSaveDraft}
+                      disabled={savingDraft || submitting || clearingDraft}
+                      className="w-full sm:w-auto"
+                      size="lg"
+                    >
+                      {savingDraft ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {((t as Record<string, unknown>).savingDraft as string) || "保存中..."}
+                        </>
+                      ) : (
+                        ((t as Record<string, unknown>).saveDraft as string) || "保存草稿"
+                      )}
+                    </Button>
                   )}
-                </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={submitting || !canSubmitForm}
+                    className="w-full sm:w-auto"
+                    size="lg"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t.submitting}
+                      </>
+                    ) : latest?.status === "REJECTED" ? (
+                      t.resubmit || "重新提交"
+                    ) : latest?.status === "DISPUTED" ? (
+                      t.editDisputed || "提交修改"
+                    ) : latest ? (
+                      t.update
+                    ) : (
+                      t.submit
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
