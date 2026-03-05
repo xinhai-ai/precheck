@@ -51,6 +51,7 @@ import type {
   FingerprintRiskGroupItem,
 } from "@/lib/risk-control/fingerprint-risk"
 import { maskFingerprintHash } from "@/lib/risk-control/fingerprint-risk"
+import { buildBanStatusPayload } from "@/lib/user-ban-utils"
 
 interface AdminRiskControlCenterProps {
   locale: Locale
@@ -344,11 +345,24 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
     }
 
     try {
-      const nextStatus = isBanned ? "ACTIVE" : "BANNED"
+      const payload = buildBanStatusPayload({
+        isCurrentlyBanned: isBanned,
+        banReasonInput: isBanned
+          ? ""
+          : window.prompt(
+              riskT.banReasonPrompt || "请输入封禁理由（可选）：",
+              "",
+            ),
+      })
+
+      if (!payload) {
+        return
+      }
+
       const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {

@@ -25,6 +25,29 @@ export type AuditInput = {
   request?: Request | NextRequest
 }
 
+type AuditLogSearchFilter = {
+  [key: string]: {
+    contains: string
+    mode: "insensitive"
+  }
+}
+
+export function buildAuditLogSearchFilters(search: string): AuditLogSearchFilter[] {
+  const keyword = search.trim()
+  if (!keyword) {
+    return []
+  }
+
+  return [
+    { entityId: { contains: keyword, mode: "insensitive" } },
+    { actorId: { contains: keyword, mode: "insensitive" } },
+    { actorName: { contains: keyword, mode: "insensitive" } },
+    { actorEmail: { contains: keyword, mode: "insensitive" } },
+    { action: { contains: keyword, mode: "insensitive" } },
+    { entityType: { contains: keyword, mode: "insensitive" } },
+  ]
+}
+
 const getHeader = (request: Request | NextRequest, key: string) => request.headers.get(key) || ""
 
 export const extractRequestMeta = (request?: Request | NextRequest) => {

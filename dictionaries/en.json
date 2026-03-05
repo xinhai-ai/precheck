@@ -1453,6 +1453,7 @@
       "unignoreUser": "Unignore",
       "banUser": "Ban User",
       "unbanUser": "Unban User",
+      "banReasonPrompt": "Enter ban reason (optional):",
       "openUserManagement": "Open User Management",
       "relatedApplications": "Related Applications",
       "applicationEssay": "Essay",

@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
 import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
+import { buildAuditLogSearchFilters } from "@/lib/audit"
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,12 +40,7 @@ export async function GET(request: NextRequest) {
       where.action = action
     }
     if (search) {
-      where.OR = [
-        { entityId: { contains: search, mode: "insensitive" } },
-        { actorEmail: { contains: search, mode: "insensitive" } },
-        { action: { contains: search, mode: "insensitive" } },
-        { entityType: { contains: search, mode: "insensitive" } },
-      ]
+      where.OR = buildAuditLogSearchFilters(search)
     }
 
     const [records, total, authCount, userCount, preAppCount, inviteCount] = await Promise.all([

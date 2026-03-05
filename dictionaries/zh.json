@@ -1448,6 +1448,7 @@
       "unignoreUser": "取消忽略",
       "banUser": "封禁用户",
       "unbanUser": "解封用户",
+      "banReasonPrompt": "请输入封禁理由（可选）：",
       "openUserManagement": "打开用户管理",
       "relatedApplications": "关联申请",
       "applicationEssay": "小作文",
