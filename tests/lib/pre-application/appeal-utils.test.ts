@@ -6,6 +6,7 @@ const {
   PRE_APPLICATION_APPEAL_COOLDOWN_DAYS,
   PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
   getAppealCooldownRemainingSeconds,
+  getAppealRejectionSnapshot,
   getAppealRejectSubmitBanUntil,
   getPreApplicationAppealAvailability,
 } = await import(new URL("../../../lib/pre-application/appeal-utils.ts", import.meta.url).href)
@@ -21,9 +22,9 @@ const zhDictionary = JSON.parse(
   readFileSync(new URL("../../../dictionaries/zh.json", import.meta.url), "utf8"),
 ) as Record<string, any>
 
-test("appeal constants stay at 3 days", () => {
+test("appeal cooldown stays at 3 days and reject submit ban is 7 days", () => {
   assert.equal(PRE_APPLICATION_APPEAL_COOLDOWN_DAYS, 3)
-  assert.equal(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS, 3)
+  assert.equal(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS, 7)
 })
 
 test("getAppealCooldownRemainingSeconds returns ceiling seconds and never negative", () => {
@@ -165,14 +166,142 @@ test("getAppealRejectSubmitBanUntil keeps a later existing ban", () => {
   )
 })
 
-test("getAppealRejectSubmitBanUntil extends shorter or missing bans to 3 days", () => {
+test("getAppealRejectSubmitBanUntil extends shorter or missing bans to 7 days", () => {
   const now = new Date("2026-03-06T00:00:00.000Z")
-  const expected = new Date("2026-03-09T00:00:00.000Z")
+  const expected = new Date("2026-03-13T00:00:00.000Z")
 
   assert.deepEqual(getAppealRejectSubmitBanUntil(null, now), expected)
   assert.deepEqual(
     getAppealRejectSubmitBanUntil(new Date("2026-03-07T00:00:00.000Z"), now),
     expected,
+  )
+})
+
+test("getAppealRejectionSnapshot selects the rejected version tied to the appeal", () => {
+  const matchedReviewer = {
+    id: "admin-1",
+    name: "Matched Reviewer",
+    email: "matched@example.com",
+  }
+
+  assert.deepEqual(
+    getAppealRejectionSnapshot({
+      appealCreatedAt: new Date("2026-03-03T10:00:00.000Z"),
+      preApplication: {
+        status: "REJECTED",
+        essay: "current essay",
+        guidance: "current guidance",
+        reviewedAt: new Date("2026-03-05T08:00:00.000Z"),
+        reviewedBy: {
+          id: "admin-2",
+          name: "Later Reviewer",
+          email: "later@example.com",
+        },
+      },
+      versions: [
+        {
+          status: "REJECTED",
+          essay: "later rejected essay",
+          guidance: "later rejected guidance",
+          reviewedAt: new Date("2026-03-05T08:00:00.000Z"),
+          reviewedBy: {
+            id: "admin-2",
+            name: "Later Reviewer",
+            email: "later@example.com",
+          },
+          createdAt: new Date("2026-03-05T08:00:00.000Z"),
+        },
+        {
+          status: "PENDING",
+          essay: "pending essay",
+          guidance: null,
+          reviewedAt: null,
+          reviewedBy: null,
+          createdAt: new Date("2026-03-01T08:00:00.000Z"),
+        },
+        {
+          status: "REJECTED",
+          essay: "matched rejected essay",
+          guidance: "matched rejected guidance",
+          reviewedAt: new Date("2026-03-02T12:00:00.000Z"),
+          reviewedBy: matchedReviewer,
+          createdAt: new Date("2026-03-02T12:00:00.000Z"),
+        },
+      ],
+    }),
+    {
+      essay: "matched rejected essay",
+      guidance: "matched rejected guidance",
+      reviewedAt: new Date("2026-03-02T12:00:00.000Z"),
+      reviewedBy: matchedReviewer,
+    },
+  )
+})
+
+test("getAppealRejectionSnapshot falls back to current rejected record when needed", () => {
+  const currentReviewer = {
+    id: "admin-3",
+    name: "Current Reviewer",
+    email: "current@example.com",
+  }
+
+  assert.deepEqual(
+    getAppealRejectionSnapshot({
+      appealCreatedAt: new Date("2026-03-03T10:00:00.000Z"),
+      preApplication: {
+        status: "REJECTED",
+        essay: "current rejected essay",
+        guidance: "current rejected guidance",
+        reviewedAt: new Date("2026-03-02T09:00:00.000Z"),
+        reviewedBy: currentReviewer,
+      },
+      versions: [
+        {
+          status: "PENDING",
+          essay: "pending essay",
+          guidance: null,
+          reviewedAt: null,
+          reviewedBy: null,
+          createdAt: new Date("2026-03-01T08:00:00.000Z"),
+        },
+      ],
+    }),
+    {
+      essay: "current rejected essay",
+      guidance: "current rejected guidance",
+      reviewedAt: new Date("2026-03-02T09:00:00.000Z"),
+      reviewedBy: currentReviewer,
+    },
+  )
+})
+
+test("getAppealRejectionSnapshot returns null when no matching rejection exists", () => {
+  assert.equal(
+    getAppealRejectionSnapshot({
+      appealCreatedAt: new Date("2026-03-03T10:00:00.000Z"),
+      preApplication: {
+        status: "PENDING",
+        essay: "current pending essay",
+        guidance: null,
+        reviewedAt: null,
+        reviewedBy: null,
+      },
+      versions: [
+        {
+          status: "REJECTED",
+          essay: "future rejected essay",
+          guidance: "future rejected guidance",
+          reviewedAt: new Date("2026-03-05T08:00:00.000Z"),
+          reviewedBy: {
+            id: "admin-4",
+            name: "Future Reviewer",
+            email: "future@example.com",
+          },
+          createdAt: new Date("2026-03-05T08:00:00.000Z"),
+        },
+      ],
+    }),
+    null,
   )
 })
 
@@ -232,8 +361,20 @@ test("appeal review inbox messages are localized in both dictionaries", () => {
   )
   assert.equal(
     zhDictionary.preApplication.notifications.appealReview.overriddenIntro,
-    "你的预申请申诉已通过，原预申请已恢复为待审核状态。",
+    "你的预申请申诉已通过，原预申请已直接通过。",
   )
+})
+
+test("admin pre-application appeal page uses approve wording in both dictionaries", () => {
+  assert.equal(enDictionary.admin.preApplicationAppealsPage.filters.overridden, "Approved")
+  assert.equal(zhDictionary.admin.preApplicationAppealsPage.filters.overridden, "已通过")
+  assert.equal(enDictionary.admin.preApplicationAppealsPage.actions.override, "Approve")
+  assert.equal(zhDictionary.admin.preApplicationAppealsPage.actions.override, "通过申请")
+  assert.equal(
+    enDictionary.admin.preApplicationAppealsPage.messages.overridden,
+    "Pre-application approved",
+  )
+  assert.equal(zhDictionary.admin.preApplicationAppealsPage.messages.overridden, "已通过申请")
 })
 
 test("openApiSpec documents /pre-application/appeal GET and POST", () => {
@@ -257,6 +398,6 @@ test("openApiSpec documents admin pre-application appeal queue and review routes
   assert.equal(reviewPath.post?.summary, "审核预申请申诉")
   assert.deepEqual(
     reviewPath.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum,
-    ["REJECT", "OVERRIDE"],
+    ["REJECT", "APPROVE"],
   )
 })

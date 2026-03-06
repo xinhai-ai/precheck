@@ -1308,10 +1308,10 @@
         "rejectedTitle": "预申请申诉已驳回",
         "rejectedIntro": "你的预申请申诉已被超级管理员驳回。",
         "overriddenTitle": "预申请申诉已通过",
-        "overriddenIntro": "你的预申请申诉已通过，原预申请已恢复为待审核状态。",
+        "overriddenIntro": "你的预申请申诉已通过，原预申请已直接通过。",
         "reviewCommentLabel": "审核说明：",
         "submitBanUntilLabel": "提交封禁至：",
-        "overriddenNextStep": "请等待管理员重新审核。"
+        "overriddenNextStep": "请根据本消息中的通过说明继续后续流程。"
       },
       "footer": "如有疑问，请联系管理员。"
     },
@@ -1454,12 +1454,12 @@
         "all": "全部状态",
         "pending": "待处理",
         "rejected": "已驳回",
-        "overridden": "已恢复"
+        "overridden": "已通过"
       },
       "stats": {
         "pending": "待处理申诉",
         "rejected": "已驳回申诉",
-        "overridden": "已恢复申诉"
+        "overridden": "已通过申诉"
       },
       "columns": {
         "user": "用户",
@@ -1479,30 +1479,36 @@
       "actions": {
         "refresh": "刷新",
         "clear": "清空",
+        "view": "查看详情",
         "reject": "驳回",
-        "override": "恢复待审",
-        "cancel": "取消"
+        "override": "通过申请",
+        "cancel": "取消",
+        "close": "关闭"
       },
       "dialog": {
         "commentLabel": "审核备注",
         "rejectTitle": "驳回申诉",
         "rejectDescription": "提交审核备注后将驳回该申诉，系统会通知用户处理结果。",
         "rejectPlaceholder": "说明为何维持驳回结果...",
-        "overrideTitle": "恢复申诉",
-        "overrideDescription": "提交审核备注后将恢复该预申请到待审核状态，进入下一轮审核。",
-        "overridePlaceholder": "说明为何应恢复该预申请..."
+        "overrideTitle": "通过申请",
+        "overrideDescription": "提交审核备注后将直接通过该预申请，不再回到待审核列表。",
+        "overridePlaceholder": "说明为何通过该预申请...",
+        "viewTitle": "申诉详情",
+        "viewDescription": "查看本次申诉内容，以及该次驳回对应的申请书快照。",
+        "rejectionSnapshotTitle": "该次驳回申请快照"
       },
       "states": {
         "empty": "暂无申诉记录",
         "notReviewed": "未审核",
         "none": "无",
-        "unknownUser": "未知用户"
+        "unknownUser": "未知用户",
+        "rejectionSnapshotEmpty": "未找到与本次申诉对应的驳回快照。"
       },
       "messages": {
         "loadError": "加载预申请申诉失败",
         "commentRequired": "请填写审核备注",
         "rejected": "已驳回申诉",
-        "overridden": "已恢复申诉"
+        "overridden": "已通过申请"
       }
     },
     "shadowHidden": "Shadowban 隐藏",

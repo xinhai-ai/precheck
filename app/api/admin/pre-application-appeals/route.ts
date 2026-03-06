@@ -5,6 +5,7 @@ import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
+import { getAppealRejectionSnapshot } from "@/lib/pre-application/appeal-utils"
 
 const userSelect = {
   id: true,
@@ -35,10 +36,27 @@ const appealRecordSelect = {
       status: true,
       queryToken: true,
       registerEmail: true,
+      essay: true,
       guidance: true,
       reviewedAt: true,
+      reviewedBy: {
+        select: userSelect,
+      },
       createdAt: true,
       updatedAt: true,
+      versions: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          status: true,
+          essay: true,
+          guidance: true,
+          reviewedAt: true,
+          createdAt: true,
+          reviewedBy: {
+            select: userSelect,
+          },
+        },
+      },
     },
   },
 } satisfies Prisma.PreApplicationAppealSelect
@@ -111,8 +129,28 @@ export async function GET(request: NextRequest) {
       db.preApplicationAppeal.count({ where: { status: PreApplicationAppealStatus.OVERRIDDEN } }),
     ])
 
+    const normalizedRecords = records.map((record) => {
+      const { essay, reviewedBy, versions, ...preApplication } = record.preApplication
+
+      return {
+        ...record,
+        preApplication,
+        rejectionSnapshot: getAppealRejectionSnapshot({
+          appealCreatedAt: record.createdAt,
+          preApplication: {
+            status: record.preApplication.status,
+            essay,
+            guidance: record.preApplication.guidance,
+            reviewedAt: record.preApplication.reviewedAt,
+            reviewedBy,
+          },
+          versions,
+        }),
+      }
+    })
+
     return NextResponse.json({
-      records,
+      records: normalizedRecords,
       total,
       page,
       limit,

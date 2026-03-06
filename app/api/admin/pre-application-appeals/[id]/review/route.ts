@@ -17,9 +17,9 @@ const reviewSchema = z.object({
   locale: z.string().optional(),
 })
 
-const REVIEW_ACTIONS = new Set(["REJECT", "OVERRIDE"] as const)
+const REVIEW_ACTIONS = new Set(["REJECT", "APPROVE"] as const)
 
-type ReviewAction = "REJECT" | "OVERRIDE"
+type ReviewAction = "REJECT" | "APPROVE"
 
 class AppealReviewConflictError extends Error {
   constructor(public readonly errorKey: string) {
@@ -339,10 +339,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           version: appeal.preApplication.version,
         },
         data: {
-          status: PreApplicationStatus.PENDING,
-          guidance: null,
-          reviewedAt: null,
-          reviewedById: null,
+          status: PreApplicationStatus.APPROVED,
+          guidance: reviewComment,
+          reviewedAt: now,
+          reviewedById: user.id,
           version: nextVersion,
         },
       })
@@ -360,10 +360,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           sourceDetail: appeal.preApplication.sourceDetail,
           registerEmail: appeal.preApplication.registerEmail,
           group: appeal.preApplication.group,
-          status: PreApplicationStatus.PENDING,
-          guidance: null,
-          reviewedAt: null,
-          reviewedById: null,
+          status: PreApplicationStatus.APPROVED,
+          guidance: reviewComment,
+          reviewedAt: now,
+          reviewedById: user.id,
         },
       })
 

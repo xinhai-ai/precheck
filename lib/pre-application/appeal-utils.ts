@@ -1,7 +1,7 @@
 import { getSubmitBanUntilFromDays } from "./submit-ban-utils.ts"
 
 export const PRE_APPLICATION_APPEAL_COOLDOWN_DAYS = 3
-export const PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS = 3
+export const PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS = 7
 
 const SECONDS_PER_DAY = 24 * 60 * 60
 const PRE_APPLICATION_APPEAL_COOLDOWN_SECONDS =
@@ -27,18 +27,106 @@ export interface GetPreApplicationAppealAvailabilityInput {
   now?: Date
 }
 
-function getAppealCreatedAtMs(lastAppealedAt: Date | string | null | undefined): number | null {
-  if (lastAppealedAt === null || lastAppealedAt === undefined) {
+interface AppealSnapshotUser {
+  id: string
+  name: string | null
+  email: string
+}
+
+interface AppealRejectionSnapshotSource {
+  status: string
+  essay: string
+  guidance: string | null
+  reviewedAt: Date | string | null | undefined
+  reviewedBy: AppealSnapshotUser | null
+}
+
+interface AppealRejectionSnapshotVersion extends AppealRejectionSnapshotSource {
+  createdAt: Date | string | null | undefined
+}
+
+export interface PreApplicationAppealRejectionSnapshot {
+  essay: string
+  guidance: string | null
+  reviewedAt: Date | string | null
+  reviewedBy: AppealSnapshotUser | null
+}
+
+export interface GetAppealRejectionSnapshotInput {
+  appealCreatedAt: Date | string
+  preApplication: AppealRejectionSnapshotSource | null | undefined
+  versions?: AppealRejectionSnapshotVersion[] | null | undefined
+}
+
+function getDateMs(value: Date | string | null | undefined, errorMessage: string): number | null {
+  if (value === null || value === undefined) {
     return null
   }
 
-  const ms =
-    lastAppealedAt instanceof Date ? lastAppealedAt.getTime() : new Date(lastAppealedAt).getTime()
+  const ms = value instanceof Date ? value.getTime() : new Date(value).getTime()
   if (!Number.isFinite(ms)) {
-    throw new Error("Invalid appeal createdAt")
+    throw new Error(errorMessage)
   }
 
   return ms
+}
+
+function getAppealCreatedAtMs(lastAppealedAt: Date | string | null | undefined): number | null {
+  return getDateMs(lastAppealedAt, "Invalid appeal createdAt")
+}
+
+function toRejectionSnapshot(
+  source: AppealRejectionSnapshotSource,
+): PreApplicationAppealRejectionSnapshot {
+  return {
+    essay: source.essay,
+    guidance: source.guidance,
+    reviewedAt: source.reviewedAt ?? null,
+    reviewedBy: source.reviewedBy,
+  }
+}
+
+export function getAppealRejectionSnapshot({
+  appealCreatedAt,
+  preApplication,
+  versions,
+}: GetAppealRejectionSnapshotInput): PreApplicationAppealRejectionSnapshot | null {
+  const appealCreatedAtMs = getDateMs(appealCreatedAt, "Invalid appeal createdAt")
+
+  if (appealCreatedAtMs === null) {
+    return null
+  }
+
+  const matchedVersion = (versions ?? [])
+    .filter((version) => version.status === "REJECTED")
+    .map((version) => ({
+      version,
+      createdAtMs: getDateMs(version.createdAt, "Invalid rejection snapshot createdAt"),
+    }))
+    .filter(
+      (entry): entry is { version: AppealRejectionSnapshotVersion; createdAtMs: number } =>
+        entry.createdAtMs !== null && entry.createdAtMs <= appealCreatedAtMs,
+    )
+    .sort((left, right) => right.createdAtMs - left.createdAtMs)[0]?.version
+
+  if (matchedVersion) {
+    return toRejectionSnapshot(matchedVersion)
+  }
+
+  if (!preApplication || preApplication.status !== "REJECTED") {
+    return null
+  }
+
+  const preApplicationReviewedAtMs = getDateMs(
+    preApplication.reviewedAt,
+    "Invalid rejection snapshot reviewedAt",
+  )
+
+  if (preApplicationReviewedAtMs !== null && preApplicationReviewedAtMs > appealCreatedAtMs) {
+    return null
+  }
+
+  return toRejectionSnapshot(preApplication)
 }
 
 export function getAppealCooldownRemainingSeconds(

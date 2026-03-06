@@ -1313,10 +1313,10 @@
         "rejectedTitle": "Pre-application appeal rejected",
         "rejectedIntro": "Your pre-application appeal has been rejected by a super admin.",
         "overriddenTitle": "Pre-application appeal approved",
-        "overriddenIntro": "Your pre-application appeal has been approved and your pre-application is back in the review queue.",
+        "overriddenIntro": "Your pre-application appeal has been approved and your pre-application has been approved directly.",
         "reviewCommentLabel": "Review note: ",
         "submitBanUntilLabel": "Submit ban until: ",
-        "overriddenNextStep": "Please wait for another admin review."
+        "overriddenNextStep": "Please follow the approval guidance in this message."
       },
       "footer": "If you have questions, please contact an admin."
     },
@@ -1459,12 +1459,12 @@
         "all": "All statuses",
         "pending": "Pending",
         "rejected": "Rejected",
-        "overridden": "Overridden"
+        "overridden": "Approved"
       },
       "stats": {
         "pending": "Pending Appeals",
         "rejected": "Rejected Appeals",
-        "overridden": "Overridden Appeals"
+        "overridden": "Approved Appeals"
       },
       "columns": {
         "user": "User",
@@ -1484,30 +1484,36 @@
       "actions": {
         "refresh": "Refresh",
         "clear": "Clear",
+        "view": "View Details",
         "reject": "Reject",
-        "override": "Override",
-        "cancel": "Cancel"
+        "override": "Approve",
+        "cancel": "Cancel",
+        "close": "Close"
       },
       "dialog": {
         "commentLabel": "Review Comment",
         "rejectTitle": "Reject Appeal",
         "rejectDescription": "Add a review comment before rejecting this appeal. The user will be notified of the result.",
         "rejectPlaceholder": "Explain why the appeal remains rejected...",
-        "overrideTitle": "Override Appeal",
-        "overrideDescription": "Add a review comment before reopening this pre-application for another review round.",
-        "overridePlaceholder": "Explain why the appeal should reopen the pre-application..."
+        "overrideTitle": "Approve Pre-Application",
+        "overrideDescription": "Add approval guidance before approving this pre-application directly from the appeal queue.",
+        "overridePlaceholder": "Explain why this pre-application is approved...",
+        "viewTitle": "Appeal Details",
+        "viewDescription": "Review the appeal content and the rejection snapshot captured for this submission.",
+        "rejectionSnapshotTitle": "Rejected Application Snapshot"
       },
       "states": {
         "empty": "No appeals found",
         "notReviewed": "Not reviewed",
         "none": "None",
-        "unknownUser": "Unknown user"
+        "unknownUser": "Unknown user",
+        "rejectionSnapshotEmpty": "No matching rejection snapshot is available for this appeal."
       },
       "messages": {
         "loadError": "Failed to load pre-application appeals",
         "commentRequired": "Review comment is required",
         "rejected": "Appeal rejected",
-        "overridden": "Appeal overridden"
+        "overridden": "Pre-application approved"
       }
     },
     "shadowHidden": "Shadowban Hidden",

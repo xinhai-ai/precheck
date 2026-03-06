@@ -325,7 +325,7 @@ export const openApiSpec = {
                 type: "object",
                 required: ["action", "reviewComment"],
                 properties: {
-                  action: { type: "string", enum: ["REJECT", "OVERRIDE"] },
+                  action: { type: "string", enum: ["REJECT", "APPROVE"] },
                   reviewComment: { type: "string", minLength: 1, maxLength: 2000 },
                   locale: { type: "string", enum: ["en", "zh"] },
                 },
