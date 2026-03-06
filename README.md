@@ -16,6 +16,7 @@ A production-ready Next.js starter template with React, TypeScript, Tailwind CSS
 - **Docker** - Containerized deployments
 - **Rich Text Editor** - Tiptap-powered editor with preview modes
 - **Internal Messages** - Admin-created messages with user inbox + read status
+- **Pre-Application Appeals** - Rejected users can request super-admin review with cooldown + penalty rules
 - **Fingerprint Tracking** - Browser fingerprint capture on login + pre-application submit with admin correlation tools
 - **Theme & Locale** - Light/dark theme toggle + locale switcher
 - **Multi-Platform** - Deploy to Vercel, Cloudflare, Netlify, Railway, Fly.io, and more
@@ -63,6 +64,13 @@ Generated type definitions are written to `types/prisma.d.ts`.
 - Users can read messages in `/{locale}/dashboard/messages`, with read/unread status tracking.
 - The dashboard bell surfaces the latest message and links to the inbox.
 
+## Pre-Application Appeals
+
+- Rejected logged-in users can submit a pre-application appeal from `/{locale}/dashboard/pre-application`.
+- Appeals are gated by a super-admin-controlled feature toggle, a 3-day per-application cooldown, and a single pending appeal invariant.
+- Super admins review appeals in `/{locale}/admin/pre-application-appeals` and can either reject the appeal or restore the original pre-application to `PENDING`.
+- Rejecting an appeal applies a 3-day submit ban by updating `User.preApplicationSubmitBannedUntil`.
+
 ## Fingerprint Tracking
 
 - Login records browser fingerprint for password/code/OAuth flows.
@@ -74,8 +82,8 @@ Generated type definitions are written to `types/prisma.d.ts`.
 
 ## Admin & Dashboard Features
 
-- **Dashboard**: overview, posts management, analytics, settings, internal message inbox.
-- **Admin**: user management, post moderation, analytics, settings, internal message management (create/edit/revoke).
+- **Dashboard**: overview, posts management, analytics, settings, internal message inbox, pre-application appeal entry for rejected applications.
+- **Admin**: user management, post moderation, analytics, settings, internal message management (create/edit/revoke), super-admin-only pre-application appeal review queue.
 - **Auth**: session-based login, admin-only routes, role checks enforced on server.
 - **Theme**: theme toggle available in header and dashboard.
 - **Locale**: locale switcher in header and dashboard.

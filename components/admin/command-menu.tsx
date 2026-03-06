@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Users,
   Settings,
   BarChart3,
   Search,
@@ -12,6 +11,8 @@ import {
   ChevronRight,
   Shield,
   ClipboardList,
+  ClipboardCheck,
+  Users,
   Key,
   ScrollText,
   History,
@@ -34,6 +35,7 @@ import { cn } from "@/lib/utils"
 
 interface CommandMenuProps {
   locale: Locale
+  isSuperAdmin?: boolean
 }
 
 interface RecentCommand {
@@ -46,7 +48,7 @@ interface RecentCommand {
 const RECENT_COMMANDS_KEY = "admin-recent-commands"
 const MAX_RECENT_COMMANDS = 5
 
-export function CommandMenu({ locale }: CommandMenuProps) {
+export function CommandMenu({ locale, isSuperAdmin = false }: CommandMenuProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [dict, setDict] = useState<Dictionary | null>(null)
@@ -114,19 +116,30 @@ export function CommandMenu({ locale }: CommandMenuProps) {
       shortcut: "⌘1",
     },
     {
-      id: "users",
-      label: dict.admin.userManagement,
-      path: `/${locale}/admin/users`,
-      icon: Users,
-      shortcut: "⌘2",
-    },
-    {
       id: "pre-applications",
       label: dict.admin.preApplications,
       path: `/${locale}/admin/pre-applications`,
       icon: ClipboardList,
       shortcut: "⌘3",
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            id: "users",
+            label: dict.admin.userManagement,
+            path: `/${locale}/admin/users`,
+            icon: Users,
+            shortcut: "⌘2",
+          },
+          {
+            id: "pre-application-appeals",
+            label: dict.admin.preApplicationAppeals,
+            path: `/${locale}/admin/pre-application-appeals`,
+            icon: ClipboardCheck,
+            shortcut: "⌘9",
+          },
+        ]
+      : []),
     {
       id: "risk-control",
       label: ((dict.admin as Record<string, unknown>).riskControl as string) || "Risk Control",
@@ -169,7 +182,13 @@ export function CommandMenu({ locale }: CommandMenuProps) {
       icon: Settings,
       shortcut: "⌘,",
     },
-  ]
+  ].filter((command) => {
+    if (command.id === "audit-logs" || command.id === "settings") {
+      return isSuperAdmin
+    }
+
+    return true
+  })
 
   return (
     <>
@@ -276,6 +295,7 @@ export function CommandMenu({ locale }: CommandMenuProps) {
                       "mr-2 h-4 w-4",
                       cmd.id === "overview" && "text-blue-500",
                       cmd.id === "users" && "text-purple-500",
+                      cmd.id === "pre-application-appeals" && "text-emerald-500",
                       cmd.id === "messages" && "text-orange-500",
                       cmd.id === "audit-logs" && "text-slate-500",
                       cmd.id === "settings" && "text-gray-500",

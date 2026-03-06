@@ -196,6 +196,14 @@
           "alreadyDeleted": "该备注已删除"
         }
       },
+      "preApplicationAppeals": {
+        "failedToFetch": "获取预申请申诉列表失败",
+        "failedToReview": "审核预申请申诉失败",
+        "notFound": "未找到预申请申诉",
+        "alreadyReviewed": "该申诉已处理",
+        "invalidAction": "无效的申诉审核操作",
+        "targetChanged": "该申诉对应的预申请状态已变化，无法恢复到待审核"
+      },
       "posts": {
         "failedToFetch": "获取帖子失败",
         "postNotFound": "未找到帖子",
@@ -323,6 +331,14 @@
       "dailyUserLimitExceeded": "已达到今日个人提交次数上限",
       "dailyGlobalLimitExceeded": "已达到今日全站提交上限",
       "submitRateServiceUnavailable": "限流服务暂不可用，请稍后重试",
+      "appeal": {
+        "failedToFetch": "获取预申请复审信息失败",
+        "failedToCreate": "提交预申请复审失败",
+        "disabled": "当前未开放预申请复审",
+        "preApplicationNotRejected": "仅已被驳回的预申请可以申请复审",
+        "pendingAppealExists": "该预申请已有待处理的复审请求",
+        "cooldownActive": "该预申请仍处于复审冷静期"
+      },
       "notApproved": "申请未通过审核",
       "alreadyHasCode": "已有邀请码",
       "noAvailableCode": "暂无可用邀请码，请稍后再试",
@@ -840,6 +856,8 @@
     "splitMode": "实时渲染",
     "messages": "站内信",
     "preApplication": "预申请",
+    "preApplicationAppeals": "预申请申诉",
+    "preApplicationAppealsDesc": "提交并跟踪你的预申请申诉",
     "reviewHistory": "审核记录",
     "preApplicationGuide": {
       "title": "预申请流程说明",
@@ -1217,6 +1235,20 @@
     "versionConflict": "数据已被修改，请刷新后重试",
     "resubmitWarningTitle": "申请已被驳回",
     "resubmitRemaining": "您还可以重新提交 {count} 次",
+    "appealClosed": "当前未开放预申请申诉。",
+    "appealPending": "你已提交申诉，请等待管理员审核。",
+    "appealCooldown": "你可以在 {time} 后再次提交申诉。",
+    "appealCtaHint": "如果你认为当前驳回结果需要再次复核，可以提交申诉说明。",
+    "appealButton": "提交申诉",
+    "appealDialogTitle": "提交预申请申诉",
+    "appealDialogDescription": "请说明你希望管理员重新复核该驳回预申请的具体原因。",
+    "appealReasonLabel": "申诉说明",
+    "appealReasonPlaceholder": "请尽量具体地说明申诉原因、补充信息或你认为需要重新审核的内容...",
+    "appealSubmit": "提交申诉",
+    "appealSubmitting": "提交中...",
+    "appealSubmitSuccess": "申诉已提交",
+    "appealSubmitFailed": "提交申诉失败，请重试",
+    "appealLoadError": "刷新申诉状态失败，当前显示的是最近一次已知状态。",
     "currentApplication": "当前申请",
     "versionHistory": "版本历史",
     "resubmit": "重新提交",
@@ -1272,6 +1304,15 @@
       "inviteCodeLabel": "邀请码：",
       "inviteExpiresLabel": "有效期至：",
       "claimCodeHint": "暂无可用邀请码，请稍后在申请页面领取。",
+      "appealReview": {
+        "rejectedTitle": "预申请申诉已驳回",
+        "rejectedIntro": "你的预申请申诉已被超级管理员驳回。",
+        "overriddenTitle": "预申请申诉已通过",
+        "overriddenIntro": "你的预申请申诉已通过，原预申请已恢复为待审核状态。",
+        "reviewCommentLabel": "审核说明：",
+        "submitBanUntilLabel": "提交封禁至：",
+        "overriddenNextStep": "请等待管理员重新审核。"
+      },
       "footer": "如有疑问，请联系管理员。"
     },
     "emailTemplate": {
@@ -1402,6 +1443,68 @@
     "posts": "文章",
     "preApplications": "预申请",
     "preApplicationsDesc": "管理预申请并完成审核",
+    "preApplicationAppeals": "预申请申诉",
+    "preApplicationAppealsDesc": "审核并处理预申请申诉",
+    "preApplicationAppealsPage": {
+      "title": "预申请申诉",
+      "description": "查看待处理申诉、筛选历史处理结果，并提交轻量审核操作。",
+      "searchPlaceholder": "搜索申诉内容、邮箱、审核备注或查询令牌",
+      "filters": {
+        "status": "状态",
+        "all": "全部状态",
+        "pending": "待处理",
+        "rejected": "已驳回",
+        "overridden": "已恢复"
+      },
+      "stats": {
+        "pending": "待处理申诉",
+        "rejected": "已驳回申诉",
+        "overridden": "已恢复申诉"
+      },
+      "columns": {
+        "user": "用户",
+        "reason": "申诉内容",
+        "status": "状态",
+        "submittedAt": "提交时间",
+        "reviewed": "审核信息",
+        "actions": "操作"
+      },
+      "fields": {
+        "queryToken": "查询令牌",
+        "registerEmail": "注册邮箱",
+        "preApplicationStatus": "预申请状态",
+        "reviewComment": "审核备注",
+        "reviewedBy": "审核人"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "clear": "清空",
+        "reject": "驳回",
+        "override": "恢复待审",
+        "cancel": "取消"
+      },
+      "dialog": {
+        "commentLabel": "审核备注",
+        "rejectTitle": "驳回申诉",
+        "rejectDescription": "提交审核备注后将驳回该申诉，系统会通知用户处理结果。",
+        "rejectPlaceholder": "说明为何维持驳回结果...",
+        "overrideTitle": "恢复申诉",
+        "overrideDescription": "提交审核备注后将恢复该预申请到待审核状态，进入下一轮审核。",
+        "overridePlaceholder": "说明为何应恢复该预申请..."
+      },
+      "states": {
+        "empty": "暂无申诉记录",
+        "notReviewed": "未审核",
+        "none": "无",
+        "unknownUser": "未知用户"
+      },
+      "messages": {
+        "loadError": "加载预申请申诉失败",
+        "commentRequired": "请填写审核备注",
+        "rejected": "已驳回申诉",
+        "overridden": "已恢复申诉"
+      }
+    },
     "shadowHidden": "Shadowban 隐藏",
     "shadowbanLockedHint": "该申请处于 Shadowban 锁定，需先解除后才能修改",
     "shadowbanSuperAdminOnly": "仅超级管理员可操作",
@@ -2082,6 +2185,8 @@
     "systemConfigEssayHintPlaceholder": "建议 100 字左右...",
     "systemConfigAuditLog": "启用审计日志",
     "systemConfigAuditLogDesc": "记录所有管理操作到审计日志（默认关闭以提升性能）",
+    "preApplicationAppealEnabled": "启用预申请申诉",
+    "preApplicationAppealEnabledDesc": "允许已被驳回的预申请提交申诉，关闭后不再展示申诉入口。",
     "maxResubmitCount": "驳回后最大重新提交次数",
     "maxResubmitCountDesc": "设为 0 表示不限制重新提交次数",
     "preApplicationEssayLengthLimit": "预申请字数限制",

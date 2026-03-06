@@ -107,6 +107,14 @@ export const ApiErrorKeys = {
         alreadyDeleted: "apiErrors.admin.preApplications.notes.alreadyDeleted",
       },
     },
+    preApplicationAppeals: {
+      failedToFetch: "apiErrors.admin.preApplicationAppeals.failedToFetch",
+      failedToReview: "apiErrors.admin.preApplicationAppeals.failedToReview",
+      notFound: "apiErrors.admin.preApplicationAppeals.notFound",
+      alreadyReviewed: "apiErrors.admin.preApplicationAppeals.alreadyReviewed",
+      invalidAction: "apiErrors.admin.preApplicationAppeals.invalidAction",
+      targetChanged: "apiErrors.admin.preApplicationAppeals.targetChanged",
+    },
     posts: {
       failedToFetch: "apiErrors.admin.posts.failedToFetch",
       postNotFound: "apiErrors.admin.posts.postNotFound",
@@ -242,5 +250,13 @@ export const ApiErrorKeys = {
     dailyUserLimitExceeded: "apiErrors.preApplication.dailyUserLimitExceeded",
     dailyGlobalLimitExceeded: "apiErrors.preApplication.dailyGlobalLimitExceeded",
     submitRateServiceUnavailable: "apiErrors.preApplication.submitRateServiceUnavailable",
+    appeal: {
+      failedToFetch: "apiErrors.preApplication.appeal.failedToFetch",
+      failedToCreate: "apiErrors.preApplication.appeal.failedToCreate",
+      disabled: "apiErrors.preApplication.appeal.disabled",
+      preApplicationNotRejected: "apiErrors.preApplication.appeal.preApplicationNotRejected",
+      pendingAppealExists: "apiErrors.preApplication.appeal.pendingAppealExists",
+      cooldownActive: "apiErrors.preApplication.appeal.cooldownActive",
+    },
   },
 } as const

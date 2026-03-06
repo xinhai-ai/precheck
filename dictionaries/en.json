@@ -198,6 +198,14 @@
           "alreadyDeleted": "This note has already been deleted"
         }
       },
+      "preApplicationAppeals": {
+        "failedToFetch": "Failed to fetch pre-application appeals",
+        "failedToReview": "Failed to review pre-application appeal",
+        "notFound": "Pre-application appeal not found",
+        "alreadyReviewed": "This appeal has already been reviewed",
+        "invalidAction": "Invalid appeal review action",
+        "targetChanged": "The appealed pre-application has changed and can no longer be reopened"
+      },
       "posts": {
         "failedToFetch": "Failed to fetch posts",
         "postNotFound": "Post not found",
@@ -325,6 +333,14 @@
       "dailyUserLimitExceeded": "You have reached your daily submission limit",
       "dailyGlobalLimitExceeded": "The platform has reached today's submission limit",
       "submitRateServiceUnavailable": "Submission rate limit service is temporarily unavailable",
+      "appeal": {
+        "failedToFetch": "Failed to load pre-application appeal information",
+        "failedToCreate": "Failed to submit pre-application appeal",
+        "disabled": "Pre-application appeals are currently disabled",
+        "preApplicationNotRejected": "Only rejected pre-applications can submit an appeal",
+        "pendingAppealExists": "There is already a pending appeal for this pre-application",
+        "cooldownActive": "This pre-application is still in the appeal cooldown period"
+      },
       "notApproved": "Application not approved yet",
       "alreadyHasCode": "Already has an invite code",
       "noAvailableCode": "No invite codes available, please try again later",
@@ -842,6 +858,8 @@
     "splitMode": "Live",
     "messages": "Messages",
     "preApplication": "Pre-Application",
+    "preApplicationAppeals": "Pre-Application Appeals",
+    "preApplicationAppealsDesc": "Submit and track your pre-application appeals",
     "reviewHistory": "Review History",
     "preApplicationGuide": {
       "title": "Pre-Application Guide",
@@ -1222,6 +1240,20 @@
     "versionConflict": "Data has been modified, please refresh and try again",
     "resubmitWarningTitle": "Application rejected",
     "resubmitRemaining": "You can resubmit {count} more time(s)",
+    "appealClosed": "Appeals are currently closed.",
+    "appealPending": "You already have an appeal under review.",
+    "appealCooldown": "You can submit another appeal in {time}.",
+    "appealCtaHint": "If you believe the decision should be reviewed again, you can submit an appeal.",
+    "appealButton": "Submit Appeal",
+    "appealDialogTitle": "Submit Appeal",
+    "appealDialogDescription": "Explain why you would like this rejected pre-application to be reviewed again.",
+    "appealReasonLabel": "Appeal Reason",
+    "appealReasonPlaceholder": "Please explain the specific reason for your appeal...",
+    "appealSubmit": "Submit Appeal",
+    "appealSubmitting": "Submitting...",
+    "appealSubmitSuccess": "Appeal submitted successfully",
+    "appealSubmitFailed": "Failed to submit appeal, please try again",
+    "appealLoadError": "Failed to refresh appeal status. Showing the last known appeal state.",
     "currentApplication": "Current Application",
     "versionHistory": "Version History",
     "resubmit": "Resubmit",
@@ -1277,6 +1309,15 @@
       "inviteCodeLabel": "Invite code: ",
       "inviteExpiresLabel": "Expires at: ",
       "claimCodeHint": "No invite codes available yet. Please claim one from the application page later.",
+      "appealReview": {
+        "rejectedTitle": "Pre-application appeal rejected",
+        "rejectedIntro": "Your pre-application appeal has been rejected by a super admin.",
+        "overriddenTitle": "Pre-application appeal approved",
+        "overriddenIntro": "Your pre-application appeal has been approved and your pre-application is back in the review queue.",
+        "reviewCommentLabel": "Review note: ",
+        "submitBanUntilLabel": "Submit ban until: ",
+        "overriddenNextStep": "Please wait for another admin review."
+      },
       "footer": "If you have questions, please contact an admin."
     },
     "emailTemplate": {
@@ -1407,6 +1448,68 @@
     "posts": "Posts",
     "preApplications": "Pre-Applications",
     "preApplicationsDesc": "Review and manage pre-applications",
+    "preApplicationAppeals": "Pre-Application Appeals",
+    "preApplicationAppealsDesc": "Review and manage pre-application appeals",
+    "preApplicationAppealsPage": {
+      "title": "Pre-Application Appeals",
+      "description": "Review pending appeals, filter historical decisions, and submit lightweight review actions.",
+      "searchPlaceholder": "Search reason, email, review comment, or query token",
+      "filters": {
+        "status": "Status",
+        "all": "All statuses",
+        "pending": "Pending",
+        "rejected": "Rejected",
+        "overridden": "Overridden"
+      },
+      "stats": {
+        "pending": "Pending Appeals",
+        "rejected": "Rejected Appeals",
+        "overridden": "Overridden Appeals"
+      },
+      "columns": {
+        "user": "User",
+        "reason": "Appeal Reason",
+        "status": "Status",
+        "submittedAt": "Submitted",
+        "reviewed": "Review",
+        "actions": "Actions"
+      },
+      "fields": {
+        "queryToken": "Query Token",
+        "registerEmail": "Register Email",
+        "preApplicationStatus": "Application Status",
+        "reviewComment": "Review Comment",
+        "reviewedBy": "Reviewed By"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "clear": "Clear",
+        "reject": "Reject",
+        "override": "Override",
+        "cancel": "Cancel"
+      },
+      "dialog": {
+        "commentLabel": "Review Comment",
+        "rejectTitle": "Reject Appeal",
+        "rejectDescription": "Add a review comment before rejecting this appeal. The user will be notified of the result.",
+        "rejectPlaceholder": "Explain why the appeal remains rejected...",
+        "overrideTitle": "Override Appeal",
+        "overrideDescription": "Add a review comment before reopening this pre-application for another review round.",
+        "overridePlaceholder": "Explain why the appeal should reopen the pre-application..."
+      },
+      "states": {
+        "empty": "No appeals found",
+        "notReviewed": "Not reviewed",
+        "none": "None",
+        "unknownUser": "Unknown user"
+      },
+      "messages": {
+        "loadError": "Failed to load pre-application appeals",
+        "commentRequired": "Review comment is required",
+        "rejected": "Appeal rejected",
+        "overridden": "Appeal overridden"
+      }
+    },
     "shadowHidden": "Shadowban Hidden",
     "shadowbanLockedHint": "This application is shadowban-locked. Unshadowban is required before any changes.",
     "shadowbanSuperAdminOnly": "Only super admins can perform this action",
@@ -2087,6 +2190,8 @@
     "systemConfigEssayHintPlaceholder": "About 100 words recommended...",
     "systemConfigAuditLog": "Enable Audit Log",
     "systemConfigAuditLogDesc": "Record all admin operations to audit log (disabled by default for performance)",
+    "preApplicationAppealEnabled": "Enable pre-application appeals",
+    "preApplicationAppealEnabledDesc": "Allow rejected pre-applications to submit appeals. Disable to hide the appeal entry.",
     "maxResubmitCount": "Max Resubmissions After Rejection",
     "maxResubmitCountDesc": "Set to 0 for unlimited resubmissions",
     "preApplicationEssayLengthLimit": "Pre-application essay length limits",

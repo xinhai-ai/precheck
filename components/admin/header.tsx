@@ -47,7 +47,7 @@ export function AdminHeader({ locale, dict, user, onMenuClick }: AdminHeaderProp
           <Menu className="h-5 w-5" />
         </Button>
 
-        <CommandMenu locale={locale} />
+        <CommandMenu locale={locale} isSuperAdmin={user.role === "SUPER_ADMIN"} />
       </div>
 
       <div className="flex items-center gap-2">

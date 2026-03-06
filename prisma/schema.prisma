@@ -41,7 +41,9 @@ model User {
   messagesCreated                  Message[]                         @relation("CreatedMessages")
   messagesRevoked                  Message[]                         @relation("RevokedMessages")
   preApplications                  PreApplication[]
+  preApplicationAppeals            PreApplicationAppeal[]            @relation("PreApplicationAppeals")
   preApplicationDraft              PreApplicationDraft?
+  preApplicationAppealsReviewed    PreApplicationAppeal[]            @relation("ReviewedPreApplicationAppeals")
   preApplicationsReviewed          PreApplication[]                  @relation("ReviewedPreApplications")
   preApplicationVersionsReviewed   PreApplicationVersion[]           @relation("ReviewedVersions")
   preApplicationAdminNotesCreated  PreApplicationAdminNote[]         @relation("PreApplicationAdminNotesCreated")
@@ -194,6 +196,7 @@ model PreApplication {
   inviteCode        InviteCode?               @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
   versions          PreApplicationVersion[] // 版本历史
   adminNotes        PreApplicationAdminNote[]
+  appeals           PreApplicationAppeal[]
   tickets           Ticket[] // 工单
   fingerprintEvents FingerprintEvent[]        @relation("PreApplicationFingerprintEvents")
 
@@ -202,6 +205,27 @@ model PreApplication {
   @@index([registerEmail])
   @@index([qqNumber])
   @@index([fingerprintHash])
+}
+
+model PreApplicationAppeal {
+  id               String                     @id @default(cuid())
+  preApplicationId String
+  userId           String
+  status           PreApplicationAppealStatus @default(PENDING)
+  reason           String
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewComment    String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  preApplication PreApplication @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
+  user           User           @relation("PreApplicationAppeals", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy     User?          @relation("ReviewedPreApplicationAppeals", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([preApplicationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 // 预申请版本历史表
@@ -449,6 +473,12 @@ enum PreApplicationStatus {
   ON_HOLD
 }
 
+enum PreApplicationAppealStatus {
+  PENDING
+  REJECTED
+  OVERRIDDEN
+}
+
 enum PreApplicationSource {
   TIEBA
   BILIBILI
@@ -507,6 +537,7 @@ model SiteSettings {
   preApplicationDailyUserLimit   Int      @default(5)
   preApplicationSubmitStartTime  String   @default("09:00")
   preApplicationSubmitEndTime    String   @default("21:00")
+  preApplicationAppealEnabled    Boolean  @default(false)
   // 邀请码有效期检测 API 配置
   inviteCodeCheckApiUrl          String?
   inviteCodeCheckApiKey          String? // API Key 值

@@ -49,6 +49,7 @@ import { resolveApiErrorMessage } from "@/lib/api/error-message"
 import { preApplicationSources } from "@/lib/pre-application/constants"
 import type { QQGroupConfig } from "@/lib/pre-application/constants"
 import { EmailWithDomainInput } from "@/components/ui/email-with-domain-input"
+import { PreApplicationAppealDialog } from "@/components/dashboard/pre-application-appeal-dialog"
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { cn } from "@/lib/utils"
 import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
@@ -141,6 +142,30 @@ type SubmitBanStatus = {
   remainingSeconds: number
 }
 
+type PreApplicationAppealRecord = {
+  id: string
+  preApplicationId: string
+  userId: string
+  status: "PENDING" | "REJECTED" | "OVERRIDDEN"
+  reason: string
+  reviewedAt: string | null
+  reviewComment: string | null
+  createdAt: string
+  updatedAt: string
+  reviewedBy: { id: string; name: string | null; email: string } | null
+}
+
+type PreApplicationAppealAvailability = {
+  canCreate: boolean
+  reason:
+    | "APPEAL_DISABLED"
+    | "PRE_APPLICATION_NOT_REJECTED"
+    | "PENDING_APPEAL_EXISTS"
+    | "APPEAL_COOLDOWN_ACTIVE"
+    | null
+  cooldownRemainingSeconds: number
+}
+
 interface PreApplicationFormProps {
   locale: Locale
   dict: Dictionary
@@ -220,6 +245,11 @@ export function PreApplicationForm({
   const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
   const [submitBanStatus, setSubmitBanStatus] = useState<SubmitBanStatus | null>(null)
   const [draft, setDraft] = useState<PreApplicationDraft | null>(null)
+  const [appeals, setAppeals] = useState<PreApplicationAppealRecord[]>([])
+  const [appealAvailability, setAppealAvailability] =
+    useState<PreApplicationAppealAvailability | null>(null)
+  const [appealDialogOpen, setAppealDialogOpen] = useState(false)
+  const [appealLoadError, setAppealLoadError] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
   const [clearingDraft, setClearingDraft] = useState(false)
   const allowedDomains = useAllowedEmailDomains()
@@ -256,6 +286,7 @@ export function PreApplicationForm({
   }, [locale, allowedDomains])
 
   const latest = records[0] ?? null
+  const pendingAppeal = appeals.find((appeal) => appeal.status === "PENDING") ?? null
   const isEditing = Boolean(latest)
   const hasReviewInfo = Boolean(
     latest?.reviewedAt || latest?.reviewedBy || latest?.guidance || latest?.inviteCode,
@@ -263,8 +294,13 @@ export function PreApplicationForm({
   const remainingResubmits = latest
     ? maxResubmitCount - (latest.resubmitCount || 0)
     : maxResubmitCount
+  const hasResolvedAppealState =
+    latest?.status !== "REJECTED" || (!appealLoadError && !!appealAvailability)
   const canResubmit =
-    latest?.status === "REJECTED" && (maxResubmitCount === 0 || remainingResubmits > 0)
+    latest?.status === "REJECTED" &&
+    hasResolvedAppealState &&
+    !pendingAppeal &&
+    (maxResubmitCount === 0 || remainingResubmits > 0)
   // DISPUTED 状态且没有邀请码时可以修改
   const canEditDisputed = latest?.status === "DISPUTED" && !latest?.inviteCode
   // 管理员可以删除自己的申请记录（用于测试）
@@ -288,6 +324,9 @@ export function PreApplicationForm({
       }
       toast.success(((t as Record<string, unknown>).deleteSuccess as string) ?? "申请记录已删除")
       setRecords([])
+      setAppeals([])
+      setAppealAvailability(null)
+      setAppealLoadError(null)
       setFormData({
         essay: "",
         source: "",
@@ -335,14 +374,15 @@ export function PreApplicationForm({
     }
   }
 
-  const loadRecord = async (withLoading = true) => {
+  const loadRecord = async (withLoading = true): Promise<boolean> => {
     if (withLoading) {
       setLoading(true)
     }
     try {
-      const [res, draftRes] = await Promise.all([
+      const [res, draftRes, appealRes] = await Promise.all([
         fetch("/api/pre-application"),
         fetch("/api/pre-application/draft"),
+        fetch("/api/pre-application/appeal"),
       ])
       if (!res.ok) throw new Error(t.loadFailed)
       const [data, draftData] = await Promise.all([
@@ -350,8 +390,29 @@ export function PreApplicationForm({
         draftRes.ok ? draftRes.json() : Promise.resolve({ draft: null }),
       ])
       const nextRecords = data.records || []
+      let appealRefreshSucceeded = true
+
       setRecords(nextRecords)
       setDraft((draftData?.draft as PreApplicationDraft | null) ?? null)
+
+      if (appealRes.ok) {
+        const appealData = await appealRes.json()
+        setAppeals((appealData?.appeals as PreApplicationAppealRecord[] | undefined) ?? [])
+        setAppealAvailability(
+          (appealData?.availability as PreApplicationAppealAvailability | null | undefined) ?? null,
+        )
+        setAppealLoadError(null)
+      } else {
+        appealRefreshSucceeded = false
+        const appealErrorData = await appealRes.json().catch(() => ({}))
+        const appealMessage =
+          resolveApiErrorMessage(appealErrorData, dict) ??
+          ((t as Record<string, unknown>).appealLoadError as string) ??
+          "Failed to refresh appeal status. Showing the last known appeal state."
+        setAppealLoadError(appealMessage)
+        console.error("Pre-application appeal load error:", appealRes.status)
+      }
+
       if (data.maxResubmitCount) setMaxResubmitCount(data.maxResubmitCount)
       setQueueInfo(data.queueInfo ?? null)
       setSubmitQuotaStatus(data.submitQuotaStatus ?? null)
@@ -363,9 +424,12 @@ export function PreApplicationForm({
           }),
         )
       }
+
+      return appealRefreshSucceeded
     } catch (error) {
       console.error("Pre-application load error:", error)
       toast.error(t.loadFailed)
+      return false
     } finally {
       if (withLoading) {
         setLoading(false)
@@ -586,6 +650,72 @@ export function PreApplicationForm({
     return `${safeMinutes}m`
   }
 
+  const renderAppealStatusContent = () => {
+    if (!latest || latest.status !== "REJECTED") {
+      return null
+    }
+
+    if (pendingAppeal || appealAvailability?.reason === "PENDING_APPEAL_EXISTS") {
+      return (
+        <p className="text-rose-700 dark:text-rose-300">
+          {((t as Record<string, unknown>).appealPending as string) ||
+            "You already have an appeal under review."}
+        </p>
+      )
+    }
+
+    if (appealAvailability?.reason === "APPEAL_DISABLED") {
+      return (
+        <p className="text-rose-700 dark:text-rose-300">
+          {((t as Record<string, unknown>).appealClosed as string) ||
+            "Appeals are currently closed."}
+        </p>
+      )
+    }
+
+    if (appealAvailability?.reason === "APPEAL_COOLDOWN_ACTIVE") {
+      const template =
+        ((t as Record<string, unknown>).appealCooldown as string) ||
+        "You can submit another appeal in {time}."
+
+      return (
+        <p className="text-rose-700 dark:text-rose-300">
+          {template.replace(
+            "{time}",
+            formatRemainingDuration(appealAvailability.cooldownRemainingSeconds),
+          )}
+        </p>
+      )
+    }
+
+    if (appealAvailability?.canCreate) {
+      return (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-rose-700 dark:text-rose-300">
+            {((t as Record<string, unknown>).appealCtaHint as string) ||
+              "If you believe the decision should be reviewed again, you can submit an appeal."}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setAppealDialogOpen(true)}
+            className="w-full border-rose-200 bg-white/80 text-rose-700 hover:bg-rose-100 hover:text-rose-800 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100 dark:hover:bg-rose-950/50 sm:w-auto"
+          >
+            <MessageCircle className="mr-2 h-4 w-4" />
+            {((t as Record<string, unknown>).appealButton as string) || "Submit Appeal"}
+          </Button>
+        </div>
+      )
+    }
+
+    if (appealLoadError) {
+      return <p className="text-rose-700 dark:text-rose-300">{appealLoadError}</p>
+    }
+
+    return null
+  }
+
   const handleSaveDraft = async () => {
     if (latest?.status === "APPROVED") {
       return
@@ -692,6 +822,23 @@ export function PreApplicationForm({
 
       if (latest?.status === "APPROVED") {
         toast.error(t.alreadySubmitted)
+        return
+      }
+
+      if (latest?.status === "REJECTED" && pendingAppeal) {
+        toast.error(
+          ((t as Record<string, unknown>).appealPending as string) ||
+            "You already have an appeal under review.",
+        )
+        return
+      }
+
+      if (latest?.status === "REJECTED" && (!appealAvailability || appealLoadError)) {
+        toast.error(
+          appealLoadError ||
+            ((t as Record<string, unknown>).appealLoadError as string) ||
+            "Failed to refresh appeal status. Please try again.",
+        )
         return
       }
 
@@ -859,6 +1006,7 @@ export function PreApplicationForm({
   const canSubmitForm =
     !isSubmitBanned && (!latest || latest.status === "PENDING" || canResubmit || canEditDisputed)
   const showForm = !latest || latest.status !== "APPROVED"
+  const appealStatusContent = renderAppealStatusContent()
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -965,8 +1113,27 @@ export function PreApplicationForm({
                   )
                 : t.maxResubmitExceeded || "已达到最大重新提交次数限制"}
             </p>
+            {appealStatusContent && (
+              <div className="mt-3 rounded-lg border border-rose-200/70 bg-white/60 p-3 dark:border-rose-900/60 dark:bg-rose-950/20">
+                {appealStatusContent}
+              </div>
+            )}
           </div>
         </motion.div>
+      )}
+
+      {latest && (
+        <PreApplicationAppealDialog
+          open={appealDialogOpen}
+          onOpenChange={setAppealDialogOpen}
+          preApplicationId={latest.id}
+          dict={dict}
+          onSubmitted={async () => {
+            const refreshed = await loadRecord(false)
+            router.refresh()
+            return refreshed
+          }}
+        />
       )}
 
       {/* DISPUTED 状态提示 */}

@@ -6,15 +6,9 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus =
-  | "PENDING"
-  | "SHADOW_HIDDEN"
-  | "APPROVED"
-  | "REJECTED"
-  | "DISPUTED"
-  | "ARCHIVED"
-  | "PENDING_REVIEW"
-  | "ON_HOLD"
+export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
+
+export type PreApplicationAppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
 
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
@@ -49,7 +43,9 @@ export interface User {
   messagesCreated: Message[]
   messagesRevoked: Message[]
   preApplications: PreApplication[]
+  preApplicationAppeals: PreApplicationAppeal[]
   preApplicationDraft: PreApplicationDraft | null
+  preApplicationAppealsReviewed: PreApplicationAppeal[]
   preApplicationsReviewed: PreApplication[]
   preApplicationVersionsReviewed: PreApplicationVersion[]
   preApplicationAdminNotesCreated: PreApplicationAdminNote[]
@@ -177,8 +173,25 @@ export interface PreApplication {
   inviteCode: InviteCode | null
   versions: PreApplicationVersion[]
   adminNotes: PreApplicationAdminNote[]
+  appeals: PreApplicationAppeal[]
   tickets: Ticket[]
   fingerprintEvents: FingerprintEvent[]
+}
+
+export interface PreApplicationAppeal {
+  id: string
+  preApplicationId: string
+  userId: string
+  status: PreApplicationAppealStatus
+  reason: string
+  reviewedById: string | null
+  reviewedAt: Date | null
+  reviewComment: string | null
+  createdAt: Date
+  updatedAt: Date
+  preApplication: PreApplication
+  user: User
+  reviewedBy: User | null
 }
 
 export interface PreApplicationVersion {
@@ -377,6 +390,7 @@ export interface SiteSettings {
   preApplicationDailyUserLimit: number
   preApplicationSubmitStartTime: string
   preApplicationSubmitEndTime: string
+  preApplicationAppealEnabled: boolean
   inviteCodeCheckApiUrl: string | null
   inviteCodeCheckApiKey: string | null
   analyticsEnabled: boolean

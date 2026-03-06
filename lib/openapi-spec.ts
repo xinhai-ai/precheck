@@ -247,6 +247,103 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/pre-application-appeals": {
+      get: {
+        tags: ["Admin"],
+        summary: "预申请申诉队列",
+        parameters: [
+          { name: "search", in: "query", schema: { type: "string" } },
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string" },
+            description: "状态筛选，支持逗号分隔多个值：PENDING,REJECTED,OVERRIDDEN；默认 PENDING",
+          },
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+        ],
+        responses: {
+          "200": {
+            description: "预申请申诉列表",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    records: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          preApplicationId: { type: "string" },
+                          userId: { type: "string" },
+                          status: {
+                            type: "string",
+                            enum: ["PENDING", "REJECTED", "OVERRIDDEN"],
+                          },
+                          reason: { type: "string" },
+                          reviewComment: { type: "string", nullable: true },
+                          reviewedAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                    total: { type: "integer" },
+                    page: { type: "integer" },
+                    limit: { type: "integer" },
+                    stats: {
+                      type: "object",
+                      properties: {
+                        pending: { type: "integer" },
+                        rejected: { type: "integer" },
+                        overridden: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "403": { description: "无权限（仅 SUPER_ADMIN）" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+    },
+    "/admin/pre-application-appeals/{id}/review": {
+      post: {
+        tags: ["Admin"],
+        summary: "审核预申请申诉",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["action", "reviewComment"],
+                properties: {
+                  action: { type: "string", enum: ["REJECT", "OVERRIDE"] },
+                  reviewComment: { type: "string", minLength: 1, maxLength: 2000 },
+                  locale: { type: "string", enum: ["en", "zh"] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "审核完成" },
+          "400": { description: "参数错误或审核动作无效" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限（仅 SUPER_ADMIN）" },
+          "404": { description: "申诉不存在" },
+          "409": { description: "申诉已处理或关联预申请状态已变化" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+    },
     "/admin/pre-applications/{id}/notes": {
       get: {
         tags: ["Admin"],
@@ -1228,6 +1325,129 @@ export const openApiSpec = {
           "429": { description: "超过个人或全站每日提交限额" },
           "503": { description: "限流服务不可用" },
           "409": { description: "版本冲突" },
+        },
+      },
+    },
+    "/pre-application/appeal": {
+      get: {
+        tags: ["PreApplication"],
+        summary: "获取当前用户最新预申请的申诉信息",
+        responses: {
+          "200": {
+            description: "最新预申请申诉信息",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    preApplication: {
+                      type: "object",
+                      nullable: true,
+                      properties: {
+                        id: { type: "string" },
+                        status: { type: "string" },
+                        guidance: { type: "string", nullable: true },
+                        queryToken: { type: "string", nullable: true },
+                        reviewedAt: { type: "string", format: "date-time", nullable: true },
+                        createdAt: { type: "string", format: "date-time" },
+                        updatedAt: { type: "string", format: "date-time" },
+                        reviewedBy: {
+                          type: "object",
+                          nullable: true,
+                          properties: {
+                            id: { type: "string" },
+                            name: { type: "string", nullable: true },
+                            email: { type: "string", nullable: true },
+                          },
+                        },
+                      },
+                    },
+                    appeals: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          preApplicationId: { type: "string" },
+                          userId: { type: "string" },
+                          status: { type: "string", enum: ["PENDING", "REJECTED", "OVERRIDDEN"] },
+                          reason: { type: "string" },
+                          reviewComment: { type: "string", nullable: true },
+                          reviewedAt: { type: "string", format: "date-time", nullable: true },
+                          createdAt: { type: "string", format: "date-time" },
+                          updatedAt: { type: "string", format: "date-time" },
+                          reviewedBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", nullable: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                    availability: {
+                      type: "object",
+                      properties: {
+                        canCreate: { type: "boolean" },
+                        reason: {
+                          type: "string",
+                          nullable: true,
+                          enum: [
+                            "APPEAL_DISABLED",
+                            "PRE_APPLICATION_NOT_REJECTED",
+                            "PENDING_APPEAL_EXISTS",
+                            "APPEAL_COOLDOWN_ACTIVE",
+                          ],
+                        },
+                        cooldownRemainingSeconds: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "500": { description: "获取申诉信息失败" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+      post: {
+        tags: ["PreApplication"],
+        summary: "提交预申请申诉",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["preApplicationId", "reason"],
+                properties: {
+                  preApplicationId: { type: "string", description: "预申请 ID" },
+                  reason: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 2000,
+                    description: "申诉理由",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "申诉提交成功" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "申诉功能未开启" },
+          "404": { description: "预申请不存在" },
+          "409": { description: "预申请状态不允许申诉或已有待处理申诉" },
+          "429": { description: "申诉冷却中" },
+          "500": { description: "提交申诉失败" },
+          "503": { description: "数据库未配置" },
         },
       },
     },

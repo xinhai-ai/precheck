@@ -92,6 +92,7 @@ type SystemConfig = {
   preApplicationDailyUserLimit: number
   preApplicationSubmitStartTime: string
   preApplicationSubmitEndTime: string
+  preApplicationAppealEnabled: boolean
 }
 
 type EmailApiConfig = {
@@ -1077,6 +1078,20 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                         checked={systemConfig.auditLogEnabled}
                         onCheckedChange={(v) =>
                           setSystemConfig({ ...systemConfig, auditLogEnabled: v })
+                        }
+                      />
+                    )}
+                    {systemConfig && (
+                      <ToggleItem
+                        icon={MessageSquare}
+                        title={t.preApplicationAppealEnabled || "启用预申请申诉"}
+                        description={
+                          t.preApplicationAppealEnabledDesc ||
+                          "允许已被驳回的预申请提交申诉，关闭后不再开放申诉入口"
+                        }
+                        checked={systemConfig.preApplicationAppealEnabled}
+                        onCheckedChange={(v) =>
+                          setSystemConfig({ ...systemConfig, preApplicationAppealEnabled: v })
                         }
                       />
                     )}
