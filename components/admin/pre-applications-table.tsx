@@ -1452,23 +1452,6 @@ export function AdminPreApplicationsTable({
                 </>
               )}
             </Button>
-            {record.status === "REJECTED" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                disabled={!!record.pendingAppeal}
-                onClick={() => openReviewRequestDialog(record)}
-                title={
-                  record.pendingAppeal
-                    ? adminExt.preApplicationReviewRequestPending || "已有待处理复审/申诉"
-                    : undefined
-                }
-              >
-                <Send className="h-3.5 w-3.5" />
-                {adminExt.preApplicationReviewRequestAction || "提交复审"}
-              </Button>
-            )}
           </div>
         ),
       },
@@ -3065,10 +3048,30 @@ export function AdminPreApplicationsTable({
           )}
 
           <DrawerFooter className="sticky bottom-0 z-10 border-t bg-background px-4 py-3">
-            <div className="flex w-full justify-end gap-2">
+            <div className="flex w-full flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 {t.reviewCancel}
               </Button>
+              {selected?.status === "REJECTED" && (
+                <Button
+                  variant="outline"
+                  onClick={() => openReviewRequestDialog(selected)}
+                  disabled={reviewRequestSubmitting || !!selected.pendingAppeal}
+                  title={
+                    selected.pendingAppeal
+                      ? adminExt.preApplicationReviewRequestPending || "已有待处理复审/申诉"
+                      : undefined
+                  }
+                  className="gap-2"
+                >
+                  {reviewRequestSubmitting && reviewRequestTarget?.id === selected.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  {adminExt.preApplicationReviewRequestAction || "提交复审"}
+                </Button>
+              )}
               {selected?.status && isReviewEditableStatus(selected.status) && (
                 <Button onClick={handleReview} disabled={submitting} className="gap-2">
                   {submitting ? (
