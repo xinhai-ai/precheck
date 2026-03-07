@@ -51,6 +51,14 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
@@ -149,6 +157,11 @@ type AdminPreApplication = {
   fingerprintStatus: "OK" | "COLLECTION_FAILED"
   fingerprintCollectedAt: string | null
   reviewRound?: number
+  pendingAppeal?: {
+    id: string
+    source: "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
+    createdAt: string
+  } | null
 }
 
 type FingerprintRelatedUser = {
@@ -371,6 +384,10 @@ export function AdminPreApplicationsTable({
   const [inviteExpiresAt, setInviteExpiresAt] = useState("")
   const [markCodeSent, setMarkCodeSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [reviewRequestDialogOpen, setReviewRequestDialogOpen] = useState(false)
+  const [reviewRequestTarget, setReviewRequestTarget] = useState<AdminPreApplication | null>(null)
+  const [reviewRequestReason, setReviewRequestReason] = useState("")
+  const [reviewRequestSubmitting, setReviewRequestSubmitting] = useState(false)
   const [historyRecords, setHistoryRecords] = useState<PreApplicationVersion[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [noteRecords, setNoteRecords] = useState<PreApplicationAdminNote[]>([])
@@ -611,6 +628,76 @@ export function AdminPreApplicationsTable({
     if (!item) return value
     const key = item.labelKey.split(".").pop() || ""
     return (dict.preApplication.sources as Record<string, string>)[key] || value
+  }
+
+
+  const getAppealSourceLabel = (value: "USER_APPEAL" | "ADMIN_REVIEW_REQUEST") => {
+    if (value === "ADMIN_REVIEW_REQUEST") {
+      return adminExt.adminReviewRequestSource || "管理员复审"
+    }
+
+    return adminExt.userAppealSource || "用户申诉"
+  }
+
+  const openReviewRequestDialog = (record: AdminPreApplication) => {
+    setReviewRequestTarget(record)
+    setReviewRequestReason("")
+    setReviewRequestDialogOpen(true)
+  }
+
+  const closeReviewRequestDialog = () => {
+    if (reviewRequestSubmitting) {
+      return
+    }
+
+    setReviewRequestDialogOpen(false)
+    setReviewRequestTarget(null)
+    setReviewRequestReason("")
+  }
+
+  const submitReviewRequest = async () => {
+    if (!reviewRequestTarget) return
+
+    const reason = reviewRequestReason.trim()
+    if (!reason) {
+      toast.error(adminExt.preApplicationReviewRequestReasonRequired || "请填写复审原因")
+      return
+    }
+
+    setReviewRequestSubmitting(true)
+    try {
+      const res = await fetch(
+        `/api/admin/pre-applications/${reviewRequestTarget.id}/review-request`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason, locale }),
+        },
+      )
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const message =
+          resolveApiErrorMessage(data, dict) ??
+          adminExt.preApplicationReviewRequestFailed ??
+          "提交复审请求失败"
+        throw new Error(message)
+      }
+
+      toast.success(
+        adminExt.preApplicationReviewRequestSuccess || "已提交复审请求并通知申请人",
+      )
+      closeReviewRequestDialog()
+      await fetchRecords()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : (adminExt.preApplicationReviewRequestFailed ?? "提交复审请求失败"),
+      )
+    } finally {
+      setReviewRequestSubmitting(false)
+    }
   }
 
   const getStatusConfig = (status: AdminPreApplication["status"]) => {
@@ -1346,24 +1433,43 @@ export function AdminPreApplicationsTable({
         label: t.actions,
         width: "14%",
         render: (record) => (
-          <Button
-            variant={isReviewEditableStatus(record.status) ? "default" : "outline"}
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => openDialog(record)}
-          >
-            {isReviewEditableStatus(record.status) ? (
-              <>
-                <Pencil className="h-3.5 w-3.5" />
-                {t.preApplicationReviewAction}
-              </>
-            ) : (
-              <>
-                <Eye className="h-3.5 w-3.5" />
-                {t.preApplicationView}
-              </>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant={isReviewEditableStatus(record.status) ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => openDialog(record)}
+            >
+              {isReviewEditableStatus(record.status) ? (
+                <>
+                  <Pencil className="h-3.5 w-3.5" />
+                  {t.preApplicationReviewAction}
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3.5 w-3.5" />
+                  {t.preApplicationView}
+                </>
+              )}
+            </Button>
+            {record.status === "REJECTED" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                disabled={!!record.pendingAppeal}
+                onClick={() => openReviewRequestDialog(record)}
+                title={
+                  record.pendingAppeal
+                    ? adminExt.preApplicationReviewRequestPending || "已有待处理复审/申诉"
+                    : undefined
+                }
+              >
+                <Send className="h-3.5 w-3.5" />
+                {adminExt.preApplicationReviewRequestAction || "提交复审"}
+              </Button>
             )}
-          </Button>
+          </div>
         ),
       },
     ],
@@ -2982,6 +3088,72 @@ export function AdminPreApplicationsTable({
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <Dialog open={reviewRequestDialogOpen} onOpenChange={(open) => (!open ? closeReviewRequestDialog() : setReviewRequestDialogOpen(true))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {adminExt.preApplicationReviewRequestTitle || "为已驳回申请提交复审"}
+            </DialogTitle>
+            <DialogDescription>
+              {adminExt.preApplicationReviewRequestDescription ||
+                "提交后会创建一条待处理复审记录，并立即通知申请人。"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="pre-application-review-request-reason">
+              {adminExt.preApplicationReviewRequestReasonLabel || "复审原因"}
+            </Label>
+            <Textarea
+              id="pre-application-review-request-reason"
+              value={reviewRequestReason}
+              onChange={(event) => setReviewRequestReason(event.target.value)}
+              placeholder={
+                adminExt.preApplicationReviewRequestReasonPlaceholder ||
+                "请说明为何需要超级管理员重新复核这条已驳回申请..."
+              }
+              rows={5}
+              maxLength={2000}
+              className="resize-none"
+            />
+            {reviewRequestTarget?.pendingAppeal && (
+              <p className="text-xs text-muted-foreground">
+                {adminExt.preApplicationReviewRequestPending || "该申请已有待处理复审/申诉"}
+                {" · "}
+                {getAppealSourceLabel(reviewRequestTarget.pendingAppeal.source)}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={reviewRequestSubmitting}
+              onClick={closeReviewRequestDialog}
+            >
+              {t.reviewCancel}
+            </Button>
+            <Button
+              type="button"
+              disabled={reviewRequestSubmitting || !reviewRequestReason.trim()}
+              onClick={submitReviewRequest}
+              className="gap-2"
+            >
+              {reviewRequestSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {adminExt.preApplicationReviewRequestSubmitting || "提交中..."}
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  {adminExt.preApplicationReviewRequestAction || "提交复审"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

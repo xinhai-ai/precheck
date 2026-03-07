@@ -146,12 +146,20 @@ type PreApplicationAppealRecord = {
   id: string
   preApplicationId: string
   userId: string
+  source: "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
+  initiatedById: string
   status: "PENDING" | "REJECTED" | "OVERRIDDEN"
   reason: string
   reviewedAt: string | null
   reviewComment: string | null
+  submitBanApplied?: boolean
+  submitBanDays?: number | null
+  submitBanUntil?: string | null
+  autoRejected?: boolean
+  autoRejectedPattern?: string | null
   createdAt: string
   updatedAt: string
+  initiatedBy?: { id: string; name: string | null; email: string } | null
   reviewedBy: { id: string; name: string | null; email: string } | null
 }
 
@@ -1127,6 +1135,7 @@ export function PreApplicationForm({
           open={appealDialogOpen}
           onOpenChange={setAppealDialogOpen}
           preApplicationId={latest.id}
+          locale={locale}
           dict={dict}
           onSubmitted={async () => {
             const refreshed = await loadRecord(false)

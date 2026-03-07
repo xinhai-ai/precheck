@@ -10,6 +10,8 @@ export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "R
 
 export type PreApplicationAppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
 
+export type PreApplicationAppealSource = "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
+
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
 export type PreApplicationAdminNoteAction = "CREATED" | "UPDATED" | "DELETED"
@@ -44,6 +46,7 @@ export interface User {
   messagesRevoked: Message[]
   preApplications: PreApplication[]
   preApplicationAppeals: PreApplicationAppeal[]
+  preApplicationAppealsInitiated: PreApplicationAppeal[]
   preApplicationDraft: PreApplicationDraft | null
   preApplicationAppealsReviewed: PreApplicationAppeal[]
   preApplicationsReviewed: PreApplication[]
@@ -182,15 +185,23 @@ export interface PreApplicationAppeal {
   id: string
   preApplicationId: string
   userId: string
+  source: PreApplicationAppealSource
+  initiatedById: string
   status: PreApplicationAppealStatus
   reason: string
   reviewedById: string | null
   reviewedAt: Date | null
   reviewComment: string | null
+  submitBanApplied: boolean
+  submitBanDays: number | null
+  submitBanUntil: Date | null
+  autoRejected: boolean
+  autoRejectedPattern: string | null
   createdAt: Date
   updatedAt: Date
   preApplication: PreApplication
   user: User
+  initiatedBy: User
   reviewedBy: User | null
 }
 
@@ -391,6 +402,10 @@ export interface SiteSettings {
   preApplicationSubmitStartTime: string
   preApplicationSubmitEndTime: string
   preApplicationAppealEnabled: boolean
+  preApplicationAppealAutoRejectEnabled: boolean
+  preApplicationAppealAutoRejectPatterns: Prisma.JsonValue
+  preApplicationAppealAutoRejectApplySubmitBan: boolean
+  preApplicationAppealAutoRejectSubmitBanDays: number
   inviteCodeCheckApiUrl: string | null
   inviteCodeCheckApiKey: string | null
   analyticsEnabled: boolean

@@ -42,6 +42,7 @@ model User {
   messagesRevoked                  Message[]                         @relation("RevokedMessages")
   preApplications                  PreApplication[]
   preApplicationAppeals            PreApplicationAppeal[]            @relation("PreApplicationAppeals")
+  preApplicationAppealsInitiated   PreApplicationAppeal[]            @relation("InitiatedPreApplicationAppeals")
   preApplicationDraft              PreApplicationDraft?
   preApplicationAppealsReviewed    PreApplicationAppeal[]            @relation("ReviewedPreApplicationAppeals")
   preApplicationsReviewed          PreApplication[]                  @relation("ReviewedPreApplications")
@@ -208,23 +209,33 @@ model PreApplication {
 }
 
 model PreApplicationAppeal {
-  id               String                     @id @default(cuid())
-  preApplicationId String
-  userId           String
-  status           PreApplicationAppealStatus @default(PENDING)
-  reason           String
-  reviewedById     String?
-  reviewedAt       DateTime?
-  reviewComment    String?
-  createdAt        DateTime                   @default(now())
-  updatedAt        DateTime                   @updatedAt
+  id                 String                      @id @default(cuid())
+  preApplicationId   String
+  userId             String
+  source             PreApplicationAppealSource  @default(USER_APPEAL)
+  initiatedById      String
+  status             PreApplicationAppealStatus  @default(PENDING)
+  reason             String
+  reviewedById       String?
+  reviewedAt         DateTime?
+  reviewComment      String?
+  submitBanApplied   Boolean                     @default(false)
+  submitBanDays      Int?
+  submitBanUntil     DateTime?
+  autoRejected       Boolean                     @default(false)
+  autoRejectedPattern String?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
 
   preApplication PreApplication @relation(fields: [preApplicationId], references: [id], onDelete: Cascade)
   user           User           @relation("PreApplicationAppeals", fields: [userId], references: [id], onDelete: Cascade)
+  initiatedBy    User           @relation("InitiatedPreApplicationAppeals", fields: [initiatedById], references: [id], onDelete: Cascade)
   reviewedBy     User?          @relation("ReviewedPreApplicationAppeals", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([preApplicationId, createdAt])
   @@index([userId, createdAt])
+  @@index([initiatedById, createdAt])
+  @@index([source, createdAt])
   @@index([status, createdAt])
 }
 
@@ -479,6 +490,11 @@ enum PreApplicationAppealStatus {
   OVERRIDDEN
 }
 
+enum PreApplicationAppealSource {
+  USER_APPEAL
+  ADMIN_REVIEW_REQUEST
+}
+
 enum PreApplicationSource {
   TIEBA
   BILIBILI
@@ -535,9 +551,13 @@ model SiteSettings {
   // 预申请提交限制（按 Asia/Shanghai 自然日）
   preApplicationDailyGlobalLimit Int      @default(30)
   preApplicationDailyUserLimit   Int      @default(5)
-  preApplicationSubmitStartTime  String   @default("09:00")
-  preApplicationSubmitEndTime    String   @default("21:00")
-  preApplicationAppealEnabled    Boolean  @default(false)
+  preApplicationSubmitStartTime              String   @default("09:00")
+  preApplicationSubmitEndTime                String   @default("21:00")
+  preApplicationAppealEnabled                Boolean  @default(false)
+  preApplicationAppealAutoRejectEnabled      Boolean  @default(false)
+  preApplicationAppealAutoRejectPatterns     Json     @default("[]")
+  preApplicationAppealAutoRejectApplySubmitBan Boolean @default(false)
+  preApplicationAppealAutoRejectSubmitBanDays Int     @default(7)
   // 邀请码有效期检测 API 配置
   inviteCodeCheckApiUrl          String?
   inviteCodeCheckApiKey          String? // API Key 值

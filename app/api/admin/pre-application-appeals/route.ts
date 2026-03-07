@@ -18,6 +18,8 @@ const appealRecordSelect = {
   preApplicationId: true,
   userId: true,
   status: true,
+  source: true,
+  initiatedById: true,
   reason: true,
   reviewComment: true,
   reviewedById: true,
@@ -25,6 +27,9 @@ const appealRecordSelect = {
   createdAt: true,
   updatedAt: true,
   user: {
+    select: userSelect,
+  },
+  initiatedBy: {
     select: userSelect,
   },
   reviewedBy: {
@@ -110,6 +115,8 @@ export async function GET(request: NextRequest) {
         { reviewComment: { contains: search, mode: "insensitive" } },
         { user: { name: { contains: search, mode: "insensitive" } } },
         { user: { email: { contains: search, mode: "insensitive" } } },
+        { initiatedBy: { name: { contains: search, mode: "insensitive" } } },
+        { initiatedBy: { email: { contains: search, mode: "insensitive" } } },
         { preApplication: { queryToken: { contains: search, mode: "insensitive" } } },
         { preApplication: { registerEmail: { contains: search, mode: "insensitive" } } },
       ]

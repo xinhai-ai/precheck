@@ -5,10 +5,12 @@ import { readFileSync } from "node:fs"
 const {
   PRE_APPLICATION_APPEAL_COOLDOWN_DAYS,
   PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+  findMatchingAppealAutoRejectPattern,
   getAppealCooldownRemainingSeconds,
   getAppealRejectionSnapshot,
   getAppealRejectSubmitBanUntil,
   getPreApplicationAppealAvailability,
+  normalizeAppealAutoRejectPatterns,
 } = await import(new URL("../../../lib/pre-application/appeal-utils.ts", import.meta.url).href)
 const { ApiErrorKeys } = await import(
   new URL("../../../lib/api/error-keys.ts", import.meta.url).href
@@ -174,6 +176,42 @@ test("getAppealRejectSubmitBanUntil extends shorter or missing bans to 7 days", 
   assert.deepEqual(
     getAppealRejectSubmitBanUntil(new Date("2026-03-07T00:00:00.000Z"), now),
     expected,
+  )
+})
+
+
+test("getAppealRejectSubmitBanUntil uses the provided day count", () => {
+  const now = new Date("2026-03-06T00:00:00.000Z")
+
+  assert.deepEqual(
+    getAppealRejectSubmitBanUntil(null, 5, now),
+    new Date("2026-03-11T00:00:00.000Z"),
+  )
+  assert.deepEqual(
+    getAppealRejectSubmitBanUntil(new Date("2026-03-07T00:00:00.000Z"), 10, now),
+    new Date("2026-03-16T00:00:00.000Z"),
+  )
+})
+
+test("normalizeAppealAutoRejectPatterns trims patterns and rejects invalid regex", () => {
+  assert.deepEqual(normalizeAppealAutoRejectPatterns(["  foo  ", "bar", ""]), ["foo", "bar"])
+  assert.throws(() => normalizeAppealAutoRejectPatterns(["("]), /Invalid regular expression/)
+})
+
+test("findMatchingAppealAutoRejectPattern only matches rejection guidance", () => {
+  assert.equal(
+    findMatchingAppealAutoRejectPattern({
+      guidance: "请先补充 Linux 使用经历后再提交申诉。",
+      patterns: [String.raw`Linux\s*使用经历`, "邀请码"],
+    }),
+    String.raw`Linux\s*使用经历`,
+  )
+  assert.equal(
+    findMatchingAppealAutoRejectPattern({
+      guidance: null,
+      patterns: ["Linux\s*使用经历"],
+    }),
+    null,
   )
 })
 
@@ -400,4 +438,123 @@ test("openApiSpec documents admin pre-application appeal queue and review routes
     reviewPath.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum,
     ["REJECT", "APPROVE"],
   )
+})
+
+
+test("system config dictionaries expose appeal auto reject settings", () => {
+  assert.equal(
+    zhDictionary.admin.preApplicationAppealAutoRejectEnabled,
+    "启用申诉自动拒绝",
+  )
+  assert.equal(
+    enDictionary.admin.preApplicationAppealAutoRejectEnabled,
+    "Enable appeal auto rejection",
+  )
+  assert.equal(
+    zhDictionary.admin.preApplicationAppealAutoRejectPatterns,
+    "自动拒绝正则规则",
+  )
+  assert.equal(
+    enDictionary.admin.preApplicationAppealAutoRejectPatterns,
+    "Auto-reject regex rules",
+  )
+})
+
+test("openApiSpec documents auto reject settings on admin system config", () => {
+  const systemConfigPath = openApiSpec.paths["/admin/system-config"]
+  const getProperties = systemConfigPath.get?.responses?.["200"]?.content?.["application/json"]?.schema?.properties
+  const putProperties = systemConfigPath.put?.requestBody?.content?.["application/json"]?.schema?.properties
+
+  assert.ok(getProperties?.preApplicationAppealAutoRejectEnabled)
+  assert.ok(getProperties?.preApplicationAppealAutoRejectPatterns)
+  assert.ok(getProperties?.preApplicationAppealAutoRejectApplySubmitBan)
+  assert.ok(getProperties?.preApplicationAppealAutoRejectSubmitBanDays)
+  assert.ok(putProperties?.preApplicationAppealAutoRejectEnabled)
+  assert.ok(putProperties?.preApplicationAppealAutoRejectPatterns)
+  assert.ok(putProperties?.preApplicationAppealAutoRejectApplySubmitBan)
+  assert.ok(putProperties?.preApplicationAppealAutoRejectSubmitBanDays)
+})
+
+test("openApiSpec documents admin review request route", () => {
+  const reviewRequestPath = openApiSpec.paths["/admin/pre-applications/{id}/review-request"]
+
+  assert.ok(reviewRequestPath)
+  assert.equal(reviewRequestPath.post?.summary, "为已驳回预申请提交复审请求")
+  assert.deepEqual(
+    reviewRequestPath.post?.requestBody?.content?.["application/json"]?.schema?.required,
+    ["reason"],
+  )
+})
+
+
+test("openApiSpec documents configurable submit-ban fields for appeal review", () => {
+  const reviewPath = openApiSpec.paths["/admin/pre-application-appeals/{id}/review"]
+  const properties =
+    reviewPath.post?.requestBody?.content?.["application/json"]?.schema?.properties
+
+  assert.ok(properties?.applySubmitBan)
+  assert.ok(properties?.submitBanDays)
+})
+
+
+test("appeal review page dictionaries expose configurable submit-ban copy", () => {
+  assert.equal(
+    zhDictionary.admin.preApplicationAppealsPage.dialog.rejectApplySubmitBan,
+    "驳回后封禁提交权限",
+  )
+  assert.equal(
+    enDictionary.admin.preApplicationAppealsPage.dialog.rejectApplySubmitBan,
+    "Ban submit permission after rejection",
+  )
+  assert.equal(
+    zhDictionary.admin.preApplicationAppealsPage.dialog.rejectSubmitBanDays,
+    "封禁天数",
+  )
+  assert.equal(
+    enDictionary.admin.preApplicationAppealsPage.dialog.rejectSubmitBanDays,
+    "Ban days",
+  )
+})
+
+
+test("appeal dialog dictionaries expose warning copy", () => {
+  assert.equal(
+    zhDictionary.preApplication.appealWarningTitle,
+    "申诉前请确认以下事项",
+  )
+  assert.equal(
+    enDictionary.preApplication.appealWarningTitle,
+    "Please confirm before appealing",
+  )
+  assert.equal(
+    zhDictionary.preApplication.appealWarningAiRejectedHint,
+    "如果当前这条预申请是由 AI 审核驳回的，提交申诉后将会被系统自动驳回。",
+  )
+  assert.equal(
+    enDictionary.preApplication.appealWarningAiRejectedHint,
+    "If this pre-application was rejected by AI review, submitting an appeal will cause it to be automatically rejected.",
+  )
+  assert.equal(
+    zhDictionary.preApplication.appealConfirmSubmit,
+    "确认提交申诉",
+  )
+  assert.equal(
+    enDictionary.preApplication.appealConfirmSubmit,
+    "Confirm appeal submission",
+  )
+})
+
+test("openApiSpec documents richer pre-application appeal response fields", () => {
+  const appealPath = openApiSpec.paths["/pre-application/appeal"]
+  const appealItemProperties =
+    appealPath.get?.responses?.["200"]?.content?.["application/json"]?.schema?.properties?.appeals
+      ?.items?.properties
+
+  assert.ok(appealItemProperties?.source)
+  assert.ok(appealItemProperties?.initiatedBy)
+  assert.ok(appealItemProperties?.submitBanApplied)
+  assert.ok(appealItemProperties?.submitBanDays)
+  assert.ok(appealItemProperties?.submitBanUntil)
+  assert.ok(appealItemProperties?.autoRejected)
+  assert.ok(appealItemProperties?.autoRejectedPattern)
 })

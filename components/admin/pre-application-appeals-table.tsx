@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -35,10 +36,12 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
+import { PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS } from "@/lib/pre-application/appeal-utils"
 import type { Locale } from "@/lib/i18n/config"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 
 type AppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
+type AppealSource = "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
 type AppealFilter = "ALL" | AppealStatus
 type ReviewAction = "REJECT" | "APPROVE"
 type DialogMode = ReviewAction | "VIEW"
@@ -59,6 +62,8 @@ type AppealRecord = {
   preApplicationId: string
   userId: string
   status: AppealStatus
+  source: AppealSource
+  initiatedById: string
   reason: string
   reviewComment: string | null
   reviewedById: string | null
@@ -67,6 +72,11 @@ type AppealRecord = {
   updatedAt: string
   rejectionSnapshot: AppealRejectionSnapshot | null
   user: {
+    id: string
+    name: string | null
+    email: string
+  }
+  initiatedBy: {
     id: string
     name: string | null
     email: string
@@ -184,6 +194,8 @@ export function AdminPreApplicationAppealsTable({
   const [statusFilter, setStatusFilter] = useState<AppealFilter>("PENDING")
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null)
   const [reviewComment, setReviewComment] = useState("")
+  const [applySubmitBan, setApplySubmitBan] = useState(true)
+  const [submitBanDays, setSubmitBanDays] = useState(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     pending: 0,
@@ -207,6 +219,18 @@ export function AdminPreApplicationAppealsTable({
     [pageT.filters.all, pageT.filters.overridden, pageT.filters.pending, pageT.filters.rejected],
   )
 
+
+  const getSourceLabel = useCallback(
+    (source: AppealSource) => {
+      if (source === "ADMIN_REVIEW_REQUEST") {
+        return ((pageT.fields as Record<string, string>).adminReviewRequestSource || "管理员复审")
+      }
+
+      return ((pageT.fields as Record<string, string>).userAppealSource || "用户申诉")
+    },
+    [pageT.fields],
+  )
+
   const fetchAppeals = useCallback(async () => {
     setLoading(true)
 
@@ -227,12 +251,13 @@ export function AdminPreApplicationAppealsTable({
       }
 
       const response = await fetch(`/api/admin/pre-application-appeals?${params.toString()}`)
-      const data = (await response.json().catch(() => ({}))) as Partial<AppealListResponse>
+      const rawData = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        throw new Error(resolveApiErrorMessage(data, dict) ?? pageT.messages.loadError)
+        throw new Error(resolveApiErrorMessage(rawData, dict) ?? pageT.messages.loadError)
       }
 
+      const data = rawData as Partial<AppealListResponse>
       setRecords(data.records ?? [])
       setTotal(data.total ?? 0)
       setStats({
@@ -257,6 +282,8 @@ export function AdminPreApplicationAppealsTable({
   const closeReviewDialog = () => {
     setReviewDialog(null)
     setReviewComment("")
+    setApplySubmitBan(true)
+    setSubmitBanDays(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
     setReviewingId(null)
   }
 
@@ -273,6 +300,8 @@ export function AdminPreApplicationAppealsTable({
   const openReviewDialog = (appeal: AppealRecord, mode: DialogMode) => {
     setReviewDialog({ appeal, mode })
     setReviewComment("")
+    setApplySubmitBan(mode === "REJECT")
+    setSubmitBanDays(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
   }
 
   const submitReview = async () => {
@@ -281,6 +310,16 @@ export function AdminPreApplicationAppealsTable({
     const nextComment = reviewComment.trim()
     if (!nextComment) {
       toast.error(pageT.messages.commentRequired)
+      return
+    }
+
+    const nextSubmitBanDays = applySubmitBan ? Math.trunc(submitBanDays) : undefined
+    if (
+      reviewDialog.mode === "REJECT" &&
+      applySubmitBan &&
+      (!nextSubmitBanDays || nextSubmitBanDays < 1)
+    ) {
+      toast.error(pageT.messages.submitBanDaysInvalid || "请输入有效的封禁天数")
       return
     }
 
@@ -297,6 +336,9 @@ export function AdminPreApplicationAppealsTable({
           body: JSON.stringify({
             action: reviewDialog.mode,
             reviewComment: nextComment,
+            applySubmitBan: reviewDialog.mode === "REJECT" ? applySubmitBan : undefined,
+            submitBanDays:
+              reviewDialog.mode === "REJECT" && applySubmitBan ? nextSubmitBanDays : undefined,
             locale,
           }),
         },
@@ -388,6 +430,12 @@ export function AdminPreApplicationAppealsTable({
         width: "32%",
         render: (item) => (
           <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{getSourceLabel(item.source)}</Badge>
+              <Badge variant="secondary">
+                {((pageT.fields as Record<string, string>).initiatedBy || "发起人")}: {item.initiatedBy.name || item.initiatedBy.email}
+              </Badge>
+            </div>
             <p className="whitespace-pre-wrap break-words text-sm leading-6">
               {truncateText(item.reason)}
             </p>
@@ -498,7 +546,7 @@ export function AdminPreApplicationAppealsTable({
         },
       },
     ]
-  }, [getStatusLabel, locale, pageT, reviewingId])
+  }, [getSourceLabel, getStatusLabel, locale, pageT, reviewingId])
 
   const reviewDialogText = reviewDialog
     ? reviewDialog.mode === "REJECT"
@@ -826,6 +874,42 @@ export function AdminPreApplicationAppealsTable({
                     <p className="text-right text-xs text-muted-foreground">
                       {reviewComment.length}/2000
                     </p>
+
+                    {reviewDialog.mode === "REJECT" ? (
+                      <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="font-medium">
+                              {pageT.dialog.rejectApplySubmitBan || "驳回后封禁提交权限"}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {pageT.dialog.rejectApplySubmitBanDesc ||
+                                "开启后，会同时限制该用户继续提交新的预申请。"}
+                            </p>
+                          </div>
+                          <Switch checked={applySubmitBan} onCheckedChange={setApplySubmitBan} />
+                        </div>
+
+                        {applySubmitBan ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="reject-submit-ban-days">
+                              {pageT.dialog.rejectSubmitBanDays || "封禁天数"}
+                            </Label>
+                            <Input
+                              id="reject-submit-ban-days"
+                              type="number"
+                              min={1}
+                              max={3650}
+                              value={submitBanDays}
+                              onChange={(event) =>
+                                setSubmitBanDays(Math.max(0, Number(event.target.value) || 0))
+                              }
+                              className="w-32 text-center"
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </>
                 )}
               </div>

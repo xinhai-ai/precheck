@@ -247,6 +247,37 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/pre-applications/{id}/review-request": {
+      post: {
+        tags: ["Admin"],
+        summary: "为已驳回预申请提交复审请求",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["reason"],
+                properties: {
+                  reason: { type: "string", minLength: 1, maxLength: 2000 },
+                  locale: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "复审请求创建成功" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "申请不存在" },
+          "409": { description: "申请状态不允许或已有待处理记录" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+    },
     "/admin/pre-application-appeals": {
       get: {
         tags: ["Admin"],
@@ -327,6 +358,8 @@ export const openApiSpec = {
                 properties: {
                   action: { type: "string", enum: ["REJECT", "APPROVE"] },
                   reviewComment: { type: "string", minLength: 1, maxLength: 2000 },
+                  applySubmitBan: { type: "boolean" },
+                  submitBanDays: { type: "integer", minimum: 1 },
                   locale: { type: "string", enum: ["en", "zh"] },
                 },
               },
@@ -954,6 +987,17 @@ export const openApiSpec = {
                       type: "string",
                       description: "HH:mm，Asia/Shanghai",
                     },
+                    preApplicationAppealEnabled: { type: "boolean" },
+                    preApplicationAppealAutoRejectEnabled: { type: "boolean" },
+                    preApplicationAppealAutoRejectPatterns: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    preApplicationAppealAutoRejectApplySubmitBan: { type: "boolean" },
+                    preApplicationAppealAutoRejectSubmitBanDays: {
+                      type: "integer",
+                      minimum: 1,
+                    },
                     maxResubmitCount: { type: "integer" },
                   },
                 },
@@ -984,7 +1028,18 @@ export const openApiSpec = {
                   },
                   preApplicationSubmitEndTime: {
                     type: "string",
-                    pattern: "^([01]\\\\d|2[0-3]):([0-5]\\\\d)$",
+                    pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$",
+                  },
+                  preApplicationAppealEnabled: { type: "boolean" },
+                  preApplicationAppealAutoRejectEnabled: { type: "boolean" },
+                  preApplicationAppealAutoRejectPatterns: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
+                  preApplicationAppealAutoRejectApplySubmitBan: { type: "boolean" },
+                  preApplicationAppealAutoRejectSubmitBanDays: {
+                    type: "integer",
+                    minimum: 1,
                   },
                   maxResubmitCount: { type: "integer", minimum: 0 },
                 },
@@ -1370,12 +1425,35 @@ export const openApiSpec = {
                           id: { type: "string" },
                           preApplicationId: { type: "string" },
                           userId: { type: "string" },
+                          source: {
+                            type: "string",
+                            enum: ["USER_APPEAL", "ADMIN_REVIEW_REQUEST"],
+                          },
+                          initiatedById: { type: "string" },
                           status: { type: "string", enum: ["PENDING", "REJECTED", "OVERRIDDEN"] },
                           reason: { type: "string" },
                           reviewComment: { type: "string", nullable: true },
                           reviewedAt: { type: "string", format: "date-time", nullable: true },
+                          submitBanApplied: { type: "boolean" },
+                          submitBanDays: { type: "integer", nullable: true },
+                          submitBanUntil: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
+                          autoRejected: { type: "boolean" },
+                          autoRejectedPattern: { type: "string", nullable: true },
                           createdAt: { type: "string", format: "date-time" },
                           updatedAt: { type: "string", format: "date-time" },
+                          initiatedBy: {
+                            type: "object",
+                            nullable: true,
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string", nullable: true },
+                              email: { type: "string", nullable: true },
+                            },
+                          },
                           reviewedBy: {
                             type: "object",
                             nullable: true,

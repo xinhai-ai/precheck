@@ -23,6 +23,11 @@ import {
   normalizeSubmitLimits,
   parseSubmitTimeToMinutes,
 } from "@/lib/pre-application/submit-limits-utils"
+import {
+  normalizeAppealAutoRejectPatterns,
+  PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+} from "@/lib/pre-application/appeal-utils"
+import { normalizeSubmitBanDays } from "@/lib/pre-application/submit-ban-utils"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
@@ -46,6 +51,10 @@ const systemConfigSchema = z.object({
   preApplicationSubmitStartTime: z.string().optional(),
   preApplicationSubmitEndTime: z.string().optional(),
   preApplicationAppealEnabled: z.boolean().optional(),
+  preApplicationAppealAutoRejectEnabled: z.boolean().optional(),
+  preApplicationAppealAutoRejectPatterns: z.array(z.string()).optional(),
+  preApplicationAppealAutoRejectApplySubmitBan: z.boolean().optional(),
+  preApplicationAppealAutoRejectSubmitBanDays: z.number().int().min(1).optional(),
   allowedEmailDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).min(1),
   auditLogEnabled: z.boolean().optional(),
   reviewTemplatesApprove: z.array(z.string()).optional(),
@@ -97,6 +106,10 @@ export async function GET(request: NextRequest) {
         preApplicationSubmitStartTime: true,
         preApplicationSubmitEndTime: true,
         preApplicationAppealEnabled: true,
+        preApplicationAppealAutoRejectEnabled: true,
+        preApplicationAppealAutoRejectPatterns: true,
+        preApplicationAppealAutoRejectApplySubmitBan: true,
+        preApplicationAppealAutoRejectSubmitBanDays: true,
         allowedEmailDomains: true,
         auditLogEnabled: true,
         reviewTemplatesApprove: true,
@@ -128,6 +141,10 @@ export async function GET(request: NextRequest) {
         preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
         preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         preApplicationAppealEnabled: false,
+        preApplicationAppealAutoRejectEnabled: false,
+        preApplicationAppealAutoRejectPatterns: [],
+        preApplicationAppealAutoRejectApplySubmitBan: false,
+        preApplicationAppealAutoRejectSubmitBanDays: PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
         allowedEmailDomains: defaultEmailDomains,
         auditLogEnabled: false,
         reviewTemplatesApprove: [],
@@ -169,6 +186,18 @@ export async function GET(request: NextRequest) {
       preApplicationSubmitStartTime: submitLimits.submitStartTime,
       preApplicationSubmitEndTime: submitLimits.submitEndTime,
       preApplicationAppealEnabled: settings.preApplicationAppealEnabled ?? false,
+      preApplicationAppealAutoRejectEnabled:
+        settings.preApplicationAppealAutoRejectEnabled ?? false,
+      preApplicationAppealAutoRejectPatterns: Array.isArray(
+        settings.preApplicationAppealAutoRejectPatterns,
+      )
+        ? settings.preApplicationAppealAutoRejectPatterns
+        : [],
+      preApplicationAppealAutoRejectApplySubmitBan:
+        settings.preApplicationAppealAutoRejectApplySubmitBan ?? false,
+      preApplicationAppealAutoRejectSubmitBanDays:
+        settings.preApplicationAppealAutoRejectSubmitBanDays ??
+        PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
@@ -258,6 +287,35 @@ export async function PUT(request: NextRequest) {
       })
     }
 
+    let autoRejectPatterns: string[]
+    try {
+      autoRejectPatterns = normalizeAppealAutoRejectPatterns(
+        data.preApplicationAppealAutoRejectPatterns ??
+          (Array.isArray(before?.preApplicationAppealAutoRejectPatterns)
+            ? before.preApplicationAppealAutoRejectPatterns.map((value) => String(value))
+            : []),
+      )
+    } catch (error) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: {
+          detail: error instanceof Error ? error.message : "申诉自动拒绝正则无效",
+        },
+      })
+    }
+
+    const autoRejectSubmitBanDays =
+      data.preApplicationAppealAutoRejectSubmitBanDays ??
+      before?.preApplicationAppealAutoRejectSubmitBanDays ??
+      PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS
+
+    if (normalizeSubmitBanDays(autoRejectSubmitBanDays) === null) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "申诉自动拒绝封禁天数无效" },
+      })
+    }
+
     const submitLimits = normalizeSubmitLimits({
       dailyGlobalLimit:
         data.preApplicationDailyGlobalLimit ??
@@ -286,6 +344,12 @@ export async function PUT(request: NextRequest) {
         preApplicationSubmitStartTime: submitLimits.submitStartTime,
         preApplicationSubmitEndTime: submitLimits.submitEndTime,
         preApplicationAppealEnabled: data.preApplicationAppealEnabled ?? false,
+        preApplicationAppealAutoRejectEnabled:
+          data.preApplicationAppealAutoRejectEnabled ?? false,
+        preApplicationAppealAutoRejectPatterns: autoRejectPatterns,
+        preApplicationAppealAutoRejectApplySubmitBan:
+          data.preApplicationAppealAutoRejectApplySubmitBan ?? false,
+        preApplicationAppealAutoRejectSubmitBanDays: autoRejectSubmitBanDays,
         allowedEmailDomains: data.allowedEmailDomains,
         auditLogEnabled: data.auditLogEnabled ?? false,
         reviewTemplatesApprove: data.reviewTemplatesApprove ?? [],
@@ -317,6 +381,19 @@ export async function PUT(request: NextRequest) {
         preApplicationSubmitEndTime: submitLimits.submitEndTime,
         ...(data.preApplicationAppealEnabled !== undefined && {
           preApplicationAppealEnabled: data.preApplicationAppealEnabled,
+        }),
+        ...(data.preApplicationAppealAutoRejectEnabled !== undefined && {
+          preApplicationAppealAutoRejectEnabled: data.preApplicationAppealAutoRejectEnabled,
+        }),
+        ...(data.preApplicationAppealAutoRejectPatterns !== undefined && {
+          preApplicationAppealAutoRejectPatterns: autoRejectPatterns,
+        }),
+        ...(data.preApplicationAppealAutoRejectApplySubmitBan !== undefined && {
+          preApplicationAppealAutoRejectApplySubmitBan:
+            data.preApplicationAppealAutoRejectApplySubmitBan,
+        }),
+        ...(data.preApplicationAppealAutoRejectSubmitBanDays !== undefined && {
+          preApplicationAppealAutoRejectSubmitBanDays: autoRejectSubmitBanDays,
         }),
         allowedEmailDomains: data.allowedEmailDomains,
         ...(data.auditLogEnabled !== undefined && { auditLogEnabled: data.auditLogEnabled }),
@@ -372,6 +449,10 @@ export async function PUT(request: NextRequest) {
           "preApplicationSubmitStartTime",
           "preApplicationSubmitEndTime",
           "preApplicationAppealEnabled",
+          "preApplicationAppealAutoRejectEnabled",
+          "preApplicationAppealAutoRejectPatterns",
+          "preApplicationAppealAutoRejectApplySubmitBan",
+          "preApplicationAppealAutoRejectSubmitBanDays",
           "allowedEmailDomains",
           "auditLogEnabled",
           "reviewTemplatesApprove",
@@ -406,6 +487,12 @@ export async function PUT(request: NextRequest) {
       preApplicationSubmitStartTime: updated.preApplicationSubmitStartTime,
       preApplicationSubmitEndTime: updated.preApplicationSubmitEndTime,
       preApplicationAppealEnabled: updated.preApplicationAppealEnabled,
+      preApplicationAppealAutoRejectEnabled: updated.preApplicationAppealAutoRejectEnabled,
+      preApplicationAppealAutoRejectPatterns: updated.preApplicationAppealAutoRejectPatterns,
+      preApplicationAppealAutoRejectApplySubmitBan:
+        updated.preApplicationAppealAutoRejectApplySubmitBan,
+      preApplicationAppealAutoRejectSubmitBanDays:
+        updated.preApplicationAppealAutoRejectSubmitBanDays,
       allowedEmailDomains: updated.allowedEmailDomains,
       auditLogEnabled: updated.auditLogEnabled,
       reviewTemplatesApprove: updated.reviewTemplatesApprove,

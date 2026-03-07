@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
-import { PreApplicationStatus, type Prisma } from "@prisma/client"
+import { PreApplicationAppealStatus, PreApplicationStatus, type Prisma } from "@prisma/client"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { SHADOW_HIDDEN_STATUS } from "@/lib/pre-application/shadowban"
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
 
+    const database = db
     const { searchParams } = request.nextUrl
     const search = (searchParams.get("search") || "").trim()
     const status = searchParams.get("status") || ""
@@ -125,6 +126,16 @@ export async function GET(request: NextRequest) {
       inviteCode: {
         select: { id: true, code: true, expiresAt: true, usedAt: true, assignedAt: true },
       },
+      appeals: {
+        where: { status: PreApplicationAppealStatus.PENDING },
+        orderBy: { createdAt: "desc" as const },
+        take: 1,
+        select: {
+          id: true,
+          source: true,
+          createdAt: true,
+        },
+      },
       versions: {
         orderBy: { version: "desc" as const },
         take: 1,
@@ -134,7 +145,7 @@ export async function GET(request: NextRequest) {
 
     const recordsPromise =
       sortBy === "createdAt"
-        ? db.preApplicationVersion
+        ? database.preApplicationVersion
             .groupBy({
               by: ["preApplicationId"],
               where: { preApplication: where },
@@ -150,7 +161,7 @@ export async function GET(request: NextRequest) {
 
               const idOrder = new Map(groups.map((group, index) => [group.preApplicationId, index]))
               const ids = groups.map((group) => group.preApplicationId)
-              const rows = await db.preApplication.findMany({
+              const rows = await database.preApplication.findMany({
                 where: { id: { in: ids } },
                 select: preApplicationSelect,
               })
@@ -163,7 +174,7 @@ export async function GET(request: NextRequest) {
 
               return rows
             })
-        : db.preApplication.findMany({
+        : database.preApplication.findMany({
             where,
             skip,
             take: limit,
@@ -182,20 +193,21 @@ export async function GET(request: NextRequest) {
       shadowHiddenCount,
     ] = await Promise.all([
       recordsPromise,
-      db.preApplication.count({ where }),
-      db.preApplication.count({ where: { status: "PENDING" } }),
-      db.preApplication.count({ where: { status: "APPROVED" } }),
-      db.preApplication.count({ where: { status: "REJECTED" } }),
-      db.preApplication.count({ where: { status: "DISPUTED" } }),
-      db.preApplication.count({ where: { status: "ARCHIVED" } }),
-      db.preApplication.count({ where: { status: SHADOW_HIDDEN_STATUS } }),
+      database.preApplication.count({ where }),
+      database.preApplication.count({ where: { status: "PENDING" } }),
+      database.preApplication.count({ where: { status: "APPROVED" } }),
+      database.preApplication.count({ where: { status: "REJECTED" } }),
+      database.preApplication.count({ where: { status: "DISPUTED" } }),
+      database.preApplication.count({ where: { status: "ARCHIVED" } }),
+      database.preApplication.count({ where: { status: SHADOW_HIDDEN_STATUS } }),
     ])
 
     const enrichedRecords = records.map((record) => {
       const reviewRound = record.resubmitCount + 1
       const latestVersionCreatedAt = record.versions[0]?.createdAt ?? record.createdAt
-      const { versions, ...rest } = record
-      return { ...rest, reviewRound, latestVersionCreatedAt }
+      const pendingAppeal = record.appeals[0] ?? null
+      const { versions, appeals, ...rest } = record
+      return { ...rest, reviewRound, latestVersionCreatedAt, pendingAppeal }
     })
 
     return NextResponse.json({

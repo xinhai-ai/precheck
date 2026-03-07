@@ -1,16 +1,28 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Prisma, PreApplicationAppealStatus } from "@prisma/client"
+import {
+  Prisma,
+  PreApplicationAppealSource,
+  PreApplicationAppealStatus,
+} from "@prisma/client"
 import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
 import { getCurrentUser } from "@/lib/auth/session"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { db } from "@/lib/db"
-import { getPreApplicationAppealAvailability } from "@/lib/pre-application/appeal-utils"
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
+import { getDictionary } from "@/lib/i18n/get-dictionary"
+import {
+  findMatchingAppealAutoRejectPattern,
+  getAppealRejectSubmitBanUntil,
+  getPreApplicationAppealAvailability,
+  PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+} from "@/lib/pre-application/appeal-utils"
 
 const createPreApplicationAppealSchema = z.object({
   preApplicationId: z.string().trim().min(1),
   reason: z.string().trim().min(1).max(2000),
+  locale: z.string().optional(),
 })
 
 const userSelect = {
@@ -23,12 +35,20 @@ const appealSelect = {
   id: true,
   preApplicationId: true,
   userId: true,
+  source: true,
+  initiatedById: true,
   status: true,
   reason: true,
   reviewedAt: true,
   reviewComment: true,
+  submitBanApplied: true,
+  submitBanDays: true,
+  submitBanUntil: true,
+  autoRejected: true,
+  autoRejectedPattern: true,
   createdAt: true,
   updatedAt: true,
+  initiatedBy: { select: userSelect },
   reviewedBy: { select: userSelect },
 } as const
 
@@ -47,17 +67,46 @@ const preApplicationWithAppealsSelect = {
   },
 } as const
 
-async function isPreApplicationAppealEnabled(): Promise<boolean> {
+interface PreApplicationAppealSettings {
+  appealEnabled: boolean
+  autoRejectEnabled: boolean
+  autoRejectPatterns: string[]
+  autoRejectApplySubmitBan: boolean
+  autoRejectSubmitBanDays: number
+}
+
+async function getPreApplicationAppealSettings(): Promise<PreApplicationAppealSettings> {
   if (!db) {
-    return false
+    return {
+      appealEnabled: false,
+      autoRejectEnabled: false,
+      autoRejectPatterns: [],
+      autoRejectApplySubmitBan: false,
+      autoRejectSubmitBanDays: PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+    }
   }
 
   const settings = await db.siteSettings.findUnique({
     where: { id: "global" },
-    select: { preApplicationAppealEnabled: true },
+    select: {
+      preApplicationAppealEnabled: true,
+      preApplicationAppealAutoRejectEnabled: true,
+      preApplicationAppealAutoRejectPatterns: true,
+      preApplicationAppealAutoRejectApplySubmitBan: true,
+      preApplicationAppealAutoRejectSubmitBanDays: true,
+    },
   })
 
-  return settings?.preApplicationAppealEnabled ?? false
+  return {
+    appealEnabled: settings?.preApplicationAppealEnabled ?? false,
+    autoRejectEnabled: settings?.preApplicationAppealAutoRejectEnabled ?? false,
+    autoRejectPatterns: Array.isArray(settings?.preApplicationAppealAutoRejectPatterns)
+      ? settings!.preApplicationAppealAutoRejectPatterns.map((value) => String(value))
+      : [],
+    autoRejectApplySubmitBan: settings?.preApplicationAppealAutoRejectApplySubmitBan ?? false,
+    autoRejectSubmitBanDays:
+      settings?.preApplicationAppealAutoRejectSubmitBanDays ?? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+  }
 }
 
 function getAppealAvailability(
@@ -118,6 +167,32 @@ function createAppealAvailabilityErrorResponse(
   }
 }
 
+function buildAutoRejectedMessage(input: {
+  dict: Awaited<ReturnType<typeof getDictionary>>
+  reviewComment: string
+  submitBanUntil: Date | null
+  locale: string
+}) {
+  const notifications = input.dict.preApplication.notifications as Record<string, any>
+  const appealReview = notifications.appealReview ?? {}
+  const footer = notifications.footer ?? ""
+
+  return {
+    title: notifications.appealAutoRejectedTitle ?? "Pre-application appeal auto-rejected",
+    content: [
+      notifications.appealAutoRejectedIntro ??
+        "Your pre-application appeal was automatically rejected.",
+      `${appealReview.reviewCommentLabel ?? "Review note: "}${input.reviewComment}`,
+      input.submitBanUntil
+        ? `${appealReview.submitBanUntilLabel ?? "Submit ban until: "}${input.submitBanUntil.toLocaleString(input.locale)}`
+        : null,
+      footer,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -130,8 +205,8 @@ export async function GET(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
 
-    const [appealEnabled, preApplication] = await Promise.all([
-      isPreApplicationAppealEnabled(),
+    const [settings, preApplication] = await Promise.all([
+      getPreApplicationAppealSettings(),
       db.preApplication.findFirst({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
@@ -157,7 +232,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       preApplication: preApplicationRecord,
       appeals,
-      availability: getAppealAvailability(appealEnabled, preApplication),
+      availability: getAppealAvailability(settings.appealEnabled, preApplication),
     })
   } catch (error) {
     console.error("Pre-application appeal fetch error:", error)
@@ -181,9 +256,13 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const data = createPreApplicationAppealSchema.parse(body)
+    const currentLocale = locales.includes(data.locale as Locale)
+      ? (data.locale as Locale)
+      : defaultLocale
+    const dict = await getDictionary(currentLocale)
 
-    const [appealEnabled, preApplication] = await Promise.all([
-      isPreApplicationAppealEnabled(),
+    const [settings, preApplication] = await Promise.all([
+      getPreApplicationAppealSettings(),
       db.preApplication.findFirst({
         where: {
           id: data.preApplicationId,
@@ -199,20 +278,128 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const availability = getAppealAvailability(appealEnabled, preApplication)
+    const availability = getAppealAvailability(settings.appealEnabled, preApplication)
     if (!availability.canCreate) {
       return createAppealAvailabilityErrorResponse(request, availability)
     }
 
+    const autoRejectedPattern = settings.autoRejectEnabled
+      ? findMatchingAppealAutoRejectPattern({
+          guidance: preApplication.guidance,
+          patterns: settings.autoRejectPatterns,
+        })
+      : null
+
+    const now = new Date()
     const appeal = await db.$transaction(async (tx) => {
+      if (!autoRejectedPattern) {
+        const created = await tx.preApplicationAppeal.create({
+          data: {
+            preApplicationId: preApplication.id,
+            userId: user.id,
+            source: PreApplicationAppealSource.USER_APPEAL,
+            initiatedById: user.id,
+            status: PreApplicationAppealStatus.PENDING,
+            reason: data.reason,
+          },
+          select: appealSelect,
+        })
+
+        await writeAuditLog(tx, {
+          action: "PRE_APPLICATION_APPEAL_CREATE",
+          entityType: "PRE_APPLICATION_APPEAL",
+          entityId: created.id,
+          actor: user,
+          after: created,
+          metadata: {
+            preApplicationId: preApplication.id,
+            source: PreApplicationAppealSource.USER_APPEAL,
+          },
+          request,
+        })
+
+        return created
+      }
+
+      const userBefore = await tx.user.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          preApplicationSubmitBannedUntil: true,
+        },
+      })
+
+      if (!userBefore) {
+        throw new Error("Appeal user not found")
+      }
+
+      const submitBanUntil = settings.autoRejectApplySubmitBan
+        ? getAppealRejectSubmitBanUntil(
+            userBefore.preApplicationSubmitBannedUntil,
+            settings.autoRejectSubmitBanDays,
+            now,
+          )
+        : null
+
+      if (submitBanUntil) {
+        await tx.user.updateMany({
+          where: {
+            id: user.id,
+            OR: [
+              { preApplicationSubmitBannedUntil: null },
+              { preApplicationSubmitBannedUntil: { lt: submitBanUntil } },
+            ],
+          },
+          data: { preApplicationSubmitBannedUntil: submitBanUntil },
+        })
+      }
+
+      const reviewComment =
+        dict.preApplication.notifications.appealAutoRejectedReason ??
+        "当前驳回意见命中自动拒绝规则，系统已自动驳回本次申诉。"
+
       const created = await tx.preApplicationAppeal.create({
         data: {
           preApplicationId: preApplication.id,
           userId: user.id,
-          status: PreApplicationAppealStatus.PENDING,
+          source: PreApplicationAppealSource.USER_APPEAL,
+          initiatedById: user.id,
+          status: PreApplicationAppealStatus.REJECTED,
           reason: data.reason,
+          reviewedAt: now,
+          reviewComment,
+          submitBanApplied: settings.autoRejectApplySubmitBan,
+          submitBanDays: settings.autoRejectApplySubmitBan
+            ? settings.autoRejectSubmitBanDays
+            : null,
+          submitBanUntil,
+          autoRejected: true,
+          autoRejectedPattern,
         },
         select: appealSelect,
+      })
+
+      const messageContent = buildAutoRejectedMessage({
+        dict,
+        reviewComment,
+        submitBanUntil,
+        locale: currentLocale,
+      })
+
+      const message = await tx.message.create({
+        data: {
+          title: messageContent.title,
+          content: messageContent.content,
+          createdById: user.id,
+          recipients: { create: { userId: user.id } },
+        },
+        select: {
+          id: true,
+          title: true,
+          createdAt: true,
+        },
       })
 
       await writeAuditLog(tx, {
@@ -223,7 +410,51 @@ export async function POST(request: NextRequest) {
         after: created,
         metadata: {
           preApplicationId: preApplication.id,
+          source: PreApplicationAppealSource.USER_APPEAL,
+          autoRejected: true,
+          autoRejectedPattern,
+          submitBanApplied: settings.autoRejectApplySubmitBan,
+          submitBanDays: settings.autoRejectApplySubmitBan
+            ? settings.autoRejectSubmitBanDays
+            : null,
+          submitBanUntil,
         },
+        request,
+      })
+
+      if (submitBanUntil) {
+        const userAfter = await tx.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            preApplicationSubmitBannedUntil: true,
+          },
+        })
+
+        await writeAuditLog(tx, {
+          action: "USER_ADMIN_UPDATE",
+          entityType: "USER",
+          entityId: user.id,
+          actor: user,
+          before: userBefore,
+          after: userAfter,
+          metadata: {
+            source: "PRE_APPLICATION_APPEAL_AUTO_REJECT",
+            appealId: created.id,
+          },
+          request,
+        })
+      }
+
+      await writeAuditLog(tx, {
+        action: "MESSAGE_CREATE",
+        entityType: "MESSAGE",
+        entityId: message.id,
+        actor: user,
+        after: message,
+        metadata: { recipientUserId: user.id },
         request,
       })
 

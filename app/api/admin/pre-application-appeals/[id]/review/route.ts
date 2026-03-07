@@ -9,12 +9,18 @@ import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
-import { getAppealRejectSubmitBanUntil } from "@/lib/pre-application/appeal-utils"
+import {
+  getAppealRejectSubmitBanUntil,
+  PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+} from "@/lib/pre-application/appeal-utils"
+import { normalizeSubmitBanDays } from "@/lib/pre-application/submit-ban-utils"
 
 const reviewSchema = z.object({
   action: z.string().trim(),
   reviewComment: z.string().trim().min(1).max(2000),
   locale: z.string().optional(),
+  applySubmitBan: z.boolean().optional(),
+  submitBanDays: z.number().int().min(1).optional(),
 })
 
 const REVIEW_ACTIONS = new Set(["REJECT", "APPROVE"] as const)
@@ -33,11 +39,28 @@ const userSelect = {
   email: true,
 } as const
 
+const reviewedAppealSelect = {
+  id: true,
+  preApplicationId: true,
+  userId: true,
+  status: true,
+  reason: true,
+  reviewComment: true,
+  submitBanApplied: true,
+  submitBanDays: true,
+  submitBanUntil: true,
+  reviewedById: true,
+  reviewedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  reviewedBy: { select: userSelect },
+} as const
+
 function buildAppealReviewMessage(input: {
   dict: Awaited<ReturnType<typeof getDictionary>>
   action: ReviewAction
   reviewComment: string
-  bannedUntil?: Date
+  submitBanUntil?: Date | null
   locale: string
 }) {
   const t = input.dict.preApplication.notifications.appealReview
@@ -49,9 +72,13 @@ function buildAppealReviewMessage(input: {
       content: [
         t.rejectedIntro,
         `${t.reviewCommentLabel}${input.reviewComment}`,
-        `${t.submitBanUntilLabel}${input.bannedUntil?.toLocaleString(input.locale)}`,
+        input.submitBanUntil
+          ? `${t.submitBanUntilLabel}${input.submitBanUntil.toLocaleString(input.locale)}`
+          : null,
         footer,
-      ].join("\n\n"),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
     }
   }
 
@@ -105,6 +132,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const action = parsed.data.action as ReviewAction
     const reviewComment = parsed.data.reviewComment.trim()
+    const applySubmitBan = action === "REJECT" ? (parsed.data.applySubmitBan ?? true) : false
+    const submitBanDays = applySubmitBan
+      ? normalizeSubmitBanDays(
+          parsed.data.submitBanDays ?? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+        )
+      : null
+
+    if (applySubmitBan && submitBanDays === null) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "提交封禁天数无效" },
+      })
+    }
+
     const localeParam = parsed.data.locale
     const currentLocale = locales.includes(localeParam as Locale)
       ? (localeParam as Locale)
@@ -120,6 +161,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         status: true,
         reason: true,
         reviewComment: true,
+        submitBanApplied: true,
+        submitBanDays: true,
+        submitBanUntil: true,
         reviewedById: true,
         reviewedAt: true,
         createdAt: true,
@@ -182,21 +226,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         )
       }
 
-      const updatedAppeal = await tx.preApplicationAppeal.findUnique({
+      let updatedAppeal = await tx.preApplicationAppeal.findUnique({
         where: { id: appeal.id },
-        select: {
-          id: true,
-          preApplicationId: true,
-          userId: true,
-          status: true,
-          reason: true,
-          reviewComment: true,
-          reviewedById: true,
-          reviewedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          reviewedBy: { select: userSelect },
-        },
+        select: reviewedAppealSelect,
       })
 
       if (!updatedAppeal) {
@@ -219,55 +251,87 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           )
         }
 
-        const userBefore = await tx.user.findUnique({
-          where: { id: appeal.userId },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            preApplicationSubmitBannedUntil: true,
-          },
-        })
+        const submitBanUntil = applySubmitBan
+          ? getAppealRejectSubmitBanUntil(
+              appeal.user.preApplicationSubmitBannedUntil,
+              submitBanDays!,
+              now,
+            )
+          : null
 
-        if (!userBefore) {
-          throw new Error("Appeal user not found")
+        let userBefore:
+          | {
+              id: string
+              name: string | null
+              email: string
+              preApplicationSubmitBannedUntil: Date | null
+            }
+          | null = null
+        let updatedUser:
+          | {
+              id: string
+              name: string | null
+              email: string
+              preApplicationSubmitBannedUntil: Date | null
+            }
+          | null = null
+
+        if (applySubmitBan && submitBanUntil) {
+          userBefore = await tx.user.findUnique({
+            where: { id: appeal.userId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              preApplicationSubmitBannedUntil: true,
+            },
+          })
+
+          if (!userBefore) {
+            throw new Error("Appeal user not found")
+          }
+
+          await tx.user.updateMany({
+            where: {
+              id: appeal.userId,
+              OR: [
+                { preApplicationSubmitBannedUntil: null },
+                { preApplicationSubmitBannedUntil: { lt: submitBanUntil } },
+              ],
+            },
+            data: { preApplicationSubmitBannedUntil: submitBanUntil },
+          })
+
+          updatedUser = await tx.user.findUnique({
+            where: { id: appeal.userId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              preApplicationSubmitBannedUntil: true,
+            },
+          })
+
+          if (!updatedUser?.preApplicationSubmitBannedUntil) {
+            throw new Error("Updated appeal user not found")
+          }
         }
 
-        const submitBannedUntil = getAppealRejectSubmitBanUntil(
-          userBefore.preApplicationSubmitBannedUntil,
-          now,
-        )
-
-        await tx.user.updateMany({
-          where: {
-            id: appeal.userId,
-            OR: [
-              { preApplicationSubmitBannedUntil: null },
-              { preApplicationSubmitBannedUntil: { lt: submitBannedUntil } },
-            ],
+        updatedAppeal = await tx.preApplicationAppeal.update({
+          where: { id: appeal.id },
+          data: {
+            submitBanApplied: applySubmitBan,
+            submitBanDays: applySubmitBan ? submitBanDays : null,
+            submitBanUntil,
           },
-          data: { preApplicationSubmitBannedUntil: submitBannedUntil },
+          select: reviewedAppealSelect,
         })
-
-        const updatedUser = await tx.user.findUnique({
-          where: { id: appeal.userId },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            preApplicationSubmitBannedUntil: true,
-          },
-        })
-
-        if (!updatedUser?.preApplicationSubmitBannedUntil) {
-          throw new Error("Updated appeal user not found")
-        }
 
         const messageContent = buildAppealReviewMessage({
           dict,
           action,
           reviewComment,
-          bannedUntil: updatedUser.preApplicationSubmitBannedUntil,
+          submitBanUntil,
           locale: currentLocale,
         })
 
@@ -295,24 +359,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           metadata: {
             preApplicationId: appeal.preApplicationId,
             reviewComment,
-            submitBannedUntil,
+            submitBanApplied: applySubmitBan,
+            submitBanDays,
+            submitBanUntil,
           },
           request,
         })
 
-        await writeAuditLog(tx, {
-          action: "USER_ADMIN_UPDATE",
-          entityType: "USER",
-          entityId: appeal.userId,
-          actor: user,
-          before: userBefore,
-          after: updatedUser,
-          metadata: {
-            source: "PRE_APPLICATION_APPEAL_REVIEW_REJECT",
-            appealId: appeal.id,
-          },
-          request,
-        })
+        if (userBefore && updatedUser) {
+          await writeAuditLog(tx, {
+            action: "USER_ADMIN_UPDATE",
+            entityType: "USER",
+            entityId: appeal.userId,
+            actor: user,
+            before: userBefore,
+            after: updatedUser,
+            metadata: {
+              source: "PRE_APPLICATION_APPEAL_REVIEW_REJECT",
+              appealId: appeal.id,
+            },
+            request,
+          })
+        }
 
         await writeAuditLog(tx, {
           action: "MESSAGE_CREATE",
@@ -327,7 +395,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         return {
           appeal: updatedAppeal,
           message,
-          submitBannedUntil,
+          submitBanUntil,
         }
       }
 
@@ -454,8 +522,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       success: true,
       appeal: result.appeal,
       ...(action === "REJECT"
-        ? { submitBannedUntil: result.submitBannedUntil }
-        : { preApplication: result.preApplication }),
+        ? { submitBannedUntil: "submitBanUntil" in result ? result.submitBanUntil : null }
+        : { preApplication: "preApplication" in result ? result.preApplication : null }),
     })
   } catch (error) {
     if (error instanceof AppealReviewConflictError) {

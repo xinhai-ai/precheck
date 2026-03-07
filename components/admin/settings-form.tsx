@@ -93,6 +93,10 @@ type SystemConfig = {
   preApplicationSubmitStartTime: string
   preApplicationSubmitEndTime: string
   preApplicationAppealEnabled: boolean
+  preApplicationAppealAutoRejectEnabled: boolean
+  preApplicationAppealAutoRejectPatterns: string[]
+  preApplicationAppealAutoRejectApplySubmitBan: boolean
+  preApplicationAppealAutoRejectSubmitBanDays: number
 }
 
 type EmailApiConfig = {
@@ -139,6 +143,7 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
   const [newTemplateApproveNoCode, setNewTemplateApproveNoCode] = useState("")
   const [newTemplateReject, setNewTemplateReject] = useState("")
   const [newTemplateDispute, setNewTemplateDispute] = useState("")
+  const [newAutoRejectPattern, setNewAutoRejectPattern] = useState("")
   const [testingEmail, setTestingEmail] = useState(false)
   const [testEmailAddress, setTestEmailAddress] = useState("")
 
@@ -347,6 +352,13 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
       toast.error(t.preApplicationSubmitWindowInvalid || "提交开始时间必须早于结束时间")
       return
     }
+    if (
+      systemConfig.preApplicationAppealAutoRejectApplySubmitBan &&
+      systemConfig.preApplicationAppealAutoRejectSubmitBanDays < 1
+    ) {
+      toast.error(t.submitBanDaysInvalid || "请输入 1-3650 的整数天数")
+      return
+    }
     setSaving(true)
     setError("")
 
@@ -454,6 +466,32 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
     setSystemConfig({
       ...systemConfig,
       allowedEmailDomains: systemConfig.allowedEmailDomains.filter((d) => d !== domain),
+    })
+  }
+
+  const handleAddAutoRejectPattern = () => {
+    if (!systemConfig) return
+    const pattern = newAutoRejectPattern.trim()
+    if (!pattern || systemConfig.preApplicationAppealAutoRejectPatterns.includes(pattern)) {
+      return
+    }
+
+    setSystemConfig({
+      ...systemConfig,
+      preApplicationAppealAutoRejectPatterns: [
+        ...systemConfig.preApplicationAppealAutoRejectPatterns,
+        pattern,
+      ],
+    })
+    setNewAutoRejectPattern("")
+  }
+
+  const handleRemoveAutoRejectPattern = (pattern: string) => {
+    if (!systemConfig) return
+    setSystemConfig({
+      ...systemConfig,
+      preApplicationAppealAutoRejectPatterns:
+        systemConfig.preApplicationAppealAutoRejectPatterns.filter((item) => item !== pattern),
     })
   }
 
@@ -1094,6 +1132,117 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                           setSystemConfig({ ...systemConfig, preApplicationAppealEnabled: v })
                         }
                       />
+                    )}
+                    {systemConfig && (
+                      <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                        <ToggleItem
+                          icon={RefreshCw}
+                          title={t.preApplicationAppealAutoRejectEnabled || "启用申诉自动拒绝"}
+                          description={
+                            t.preApplicationAppealAutoRejectEnabledDesc ||
+                            "当驳回意见命中正则规则时，系统自动拒绝用户申诉。"
+                          }
+                          checked={systemConfig.preApplicationAppealAutoRejectEnabled}
+                          onCheckedChange={(v) =>
+                            setSystemConfig({
+                              ...systemConfig,
+                              preApplicationAppealAutoRejectEnabled: v,
+                            })
+                          }
+                        />
+
+                        {systemConfig.preApplicationAppealAutoRejectEnabled ? (
+                          <div className="space-y-4 border-t pt-4">
+                            <div className="space-y-2">
+                              <Label>{
+                                t.preApplicationAppealAutoRejectPatterns || "自动拒绝正则规则"
+                              }</Label>
+                              <p className="text-sm text-muted-foreground">
+                                {t.preApplicationAppealAutoRejectPatternsDesc ||
+                                  "仅匹配当前驳回意见 guidance，任意一条命中即自动拒绝申诉。"}
+                              </p>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={newAutoRejectPattern}
+                                  onChange={(e) => setNewAutoRejectPattern(e.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault()
+                                      handleAddAutoRejectPattern()
+                                    }
+                                  }}
+                                  placeholder={
+                                    t.preApplicationAppealAutoRejectPatternPlaceholder ||
+                                    "例如：Linux\s*使用经历"
+                                  }
+                                  className="flex-1"
+                                />
+                                <Button type="button" onClick={handleAddAutoRejectPattern}>
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  {t.reviewTemplateAdd}
+                                </Button>
+                              </div>
+                              <TemplateList
+                                items={systemConfig.preApplicationAppealAutoRejectPatterns}
+                                onRemove={handleRemoveAutoRejectPattern}
+                                emptyText={t.reviewTemplatesEmpty}
+                                colorClass="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/30"
+                              />
+                            </div>
+
+                            <ToggleItem
+                              icon={Shield}
+                              title={
+                                t.preApplicationAppealAutoRejectApplySubmitBan ||
+                                "自动拒绝后封禁提交权限"
+                              }
+                              description={
+                                t.preApplicationAppealAutoRejectApplySubmitBanDesc ||
+                                "命中自动拒绝规则后，按下方天数限制用户再次提交预申请。"
+                              }
+                              checked={systemConfig.preApplicationAppealAutoRejectApplySubmitBan}
+                              onCheckedChange={(v) =>
+                                setSystemConfig({
+                                  ...systemConfig,
+                                  preApplicationAppealAutoRejectApplySubmitBan: v,
+                                })
+                              }
+                            />
+
+                            {systemConfig.preApplicationAppealAutoRejectApplySubmitBan ? (
+                              <div className="space-y-2">
+                                <Label htmlFor="appeal-auto-reject-submit-ban-days">
+                                  {t.preApplicationAppealAutoRejectSubmitBanDays ||
+                                    "自动拒绝封禁天数"}
+                                </Label>
+                                <Input
+                                  id="appeal-auto-reject-submit-ban-days"
+                                  type="number"
+                                  min={1}
+                                  max={3650}
+                                  value={
+                                    systemConfig.preApplicationAppealAutoRejectSubmitBanDays
+                                  }
+                                  onChange={(e) =>
+                                    setSystemConfig({
+                                      ...systemConfig,
+                                      preApplicationAppealAutoRejectSubmitBanDays: Math.max(
+                                        0,
+                                        Number(e.target.value) || 0,
+                                      ),
+                                    })
+                                  }
+                                  className="w-32 text-center"
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                  {t.preApplicationAppealAutoRejectSubmitBanDaysDesc ||
+                                    "设为 7 表示自动拒绝后封禁 7 天。"}
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
                     )}
                     {systemConfig && (
                       <div className="flex items-center justify-between py-4">

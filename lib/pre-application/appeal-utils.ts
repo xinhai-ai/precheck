@@ -58,6 +58,11 @@ export interface GetAppealRejectionSnapshotInput {
   versions?: AppealRejectionSnapshotVersion[] | null | undefined
 }
 
+export interface FindMatchingAppealAutoRejectPatternInput {
+  guidance: string | null | undefined
+  patterns: string[]
+}
+
 function getDateMs(value: Date | string | null | undefined, errorMessage: string): number | null {
   if (value === null || value === undefined) {
     return null
@@ -84,6 +89,28 @@ function toRejectionSnapshot(
     reviewedAt: source.reviewedAt ?? null,
     reviewedBy: source.reviewedBy,
   }
+}
+
+export function normalizeAppealAutoRejectPatterns(patterns: string[]): string[] {
+  return patterns
+    .map((pattern) => pattern.trim())
+    .filter(Boolean)
+    .map((pattern) => {
+      void new RegExp(pattern, "u")
+      return pattern
+    })
+}
+
+export function findMatchingAppealAutoRejectPattern({
+  guidance,
+  patterns,
+}: FindMatchingAppealAutoRejectPatternInput): string | null {
+  if (!guidance) {
+    return null
+  }
+
+  const normalizedPatterns = normalizeAppealAutoRejectPatterns(patterns)
+  return normalizedPatterns.find((pattern) => new RegExp(pattern, "u").test(guidance)) ?? null
 }
 
 export function getAppealRejectionSnapshot({
@@ -144,9 +171,13 @@ export function getAppealCooldownRemainingSeconds(
 
 export function getAppealRejectSubmitBanUntil(
   existingBannedUntil: Date | string | null | undefined,
+  banDaysOrNow: number | Date = PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
   now: Date = new Date(),
 ): Date {
-  const nextBannedUntil = getSubmitBanUntilFromDays(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS, now)
+  const hasLegacySignature = banDaysOrNow instanceof Date
+  const banDays = hasLegacySignature ? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS : banDaysOrNow
+  const currentNow = hasLegacySignature ? banDaysOrNow : now
+  const nextBannedUntil = getSubmitBanUntilFromDays(banDays, currentNow)
 
   if (!existingBannedUntil) {
     return nextBannedUntil
