@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Prisma, PreApplicationAppealStatus, PreApplicationStatus } from "@prisma/client"
+import { PreApplicationAppealStatus, PreApplicationStatus } from "@prisma/client"
 import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
 import { getCurrentUser } from "@/lib/auth/session"
@@ -14,6 +14,7 @@ import {
   PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
 } from "@/lib/pre-application/appeal-utils"
 import { normalizeSubmitBanDays } from "@/lib/pre-application/submit-ban-utils"
+import { buildLockRejectedPreApplicationQuery } from "@/lib/pre-application/appeal-review-query"
 
 const reviewSchema = z.object({
   action: z.string().trim(),
@@ -236,14 +237,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       }
 
       if (action === "REJECT") {
-        const lockedPreApplications = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-          SELECT "id"
-          FROM "PreApplication"
-          WHERE "id" = ${appeal.preApplicationId}
-            AND "status" = ${PreApplicationStatus.REJECTED}
-            AND "version" = ${appeal.preApplication.version}
-          FOR UPDATE
-        `)
+        const lockedPreApplications = await tx.$queryRaw<Array<{ id: string }>>(
+          buildLockRejectedPreApplicationQuery({
+            preApplicationId: appeal.preApplicationId,
+            status: PreApplicationStatus.REJECTED,
+            version: appeal.preApplication.version,
+          }),
+        )
 
         if (lockedPreApplications.length !== 1) {
           throw new AppealReviewConflictError(
