@@ -29,9 +29,15 @@ interface DashboardSidebarProps {
   locale: Locale
   dict: Dictionary
   user: { id: string; name?: string | null; email: string; role: string }
+  userTicketsEnabled: boolean
 }
 
-export function DashboardSidebar({ locale, dict, user }: DashboardSidebarProps) {
+export function DashboardSidebar({
+  locale,
+  dict,
+  user,
+  userTicketsEnabled,
+}: DashboardSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -76,11 +82,16 @@ export function DashboardSidebar({ locale, dict, user }: DashboardSidebarProps) 
       href: `/${locale}/dashboard/pre-application`,
       icon: ClipboardList,
     },
-    {
-      name: ((dict.dashboard as unknown as Record<string, unknown>).tickets as string) || "工单",
-      href: `/${locale}/dashboard/tickets`,
-      icon: Ticket,
-    },
+    ...(userTicketsEnabled
+      ? [
+          {
+            name: ((dict.dashboard as unknown as Record<string, unknown>).tickets as string) ||
+              "工单",
+            href: `/${locale}/dashboard/tickets`,
+            icon: Ticket,
+          },
+        ]
+      : []),
     {
       name: ((dict.dashboard as unknown as Record<string, unknown>).chat as string) || "聊天室",
       href: `/${locale}/dashboard/chat`,

@@ -2057,6 +2057,8 @@
     "maintenanceModeDescription": "Enable to temporarily disable the site",
     "adminApplicationEnabled": "Allow Admin Applications",
     "adminApplicationEnabledDesc": "Allow regular users to apply to become administrators",
+    "userTicketsEnabled": "Enable User Tickets",
+    "userTicketsEnabledDesc": "Hide and disable tickets for end users when turned off; admin ticket management remains available.",
     "analyticsEnabled": "51.la Analytics",
     "analyticsEnabledDesc": "Enable 51.la website traffic analytics and performance monitoring",
     "linuxdoAutoAdmin": "LinuxDo TL3 Auto Admin",

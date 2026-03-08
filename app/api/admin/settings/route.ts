@@ -19,6 +19,7 @@ const settingsSchema = z
     emailNotifications: z.boolean(),
     postModeration: z.boolean(),
     maintenanceMode: z.boolean(),
+    userTicketsEnabled: z.boolean(),
     analyticsEnabled: z.boolean(),
     linuxdoAutoAdmin: z.boolean(),
   })

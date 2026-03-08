@@ -378,6 +378,7 @@ export interface SiteSettings {
   postModeration: boolean
   maintenanceMode: boolean
   adminApplicationEnabled: boolean
+  userTicketsEnabled: boolean
   auditLogEnabled: boolean
   preApplicationEssayHint: string
   preApplicationEssayMinLength: number

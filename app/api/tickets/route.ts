@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import { ensureUserTicketsEnabled } from "@/lib/tickets/feature-guard"
 
 const createTicketSchema = z.object({
   preApplicationId: z.string().min(1),
@@ -46,6 +47,12 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
+
+    const disabledResponse = await ensureUserTicketsEnabled(request)
+    if (disabledResponse) {
+      return disabledResponse
+    }
+
     if (!db) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
@@ -90,6 +97,12 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
+
+    const disabledResponse = await ensureUserTicketsEnabled(request)
+    if (disabledResponse) {
+      return disabledResponse
+    }
+
     if (!db) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }

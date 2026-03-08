@@ -13,6 +13,7 @@ export type SiteSettings = {
   postModeration: boolean
   maintenanceMode: boolean
   adminApplicationEnabled: boolean
+  userTicketsEnabled: boolean
   inviteCodeUrlPrefix: string
   analyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
@@ -28,6 +29,7 @@ type SiteSettingsRecord = {
   postModeration: boolean
   maintenanceMode: boolean
   adminApplicationEnabled: boolean
+  userTicketsEnabled: boolean
   inviteCodeUrlPrefix: string | null
   analyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
@@ -43,6 +45,7 @@ const defaultSettings: SiteSettings = {
   postModeration: false,
   maintenanceMode: false,
   adminApplicationEnabled: true,
+  userTicketsEnabled: true,
   inviteCodeUrlPrefix: "",
   analyticsEnabled: true,
   linuxdoAutoAdmin: false,
@@ -65,6 +68,7 @@ function toSiteSettings(record: SiteSettingsRecord): SiteSettings {
     postModeration: record.postModeration,
     maintenanceMode: record.maintenanceMode,
     adminApplicationEnabled: record.adminApplicationEnabled,
+    userTicketsEnabled: record.userTicketsEnabled,
     inviteCodeUrlPrefix: record.inviteCodeUrlPrefix ?? "",
     analyticsEnabled: record.analyticsEnabled,
     linuxdoAutoAdmin: record.linuxdoAutoAdmin,
@@ -86,6 +90,7 @@ function parseCachedSiteSettings(raw: string): SiteSettings | null {
       typeof parsed.postModeration !== "boolean" ||
       typeof parsed.maintenanceMode !== "boolean" ||
       typeof parsed.adminApplicationEnabled !== "boolean" ||
+      typeof parsed.userTicketsEnabled !== "boolean" ||
       typeof parsed.inviteCodeUrlPrefix !== "string" ||
       typeof parsed.analyticsEnabled !== "boolean" ||
       typeof parsed.linuxdoAutoAdmin !== "boolean"
@@ -161,6 +166,7 @@ async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
       postModeration: true,
       maintenanceMode: true,
       adminApplicationEnabled: true,
+      userTicketsEnabled: true,
       inviteCodeUrlPrefix: true,
       analyticsEnabled: true,
       linuxdoAutoAdmin: true,
@@ -220,6 +226,7 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
     postModeration: updates.postModeration ?? current.postModeration,
     maintenanceMode: updates.maintenanceMode ?? current.maintenanceMode,
     adminApplicationEnabled: updates.adminApplicationEnabled ?? current.adminApplicationEnabled,
+    userTicketsEnabled: updates.userTicketsEnabled ?? current.userTicketsEnabled,
     inviteCodeUrlPrefix: updates.inviteCodeUrlPrefix ?? current.inviteCodeUrlPrefix,
     analyticsEnabled: updates.analyticsEnabled ?? current.analyticsEnabled,
     linuxdoAutoAdmin: updates.linuxdoAutoAdmin ?? current.linuxdoAutoAdmin,
@@ -242,6 +249,7 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       postModeration: true,
       maintenanceMode: true,
       adminApplicationEnabled: true,
+      userTicketsEnabled: true,
       inviteCodeUrlPrefix: true,
       analyticsEnabled: true,
       linuxdoAutoAdmin: true,

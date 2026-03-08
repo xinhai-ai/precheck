@@ -24,10 +24,17 @@ interface DashboardHeaderProps {
   locale: Locale
   dict: Dictionary
   user: { id: string; name?: string | null; email: string; avatar?: string | null }
+  userTicketsEnabled: boolean
   onMenuClick?: () => void
 }
 
-export function DashboardHeader({ locale, dict, user, onMenuClick }: DashboardHeaderProps) {
+export function DashboardHeader({
+  locale,
+  dict,
+  user,
+  userTicketsEnabled,
+  onMenuClick,
+}: DashboardHeaderProps) {
   const router = useRouter()
   const [unreadCount, setUnreadCount] = useState(0)
   const [latestMessage, setLatestMessage] = useState<{
@@ -78,7 +85,7 @@ export function DashboardHeader({ locale, dict, user, onMenuClick }: DashboardHe
           <Menu className="h-5 w-5" />
         </Button>
 
-        <DashboardCommandMenu locale={locale} />
+        <DashboardCommandMenu locale={locale} userTicketsEnabled={userTicketsEnabled} />
       </div>
 
       <div className="flex items-center gap-3">

@@ -33,7 +33,12 @@ export default async function DashboardLayout({ children, params }: DashboardLay
   }
 
   return (
-    <DashboardLayoutClient locale={currentLocale} dict={dict} user={user}>
+    <DashboardLayoutClient
+      locale={currentLocale}
+      dict={dict}
+      user={user}
+      userTicketsEnabled={settings.userTicketsEnabled}
+    >
       {children}
     </DashboardLayoutClient>
   )

@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils"
 
 interface DashboardCommandMenuProps {
   locale: Locale
+  userTicketsEnabled: boolean
 }
 
 interface RecentCommand {
@@ -45,7 +46,10 @@ interface RecentCommand {
 const RECENT_COMMANDS_KEY = "dashboard-recent-commands"
 const MAX_RECENT_COMMANDS = 5
 
-export function DashboardCommandMenu({ locale }: DashboardCommandMenuProps) {
+export function DashboardCommandMenu({
+  locale,
+  userTicketsEnabled,
+}: DashboardCommandMenuProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [dict, setDict] = useState<Dictionary | null>(null)
@@ -126,13 +130,18 @@ export function DashboardCommandMenu({ locale }: DashboardCommandMenuProps) {
       icon: ClipboardList,
       shortcut: "⌘3",
     },
-    {
-      id: "tickets",
-      label: ((dict.dashboard as unknown as Record<string, unknown>).tickets as string) || "工单",
-      path: `/${locale}/dashboard/tickets`,
-      icon: Ticket,
-      shortcut: "⌘4",
-    },
+    ...(userTicketsEnabled
+      ? [
+          {
+            id: "tickets",
+            label:
+              ((dict.dashboard as unknown as Record<string, unknown>).tickets as string) || "工单",
+            path: `/${locale}/dashboard/tickets`,
+            icon: Ticket,
+            shortcut: "⌘4",
+          },
+        ]
+      : []),
     {
       id: "chat",
       label: ((dict.dashboard as unknown as Record<string, unknown>).chat as string) || "聊天室",

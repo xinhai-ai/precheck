@@ -51,6 +51,7 @@ type SiteSettings = {
   postModeration: boolean
   maintenanceMode: boolean
   adminApplicationEnabled: boolean
+  userTicketsEnabled: boolean
   inviteCodeUrlPrefix: string
   analyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
@@ -1092,6 +1093,15 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                       onCheckedChange={(v) =>
                         setSettings({ ...settings, adminApplicationEnabled: v })
                       }
+                    />
+                    <ToggleItem
+                      title={t.userTicketsEnabled || "启用用户侧工单"}
+                      description={
+                        t.userTicketsEnabledDesc ||
+                        "关闭后将隐藏并禁用用户侧工单功能，管理员后台工单管理不受影响"
+                      }
+                      checked={settings.userTicketsEnabled}
+                      onCheckedChange={(v) => setSettings({ ...settings, userTicketsEnabled: v })}
                     />
                     <ToggleItem
                       title={t.analyticsEnabled || "51.la 统计"}

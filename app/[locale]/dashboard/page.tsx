@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
+import { useDashboardFeatureFlags } from "@/components/dashboard/dashboard-layout-client"
 
 interface DashboardPageProps {
   params: Promise<{ locale: string }>
@@ -82,6 +83,8 @@ export default function DashboardPage({ params }: DashboardPageProps) {
       .catch(() => null)
   }, [])
 
+  const { userTicketsEnabled } = useDashboardFeatureFlags()
+
   if (!dict) return null
 
   const t = dict.dashboard as Record<string, unknown>
@@ -106,15 +109,19 @@ export default function DashboardPage({ params }: DashboardPageProps) {
       iconBg: "bg-violet-500/10",
       iconColor: "text-violet-600 dark:text-violet-400",
     },
-    {
-      href: `/${locale}/dashboard/tickets`,
-      icon: Ticket,
-      title: (t.tickets as string) || "Tickets",
-      description: (t.ticketsDesc as string) || "View and manage your support tickets",
-      gradient: "from-orange-500/10 via-orange-500/5 to-transparent",
-      iconBg: "bg-orange-500/10",
-      iconColor: "text-orange-600 dark:text-orange-400",
-    },
+    ...(userTicketsEnabled
+      ? [
+          {
+            href: `/${locale}/dashboard/tickets`,
+            icon: Ticket,
+            title: (t.tickets as string) || "Tickets",
+            description: (t.ticketsDesc as string) || "View and manage your support tickets",
+            gradient: "from-orange-500/10 via-orange-500/5 to-transparent",
+            iconBg: "bg-orange-500/10",
+            iconColor: "text-orange-600 dark:text-orange-400",
+          },
+        ]
+      : []),
     {
       href: `/${locale}/dashboard/chat`,
       icon: MessageCircle,
