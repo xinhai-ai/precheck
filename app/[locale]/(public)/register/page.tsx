@@ -5,6 +5,7 @@ import { getEnabledOAuthProviders } from "@/lib/features"
 import { AuthLayout } from "@/components/layout/auth-layout"
 import { getSiteSettings } from "@/lib/site-settings"
 import { getCurrentUser } from "@/lib/auth/session"
+import { getTurnstileConfig } from "@/lib/turnstile-config"
 import type { Locale } from "@/lib/i18n/config"
 
 interface RegisterPageProps {
@@ -23,10 +24,16 @@ export default async function RegisterPage({ params }: RegisterPageProps) {
   const dict = await getDictionary(locale)
   const settings = await getSiteSettings()
   const oauthProviders = settings.oauthLogin ? getEnabledOAuthProviders() : []
+  const turnstile = getTurnstileConfig()
 
   return (
     <AuthLayout>
-      <RegisterForm locale={locale} dict={dict} oauthProviders={oauthProviders} />
+      <RegisterForm
+        locale={locale}
+        dict={dict}
+        oauthProviders={oauthProviders}
+        turnstileSiteKey={turnstile.siteKey}
+      />
     </AuthLayout>
   )
 }

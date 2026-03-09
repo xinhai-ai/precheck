@@ -18,18 +18,16 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
 import { collectFingerprint } from "@/lib/fingerprint/client"
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
-const TURNSTILE_ENABLED = Boolean(TURNSTILE_SITE_KEY)
-
 interface LoginFormProps {
   locale: Locale
   dict: Dictionary
   oauthProviders: Array<{ id: string; name: string }>
+  turnstileSiteKey: string
 }
 
 type LoginType = "password" | "code"
 
-export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
+export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
@@ -44,6 +42,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
     rememberMe: false,
   })
 
+  const turnstileEnabled = Boolean(turnstileSiteKey)
   const t = dict.auth.login
   const errorMap: Record<string, string> = {
     "Authentication service not configured": t.errors.serviceUnavailable,
@@ -101,7 +100,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
     if (!formData.email || countdown > 0) return
 
     // Turnstile 启用时需要先验证
-    if (TURNSTILE_ENABLED && !turnstileToken) {
+    if (turnstileEnabled && !turnstileToken) {
       setError(dict.errors?.turnstileRequired || "Please complete the verification")
       return
     }
@@ -117,7 +116,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
           email: formData.email,
           purpose: "login",
           locale,
-          turnstileToken: TURNSTILE_ENABLED ? turnstileToken : undefined,
+          turnstileToken: turnstileEnabled ? turnstileToken : undefined,
         }),
       })
 
@@ -144,7 +143,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (TURNSTILE_ENABLED && !turnstileToken) {
+    if (turnstileEnabled && !turnstileToken) {
       setError(dict.errors?.turnstileRequired || "Please complete the verification")
       return
     }
@@ -160,13 +159,13 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
               email: formData.email,
               verificationCode: formData.verificationCode,
               loginType: "code" as const,
-              turnstileToken: TURNSTILE_ENABLED ? turnstileToken : undefined,
+              turnstileToken: turnstileEnabled ? turnstileToken : undefined,
               ...fingerprintPayload,
             }
           : {
               email: formData.email,
               password: formData.password,
-              turnstileToken: TURNSTILE_ENABLED ? turnstileToken : undefined,
+              turnstileToken: turnstileEnabled ? turnstileToken : undefined,
               ...fingerprintPayload,
             }
 
@@ -365,7 +364,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
                   countdown > 0 ||
                   sendingCode ||
                   isLoading ||
-                  (TURNSTILE_ENABLED && !turnstileToken)
+                  (turnstileEnabled && !turnstileToken)
                 }
                 className="shrink-0 min-w-[100px]"
               >
@@ -403,9 +402,9 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
           </Link>
         </div>
 
-        {TURNSTILE_ENABLED && (
+        {turnstileEnabled && (
           <Turnstile
-            siteKey={TURNSTILE_SITE_KEY}
+            siteKey={turnstileSiteKey}
             onVerify={(token) => setTurnstileToken(token)}
             onError={() => setTurnstileToken("")}
             onExpire={() => setTurnstileToken("")}
@@ -415,7 +414,7 @@ export function LoginForm({ locale, dict, oauthProviders }: LoginFormProps) {
         <Button
           type="submit"
           className="group relative w-full overflow-hidden"
-          disabled={isLoading || (TURNSTILE_ENABLED && !turnstileToken)}
+          disabled={isLoading || (turnstileEnabled && !turnstileToken)}
         >
           <motion.div
             className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80"

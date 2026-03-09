@@ -6,6 +6,7 @@ import { isRedisAvailable } from "@/lib/redis"
 import { isEmailConfigured } from "@/lib/email/mailer"
 import { features } from "@/lib/features"
 import { getSession } from "@/lib/auth/session"
+import { getTurnstileConfig } from "@/lib/turnstile-config"
 
 export const runtime = "nodejs"
 
@@ -82,8 +83,8 @@ async function checkEmail(): Promise<ServiceInfo> {
 
 // 检测 Turnstile 配置
 function checkTurnstile(): ServiceInfo {
-  const configured = !!process.env.TURNSTILE_SECRET_KEY
-  return { status: configured ? "up" : "unconfigured" }
+  const turnstile = getTurnstileConfig()
+  return { status: turnstile.enabled ? "up" : "unconfigured" }
 }
 
 // 检测 OAuth GitHub
