@@ -51,6 +51,7 @@ function wrapEmailHtml(
             <tr>
               <td align="center">
                 <p style="${baseStyles.brand}">${appName}</p>
+                <p style="${baseStyles.brand};margin-top:4px;">${NO_REPLY_NOTE}</p>
               </td>
             </tr>
           </table>
@@ -67,6 +68,10 @@ const replaceTokens = (value: string, tokens: Record<string, string>) => {
     value,
   )
 }
+
+const NO_REPLY_NOTE = "本邮件为系统自动发送邮件，请勿直接回复"
+
+const appendNoReplyNote = (text: string) => `${text}\n\n${NO_REPLY_NOTE}`
 
 function buildAccountReactivationEmail({
   appName,
@@ -156,7 +161,7 @@ function buildAccountReactivationEmail({
 
   const html = wrapEmailHtml(subject, appName, "#ef4444", content)
 
-  const text = `${title}
+  const text = appendNoReplyNote(`${title}
 
 ${intro}
 
@@ -172,7 +177,7 @@ ${supportText}
 ${footer}
 ${reactivateUrl}
 
-${ignoreText}`
+${ignoreText}`)
 
   return { subject, html, text }
 }

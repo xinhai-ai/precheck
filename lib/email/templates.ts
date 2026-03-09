@@ -47,6 +47,10 @@ const replaceTokens = (value: string, tokens: Record<string, string>) => {
   )
 }
 
+const NO_REPLY_NOTE = "本邮件为系统自动发送邮件，请勿直接回复"
+
+const appendNoReplyNote = (text: string) => `${text}\n\n${NO_REPLY_NOTE}`
+
 // 统一的邮件基础样式
 const baseStyles = {
   body: 'margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;',
@@ -91,6 +95,7 @@ function wrapEmailHtml(
             <tr>
               <td align="center">
                 <p style="${baseStyles.brand}">${appName}</p>
+                <p style="${baseStyles.brand};margin-top:4px;">${NO_REPLY_NOTE}</p>
               </td>
             </tr>
           </table>
@@ -144,7 +149,9 @@ export function buildResetPasswordEmail({
     <p style="${baseStyles.footer}">${ignore}</p>`
 
   const html = wrapEmailHtml(subject, appName, "#3b82f6", content)
-  const text = `${title}\n\n${intro}\n${expires}\n\n${t.action}: ${resetUrl}\n\n${footer}\n${resetUrl}\n\n${ignore}`
+  const text = appendNoReplyNote(
+    `${title}\n\n${intro}\n${expires}\n\n${t.action}: ${resetUrl}\n\n${footer}\n${resetUrl}\n\n${ignore}`,
+  )
 
   return { subject, html, text }
 }
@@ -325,7 +332,7 @@ export function buildPreApplicationReviewEmail({
     footer,
   ]
 
-  return { subject, html, text: textLines.join("\n") }
+  return { subject, html, text: appendNoReplyNote(textLines.join("\n")) }
 }
 
 export function buildInviteCodeIssueEmail({
@@ -420,7 +427,7 @@ export function buildInviteCodeIssueEmail({
     footer,
   ]
 
-  return { subject, html, text: textLines.join("\n") }
+  return { subject, html, text: appendNoReplyNote(textLines.join("\n")) }
 }
 
 export function buildVerificationCodeEmail({
@@ -474,7 +481,7 @@ export function buildVerificationCodeEmail({
 
   const html = wrapEmailHtml(subject, appName, "#2563eb", content)
 
-  const text = `${title}
+  const text = appendNoReplyNote(`${title}
 
 ${intro}
 
@@ -485,7 +492,7 @@ ${expiryText}
 ${warningText}
 
 ---
-${footer}`
+${footer}`)
 
   return { subject, html, text }
 }
