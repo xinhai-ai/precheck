@@ -2,7 +2,7 @@ import { locales, defaultLocale } from "@/lib/i18n/config"
 import { getBaseUrl } from "@/lib/seo"
 import { db } from "@/lib/db"
 
-export const revalidate = 3600
+export const dynamic = "force-dynamic"
 
 // 静态路由配置
 const staticRoutes = [

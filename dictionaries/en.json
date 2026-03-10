@@ -1,7 +1,7 @@
 {
   "metadata": {
     "title": "Pre-Application System",
-    "description": "Community pre-application and invite code management system"
+    "description": "Pre-application and invite code management system for the Linux.do community"
   },
   "nav": {
     "features": "Features",
@@ -629,6 +629,10 @@
           {
             "q": "My invite code expired. What should I do?",
             "a": "Contact admin through the community or resubmit your application."
+          },
+          {
+            "q": "Is this an official Linux.do website?",
+            "a": "No. This is a community-run site built by enthusiastic Linux.do members to help people who want to join the community get invite codes."
           },
           {
             "q": "Can I apply for multiple accounts?",
@@ -2672,6 +2676,10 @@
         {
           "question": "How do I check my application status?",
           "answer": "After submission, you'll receive a query code. Use it on the query page to view status, admin feedback, and invite code."
+        },
+        {
+          "question": "Is this an official Linux.do website?",
+          "answer": "No. This is a community-run site built by enthusiastic Linux.do members to help people who want to join the community get invite codes."
         }
       ]
     },

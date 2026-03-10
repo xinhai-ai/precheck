@@ -4,7 +4,7 @@ import { defaultLocale, locales } from "@/lib/i18n/config"
 import { readFile } from "fs/promises"
 import { join } from "path"
 
-export const revalidate = 3600
+export const dynamic = "force-dynamic"
 
 interface ChangelogVersion {
   version: string

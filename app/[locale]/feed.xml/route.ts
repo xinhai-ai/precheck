@@ -4,6 +4,8 @@ import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { getBaseUrl, siteConfig } from "@/lib/seo"
 import { db } from "@/lib/db"
 
+export const dynamic = "force-dynamic"
+
 interface FeedItem {
   title: string
   description: string

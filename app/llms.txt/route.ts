@@ -1,7 +1,7 @@
 import { getBaseUrl, siteConfig } from "@/lib/seo"
 import { defaultLocale, locales } from "@/lib/i18n/config"
 
-export const revalidate = 86400
+export const dynamic = "force-dynamic"
 
 // llms.txt - AI 爬虫友好的站点描述文件
 // 规范参考: https://llmstxt.org/
