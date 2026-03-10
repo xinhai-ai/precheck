@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Eye, EyeOff, Loader2, Mail, KeyRound } from "lucide-react"
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Turnstile } from "@/components/ui/turnstile"
+import { Turnstile, type TurnstileRef } from "@/components/ui/turnstile"
 import { OAuthButtons } from "./oauth-buttons"
 import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
@@ -32,6 +32,7 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [turnstileToken, setTurnstileToken] = useState("")
+  const turnstileRef = useRef<TurnstileRef>(null)
   const [loginType, setLoginType] = useState<LoginType>("password")
   const [sendingCode, setSendingCode] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -59,6 +60,15 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
       return () => clearTimeout(timer)
     }
   }, [countdown])
+
+  const resetTurnstileChallenge = () => {
+    if (!turnstileEnabled) {
+      return
+    }
+
+    setTurnstileToken("")
+    turnstileRef.current?.reset()
+  }
 
   const resolveErrorMessage = (payload?: {
     code?: string
@@ -137,6 +147,7 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
       setError(t.errors.failed)
     } finally {
       setSendingCode(false)
+      resetTurnstileChallenge()
     }
   }
 
@@ -192,6 +203,7 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
       setError(t.errors.failed)
     } finally {
       setIsLoading(false)
+      resetTurnstileChallenge()
     }
   }
 
@@ -404,6 +416,7 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
 
         {turnstileEnabled && (
           <Turnstile
+            ref={turnstileRef}
             siteKey={turnstileSiteKey}
             onVerify={(token) => setTurnstileToken(token)}
             onError={() => setTurnstileToken("")}
