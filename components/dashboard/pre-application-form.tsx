@@ -160,6 +160,7 @@ type SubmitPrecheckResponse = {
   captchaEnabled: boolean
   captchaProvider: CaptchaProvider | null
   captchaPublicConfig: Record<string, unknown> | null
+  captchaTicket: string | null
   submitBannedUntil?: string | null
   remainingSeconds?: number | null
 }
@@ -288,6 +289,7 @@ export function PreApplicationForm({
   const [captchaPublicConfig, setCaptchaPublicConfig] = useState<Record<string, unknown> | null>(
     null,
   )
+  const [captchaTicket, setCaptchaTicket] = useState<string | null>(null)
   const [captchaError, setCaptchaError] = useState<string | null>(null)
   const allowedDomains = useAllowedEmailDomains()
   const [formData, setFormData] = useState({
@@ -844,6 +846,7 @@ export function PreApplicationForm({
     setCaptchaDialogOpen(false)
     setCaptchaProvider(null)
     setCaptchaPublicConfig(null)
+    setCaptchaTicket(null)
     setCaptchaError(null)
   }
 
@@ -960,6 +963,7 @@ export function PreApplicationForm({
       captchaEnabled: Boolean(data.captchaEnabled),
       captchaProvider: data.captchaProvider ?? null,
       captchaPublicConfig: data.captchaPublicConfig ?? null,
+      captchaTicket: data.captchaTicket ?? null,
       submitBannedUntil: data.submitBannedUntil ?? null,
       remainingSeconds: data.remainingSeconds ?? null,
     }
@@ -968,6 +972,7 @@ export function PreApplicationForm({
   const submitApplication = async (captcha?: {
     provider: CaptchaProvider
     payload: Record<string, unknown>
+    ticket: string | null
   }) => {
     setSubmitting(true)
     setCaptchaError(null)
@@ -987,6 +992,7 @@ export function PreApplicationForm({
           version: latest?.version,
           captchaProvider: captcha?.provider ?? null,
           captchaPayload: captcha?.payload ?? null,
+          captchaTicket: captcha?.ticket ?? null,
           ...fingerprintPayload,
         }),
       })
@@ -1003,11 +1009,12 @@ export function PreApplicationForm({
         const errorMeta = getApiErrorMeta(data)
 
         if (captcha && isCaptchaChallengeMessage(captchaMessage)) {
-          setCaptchaError(
+          closeCaptchaDialog()
+          toast.error(
             captchaMessage ||
               (locale === "zh"
-                ? "人机验证未通过，请重试"
-                : "Captcha verification failed. Please try again."),
+                ? "人机验证未通过，请重新提交"
+                : "Captcha verification failed. Please resubmit."),
           )
           return false
         }
@@ -1067,7 +1074,17 @@ export function PreApplicationForm({
       return
     }
 
-    await submitApplication({ provider: captchaProvider, payload })
+    if (!captchaTicket) {
+      closeCaptchaDialog()
+      toast.error(
+        locale === "zh"
+          ? "验证码票据已失效，请重新提交"
+          : "Captcha ticket expired. Please resubmit.",
+      )
+      return
+    }
+
+    await submitApplication({ provider: captchaProvider, payload, ticket: captchaTicket })
   }
 
   const handleSubmit = async () => {
@@ -1138,6 +1155,7 @@ export function PreApplicationForm({
 
       setCaptchaProvider(precheck.captchaProvider)
       setCaptchaPublicConfig(precheck.captchaPublicConfig)
+      setCaptchaTicket(precheck.captchaTicket ?? null)
       setCaptchaDialogOpen(true)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.submitFailed)

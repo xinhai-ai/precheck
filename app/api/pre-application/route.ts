@@ -31,6 +31,7 @@ import { getSubmitBanRemainingSeconds } from "@/lib/pre-application/submit-ban-u
 import { getPreApplicationCaptchaSettings } from "@/lib/pre-application/captcha-settings"
 import { checkPreApplicationSubmitEligibility } from "@/lib/pre-application/submit-precheck"
 import { verifyCaptchaChallenge } from "@/lib/captcha/verify"
+import { consumePreApplicationCaptchaTicket } from "@/lib/pre-application/captcha-ticket"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -107,6 +108,7 @@ const preApplicationSchema = z.object({
   version: z.number().optional(), // 乐观锁版本号
   captchaProvider: z.enum(["turnstile", "hcaptcha", "geetest"]).optional().nullable(),
   captchaPayload: z.record(z.string(), z.unknown()).optional().nullable(),
+  captchaTicket: z.string().min(1).max(200).optional().nullable(),
 })
 
 // 验证群 ID 是否在配置中
@@ -116,7 +118,78 @@ async function isValidGroupId(groupId: string): Promise<boolean> {
 }
 
 function getClientIp(request: NextRequest): string | undefined {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || undefined
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    undefined
+  )
+}
+
+async function validatePreApplicationSubmitCaptcha(
+  request: NextRequest,
+  userId: string,
+  data: Pick<
+    z.infer<typeof preApplicationSchema>,
+    "captchaProvider" | "captchaPayload" | "captchaTicket"
+  >,
+): Promise<NextResponse | null> {
+  const captchaSettings = await getPreApplicationCaptchaSettings()
+  if (!captchaSettings.preApplicationCaptchaEnabled) {
+    return null
+  }
+
+  if (!captchaSettings.preApplicationCaptchaProvider) {
+    return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+      status: 400,
+      meta: { detail: "验证码供应商未配置" },
+    })
+  }
+
+  const captchaProvider = data.captchaProvider
+  if (
+    !captchaProvider ||
+    captchaProvider !== captchaSettings.preApplicationCaptchaProvider ||
+    !data.captchaPayload ||
+    !data.captchaTicket
+  ) {
+    return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+      status: 400,
+      meta: { detail: "请先完成人机验证" },
+    })
+  }
+
+  const ticketResult = await consumePreApplicationCaptchaTicket({
+    ticket: data.captchaTicket,
+    userId,
+    provider: captchaProvider,
+  })
+  if (!ticketResult.ok) {
+    if (ticketResult.reason === "service_unavailable") {
+      return createApiErrorResponse(request, ApiErrorKeys.general.failed, {
+        status: 503,
+        meta: { detail: "验证码票据服务暂不可用，请稍后重试" },
+      })
+    }
+
+    return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+      status: 400,
+      meta: { detail: "验证码票据无效或已过期，请重新提交" },
+    })
+  }
+
+  const captchaVerification = await verifyCaptchaChallenge({
+    provider: captchaProvider,
+    payload: data.captchaPayload,
+    remoteIp: getClientIp(request),
+  })
+  if (!captchaVerification.ok) {
+    return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+      status: 400,
+      meta: { detail: "人机验证未通过，请重新提交" },
+    })
+  }
+
+  return null
 }
 
 async function enforcePreApplicationSubmitLimits(
@@ -356,7 +429,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (eligibility.reason === "service_unavailable") {
-        return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitRateServiceUnavailable, { status: 503 })
+        return createApiErrorResponse(
+          request,
+          ApiErrorKeys.preApplication.submitRateServiceUnavailable,
+          { status: 503 },
+        )
       }
 
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.dailyGlobalLimitExceeded, {
@@ -365,33 +442,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const captchaSettings = await getPreApplicationCaptchaSettings()
-    if (captchaSettings.preApplicationCaptchaEnabled) {
-      if (!captchaSettings.preApplicationCaptchaProvider) {
-        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
-          status: 400,
-          meta: { detail: "验证码供应商未配置" },
-        })
-      }
-
-      if (data.captchaProvider !== captchaSettings.preApplicationCaptchaProvider || !data.captchaPayload) {
-        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
-          status: 400,
-          meta: { detail: "请先完成人机验证" },
-        })
-      }
-
-      const captchaVerification = await verifyCaptchaChallenge({
-        provider: data.captchaProvider,
-        payload: data.captchaPayload,
-        remoteIp: getClientIp(request),
-      })
-      if (!captchaVerification.ok) {
-        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
-          status: 400,
-          meta: { detail: "人机验证未通过，请重试" },
-        })
-      }
+    const captchaError = await validatePreApplicationSubmitCaptcha(request, user.id, data)
+    if (captchaError) {
+      return captchaError
     }
 
     // 验证群 ID 是否有效
@@ -590,7 +643,11 @@ export async function PUT(request: NextRequest) {
       }
 
       if (eligibility.reason === "service_unavailable") {
-        return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitRateServiceUnavailable, { status: 503 })
+        return createApiErrorResponse(
+          request,
+          ApiErrorKeys.preApplication.submitRateServiceUnavailable,
+          { status: 503 },
+        )
       }
 
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.dailyGlobalLimitExceeded, {
@@ -599,33 +656,9 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    const captchaSettings = await getPreApplicationCaptchaSettings()
-    if (captchaSettings.preApplicationCaptchaEnabled) {
-      if (!captchaSettings.preApplicationCaptchaProvider) {
-        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
-          status: 400,
-          meta: { detail: "验证码供应商未配置" },
-        })
-      }
-
-      if (data.captchaProvider !== captchaSettings.preApplicationCaptchaProvider || !data.captchaPayload) {
-        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
-          status: 400,
-          meta: { detail: "请先完成人机验证" },
-        })
-      }
-
-      const captchaVerification = await verifyCaptchaChallenge({
-        provider: data.captchaProvider,
-        payload: data.captchaPayload,
-        remoteIp: getClientIp(request),
-      })
-      if (!captchaVerification.ok) {
-        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
-          status: 400,
-          meta: { detail: "人机验证未通过，请重试" },
-        })
-      }
+    const captchaError = await validatePreApplicationSubmitCaptcha(request, user.id, data)
+    if (captchaError) {
+      return captchaError
     }
 
     // 验证群 ID 是否有效

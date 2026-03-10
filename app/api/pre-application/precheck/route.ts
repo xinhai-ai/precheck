@@ -7,6 +7,7 @@ import { getSubmitBanRemainingSeconds } from "@/lib/pre-application/submit-ban-u
 import { checkPreApplicationSubmitEligibility } from "@/lib/pre-application/submit-precheck"
 import { getPreApplicationCaptchaSettings } from "@/lib/pre-application/captcha-settings"
 import { getEnabledCaptchaRuntimeConfig } from "@/lib/captcha/config"
+import { issuePreApplicationCaptchaTicket } from "@/lib/pre-application/captcha-ticket"
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser()
@@ -39,13 +40,30 @@ export async function POST(request: NextRequest) {
 
   const eligibility = await checkPreApplicationSubmitEligibility(`user:${user.id}`)
   const runtimeCaptcha = getEnabledCaptchaRuntimeConfig(await getPreApplicationCaptchaSettings())
+  const shouldExposeCaptcha = eligibility.allowed && runtimeCaptcha.enabled
+
+  let captchaTicket: string | null = null
+  if (shouldExposeCaptcha) {
+    if (!runtimeCaptcha.provider || !runtimeCaptcha.publicConfig) {
+      return NextResponse.json({ error: "验证码服务暂不可用，请稍后重试" }, { status: 503 })
+    }
+
+    captchaTicket = await issuePreApplicationCaptchaTicket({
+      userId: user.id,
+      provider: runtimeCaptcha.provider,
+    })
+    if (!captchaTicket) {
+      return NextResponse.json({ error: "验证码票据服务暂不可用，请稍后重试" }, { status: 503 })
+    }
+  }
 
   return NextResponse.json({
     allowed: eligibility.allowed,
     reason: eligibility.reason ?? null,
     submitQuotaStatus: eligibility.submitQuotaStatus,
-    captchaEnabled: runtimeCaptcha.enabled,
-    captchaProvider: runtimeCaptcha.provider,
-    captchaPublicConfig: runtimeCaptcha.publicConfig,
+    captchaEnabled: shouldExposeCaptcha,
+    captchaProvider: shouldExposeCaptcha ? runtimeCaptcha.provider : null,
+    captchaPublicConfig: shouldExposeCaptcha ? runtimeCaptcha.publicConfig : null,
+    captchaTicket,
   })
 }

@@ -402,6 +402,8 @@ export interface SiteSettings {
   preApplicationDailyUserLimit: number
   preApplicationSubmitStartTime: string
   preApplicationSubmitEndTime: string
+  preApplicationCaptchaEnabled: boolean
+  preApplicationCaptchaProvider: string | null
   preApplicationAppealEnabled: boolean
   preApplicationAppealAutoRejectEnabled: boolean
   preApplicationAppealAutoRejectPatterns: Prisma.JsonValue
