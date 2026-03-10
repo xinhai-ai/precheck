@@ -735,6 +735,24 @@
       "submitting": "Sending...",
       "success": "If an account exists with this email, you will receive a reset link.",
       "backToLogin": "Back to login",
+      "appealEmailTemplate": {
+        "approved": {
+          "subject": "{appName} pre-application appeal approved",
+          "title": "Pre-application appeal approved",
+          "intro": "Your pre-application appeal has been approved. Please follow the review note for the next step.",
+          "reviewer": "Reviewer: {reviewer}",
+          "reviewComment": "Review note: {reviewComment}",
+          "footer": "If you have questions, please contact an admin."
+        },
+        "rejected": {
+          "subject": "{appName} pre-application appeal rejected",
+          "title": "Pre-application appeal rejected",
+          "intro": "Your pre-application appeal has been rejected. Please review the note from the super admin.",
+          "reviewer": "Reviewer: {reviewer}",
+          "reviewComment": "Review note: {reviewComment}",
+          "footer": "If you have questions, please contact an admin."
+        }
+      },
       "emailTemplate": {
         "subject": "Reset your {appName} password",
         "title": "Reset your password",
@@ -871,11 +889,7 @@
         "Check results via messages and review history"
       ],
       "statusTitle": "Statuses",
-      "statuses": [
-        "Pending",
-        "Approved",
-        "Rejected"
-      ],
+      "statuses": ["Pending", "Approved", "Rejected"],
       "rulesTitle": "Rules",
       "rules": [
         "Only one pre-application is allowed",
@@ -2495,25 +2509,15 @@
         "intro": "This project is licensed under the MIT License. This means you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.",
         "permissions": {
           "title": "Permissions",
-          "items": [
-            "Commercial use",
-            "Modification",
-            "Distribution",
-            "Private use"
-          ]
+          "items": ["Commercial use", "Modification", "Distribution", "Private use"]
         },
         "conditions": {
           "title": "Conditions",
-          "items": [
-            "License and copyright notice must be included"
-          ]
+          "items": ["License and copyright notice must be included"]
         },
         "limitations": {
           "title": "Limitations",
-          "items": [
-            "No liability",
-            "No warranty"
-          ]
+          "items": ["No liability", "No warranty"]
         },
         "fullText": {
           "title": "Full License Text",

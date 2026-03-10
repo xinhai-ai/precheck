@@ -7,8 +7,12 @@ import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
+import { buildPreApplicationAppealReviewEmail } from "@/lib/email/templates"
+import { sendEmail } from "@/lib/email/mailer"
+import { features } from "@/lib/features"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
+import { getSiteSettings } from "@/lib/site-settings"
 import {
   getAppealRejectSubmitBanUntil,
   PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
@@ -135,9 +139,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const reviewComment = parsed.data.reviewComment.trim()
     const applySubmitBan = action === "REJECT" ? (parsed.data.applySubmitBan ?? true) : false
     const submitBanDays = applySubmitBan
-      ? normalizeSubmitBanDays(
-          parsed.data.submitBanDays ?? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
-        )
+      ? normalizeSubmitBanDays(parsed.data.submitBanDays ?? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
       : null
 
     if (applySubmitBan && submitBanDays === null) {
@@ -259,22 +261,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             )
           : null
 
-        let userBefore:
-          | {
-              id: string
-              name: string | null
-              email: string
-              preApplicationSubmitBannedUntil: Date | null
-            }
-          | null = null
-        let updatedUser:
-          | {
-              id: string
-              name: string | null
-              email: string
-              preApplicationSubmitBannedUntil: Date | null
-            }
-          | null = null
+        let userBefore: {
+          id: string
+          name: string | null
+          email: string
+          preApplicationSubmitBannedUntil: Date | null
+        } | null = null
+        let updatedUser: {
+          id: string
+          name: string | null
+          email: string
+          preApplicationSubmitBannedUntil: Date | null
+        } | null = null
 
         if (applySubmitBan && submitBanUntil) {
           userBefore = await tx.user.findUnique({
@@ -518,12 +516,44 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       }
     })
 
+    const settings = await getSiteSettings()
+    const shouldSendEmail = features.email && settings.emailNotifications
+
+    let emailSent = false
+    let emailError: string | undefined
+
+    if (shouldSendEmail) {
+      const reviewerName = user.name || user.email
+      const emailContent = buildPreApplicationAppealReviewEmail({
+        appName: settings.siteName || dict.metadata?.title || "App",
+        dictionary: dict,
+        status: action === "REJECT" ? "REJECTED" : "APPROVED",
+        reviewerName,
+        reviewComment,
+      })
+
+      try {
+        await sendEmail({
+          to: appeal.preApplication.registerEmail,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+        })
+        emailSent = true
+      } catch (sendError) {
+        console.error("Pre-application appeal review email failed:", sendError)
+        emailError = sendError instanceof Error ? sendError.message : String(sendError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       appeal: result.appeal,
       ...(action === "REJECT"
         ? { submitBannedUntil: "submitBanUntil" in result ? result.submitBanUntil : null }
         : { preApplication: "preApplication" in result ? result.preApplication : null }),
+      emailSent,
+      emailError,
     })
   } catch (error) {
     if (error instanceof AppealReviewConflictError) {

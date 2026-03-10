@@ -9,6 +9,14 @@ type ResetPasswordEmailOptions = {
   expiresInHours: number
 }
 
+type PreApplicationAppealReviewEmailOptions = {
+  appName: string
+  dictionary: Dictionary
+  status: "APPROVED" | "REJECTED"
+  reviewerName: string
+  reviewComment: string
+}
+
 type PreApplicationReviewEmailOptions = {
   appName: string
   dictionary: Dictionary
@@ -333,6 +341,87 @@ export function buildPreApplicationReviewEmail({
   ]
 
   return { subject, html, text: appendNoReplyNote(textLines.join("\n")) }
+}
+
+export function buildPreApplicationAppealReviewEmail({
+  appName,
+  dictionary,
+  status,
+  reviewerName,
+  reviewComment,
+}: PreApplicationAppealReviewEmailOptions) {
+  const isApproved = status === "APPROVED"
+  const appealEmailTemplate = (
+    dictionary.preApplication as typeof dictionary.preApplication & {
+      appealEmailTemplate: {
+        approved: {
+          subject: string
+          title: string
+          intro: string
+          reviewer: string
+          reviewComment: string
+          footer: string
+        }
+        rejected: {
+          subject: string
+          title: string
+          intro: string
+          reviewer: string
+          reviewComment: string
+          footer: string
+        }
+      }
+    }
+  ).appealEmailTemplate
+  const t = isApproved ? appealEmailTemplate.approved : appealEmailTemplate.rejected
+
+  const tokens = {
+    "{appName}": appName,
+    "{reviewer}": reviewerName,
+    "{reviewComment}": reviewComment,
+  }
+
+  const subject = replaceTokens(t.subject, tokens)
+  const title = replaceTokens(t.title, tokens)
+  const intro = replaceTokens(t.intro, tokens)
+  const reviewerLine = replaceTokens(t.reviewer, tokens)
+  const reviewCommentLine = replaceTokens(t.reviewComment, tokens)
+  const footer = replaceTokens(t.footer, tokens)
+
+  const accentColor = isApproved ? "#10b981" : "#ef4444"
+  const accentBg = isApproved ? "#ecfdf5" : "#fef2f2"
+  const accentBorder = isApproved ? "#a7f3d0" : "#fecaca"
+  const badgeText = title
+
+  const content = `
+    <div style="display:inline-block;margin:0 0 16px;padding:6px 12px;border-radius:999px;background:${accentBg};border:1px solid ${accentBorder};font-size:12px;font-weight:600;color:${accentColor};">
+      ${badgeText}
+    </div>
+    <h1 style="${baseStyles.title}">${title}</h1>
+    <p style="${baseStyles.text}">${intro}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;background:${accentBg};border:1px solid ${accentBorder};border-radius:12px;padding:20px;">
+      <tr>
+        <td>
+          <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#374151;">${reviewerLine}</p>
+          <p style="margin:0;font-size:14px;line-height:1.7;color:#374151;white-space:pre-wrap;">${reviewCommentLine}</p>
+        </td>
+      </tr>
+    </table>
+    <p style="${baseStyles.footer}">${footer}</p>`
+
+  const html = wrapEmailHtml(subject, appName, accentColor, content)
+  const text = appendNoReplyNote(
+    `${title}
+
+${intro}
+
+${reviewerLine}
+${reviewCommentLine}
+
+${footer}`,
+  )
+
+  return { subject, html, text }
 }
 
 export function buildInviteCodeIssueEmail({
