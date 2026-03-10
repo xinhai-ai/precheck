@@ -37,7 +37,7 @@ function getSafeRedirectUrl(url: string | undefined, locale: string): string {
   if (url && url.startsWith("/") && !url.startsWith("//")) {
     return url
   }
-  return `/${locale}/guest/apply`
+  return `/${locale}/login`
 }
 
 export function QQVerifyForm({ locale, redirectUrl, dict }: QQVerifyFormProps) {
