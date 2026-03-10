@@ -583,24 +583,6 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    // 5 分钟内只能修改一次
-    const redis = getRedisClient()
-    if (redis) {
-      const key = `pre-app:edit-rate:${user.id}`
-      const set = await redis.set(key, "1", "EX", 300, "NX")
-      if (set !== "OK") {
-        const ttl = await redis.ttl(key)
-        const wait = ttl > 0 ? ttl : 300
-        const mins = Math.floor(wait / 60)
-        const secs = wait % 60
-        const detail = mins > 0 ? `请 ${mins} 分 ${secs} 秒后再试` : `请 ${secs} 秒后再试`
-        return createApiErrorResponse(request, ApiErrorKeys.preApplication.editTooFrequent, {
-          status: 429,
-          meta: { detail, waitSeconds: wait },
-        })
-      }
-    }
-
     const body = await request.json()
     const data = preApplicationSchema.parse(body)
     const fingerprintPayload = parseFingerprintPayload(body)
@@ -704,6 +686,24 @@ export async function PUT(request: NextRequest) {
           detail: `已达到最大重新提交次数限制 (${maxResubmitCount} 次)`,
         },
       })
+    }
+
+    // 5 分钟内只能修改一次
+    const redis = getRedisClient()
+    if (redis) {
+      const key = `pre-app:edit-rate:${user.id}`
+      const set = await redis.set(key, "1", "EX", 300, "NX")
+      if (set !== "OK") {
+        const ttl = await redis.ttl(key)
+        const wait = ttl > 0 ? ttl : 300
+        const mins = Math.floor(wait / 60)
+        const secs = wait % 60
+        const detail = mins > 0 ? `请 ${mins} 分 ${secs} 秒后再试` : `请 ${secs} 秒后再试`
+        return createApiErrorResponse(request, ApiErrorKeys.preApplication.editTooFrequent, {
+          status: 429,
+          meta: { detail, waitSeconds: wait },
+        })
+      }
     }
 
     const limitError = await enforcePreApplicationSubmitLimits(request, `user:${user.id}`)
