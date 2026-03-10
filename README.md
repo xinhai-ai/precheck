@@ -36,6 +36,9 @@ npm install
 # Set up environment
 cp .env.example .env
 
+# For Docker/self-hosted SEO absolute URLs, set APP_URL at runtime
+# APP_URL="https://example.com"
+
 # Start development server
 npm run dev
 ```
@@ -118,8 +121,10 @@ docker compose up -d
 
 # Or build manually
 docker build -t next-starter .
-docker run -p 3000:3000 next-starter
+docker run -p 3000:3000 -e APP_URL="https://example.com" next-starter
 ```
+
+Set `APP_URL` in the container runtime environment so SEO metadata, sitemap, feed, `robots.txt`, and similar absolute URLs use your real domain without rebuilding.
 
 ## Project Structure
 

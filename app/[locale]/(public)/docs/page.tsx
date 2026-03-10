@@ -83,6 +83,7 @@ export default async function DocsPage({ params }: DocsPageProps) {
 DATABASE_URL="postgresql://user:password@localhost:5432/db"
 
 # App
+APP_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NODE_ENV="development"`
 

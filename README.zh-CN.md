@@ -36,6 +36,9 @@ npm install
 # 配置环境变量
 cp .env.example .env
 
+# Docker/自托管场景下，可在运行时设置 SEO 绝对链接使用的域名
+# APP_URL="https://example.com"
+
 # 启动开发服务器
 npm run dev
 ```
@@ -118,8 +121,10 @@ docker compose up -d
 
 # 或手动构建
 docker build -t next-starter .
-docker run -p 3000:3000 next-starter
+docker run -p 3000:3000 -e APP_URL="https://example.com" next-starter
 ```
+
+请在容器运行时环境中设置 `APP_URL`，这样 SEO 元数据、站点地图、Feed、`robots.txt` 等绝对链接会使用真实域名，而不需要重新构建镜像。
 
 ## 项目结构
 

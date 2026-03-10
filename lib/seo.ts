@@ -1,9 +1,32 @@
 import { locales, type Locale } from "@/lib/i18n/config"
 
+function normalizeBaseUrl(url: string) {
+  return url.replace(/\/$/, "")
+}
+
+export function getBaseUrl() {
+  const configuredUrl =
+    process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL
+
+  if (configuredUrl) {
+    return normalizeBaseUrl(configuredUrl)
+  }
+
+  if (process.env.VERCEL_URL) {
+    const vercelUrl = process.env.VERCEL_URL.startsWith("http")
+      ? process.env.VERCEL_URL
+      : `https://${process.env.VERCEL_URL}`
+
+    return normalizeBaseUrl(vercelUrl)
+  }
+
+  return "http://localhost:3000"
+}
+
 export const siteConfig = {
   name: "预申请系统",
   shortName: "预申请",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "https://linuxhub.de5.net",
+  url: getBaseUrl(),
   ogImage: "/placeholder-logo.svg",
   logo: "/placeholder-logo.svg",
   description: "社区预申请与邀请码管理平台",
@@ -16,16 +39,6 @@ export const siteConfig = {
   contact: {
     email: "",
   },
-}
-
-export function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
-  }
-  return "http://localhost:3000"
 }
 
 export function getCanonicalUrl(path: string, locale?: Locale) {
