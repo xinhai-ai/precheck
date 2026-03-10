@@ -39,29 +39,58 @@ function getLastModified(type: "static" | "dynamic" = "static"): string {
   return "2025-01-25T00:00:00.000Z"
 }
 
+function pushSitemapEntry(
+  entries: string[],
+  baseUrl: string,
+  loc: string,
+  lastmod: string,
+  changefreq: string,
+  priority: number,
+  alternatesPath: string,
+) {
+  entries.push(`  <url>
+    <loc>${loc}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+${buildAlternates(baseUrl, alternatesPath)}
+  </url>`)
+}
+
 export async function GET() {
   const baseUrl = getBaseUrl()
   const entries: string[] = []
 
   // 根路由
-  entries.push(`  <url>
-    <loc>${baseUrl}</loc>
-    <lastmod>${getLastModified("dynamic")}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-${buildAlternates(baseUrl, "")}
-  </url>`)
+  pushSitemapEntry(entries, baseUrl, baseUrl, getLastModified("dynamic"), "daily", 1.0, "")
+
+  for (const locale of locales) {
+    pushSitemapEntry(
+      entries,
+      baseUrl,
+      `${baseUrl}/${locale}`,
+      getLastModified("dynamic"),
+      "daily",
+      0.9,
+      "",
+    )
+  }
 
   // 静态路由
   for (const route of staticRoutes) {
     if (route.path === "") continue
-    entries.push(`  <url>
-    <loc>${baseUrl}/${defaultLocale}${route.path}</loc>
-    <lastmod>${getLastModified("static")}</lastmod>
-    <changefreq>${route.changeFrequency}</changefreq>
-    <priority>${route.priority}</priority>
-${buildAlternates(baseUrl, route.path)}
-  </url>`)
+
+    for (const locale of locales) {
+      pushSitemapEntry(
+        entries,
+        baseUrl,
+        `${baseUrl}/${locale}${route.path}`,
+        getLastModified("static"),
+        route.changeFrequency,
+        route.priority,
+        route.path,
+      )
+    }
   }
 
   // 动态内容 - 已发布文章
@@ -79,13 +108,18 @@ ${buildAlternates(baseUrl, route.path)}
 
       for (const post of posts) {
         const postPath = `/posts/${post.id}`
-        entries.push(`  <url>
-    <loc>${baseUrl}/${defaultLocale}${postPath}</loc>
-    <lastmod>${post.updatedAt.toISOString()}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-${buildAlternates(baseUrl, postPath)}
-  </url>`)
+
+        for (const locale of locales) {
+          pushSitemapEntry(
+            entries,
+            baseUrl,
+            `${baseUrl}/${locale}${postPath}`,
+            post.updatedAt.toISOString(),
+            "weekly",
+            0.7,
+            postPath,
+          )
+        }
       }
     } catch (error) {
       console.warn("Sitemap: Database unavailable, skipping posts", error)
