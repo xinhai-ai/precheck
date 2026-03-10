@@ -6,7 +6,7 @@ import { isRedisAvailable } from "@/lib/redis"
 import { isEmailConfigured } from "@/lib/email/mailer"
 import { features } from "@/lib/features"
 import { getSession } from "@/lib/auth/session"
-import { getTurnstileConfig } from "@/lib/turnstile-config"
+import { getCaptchaProvidersHealth } from "@/lib/captcha/config"
 
 export const runtime = "nodejs"
 
@@ -81,10 +81,9 @@ async function checkEmail(): Promise<ServiceInfo> {
   }
 }
 
-// 检测 Turnstile 配置
-function checkTurnstile(): ServiceInfo {
-  const turnstile = getTurnstileConfig()
-  return { status: turnstile.enabled ? "up" : "unconfigured" }
+// 检测验证码供应商配置
+function getCaptchaRuntimeHealth(): Record<string, ServiceInfo> {
+  return getCaptchaProvidersHealth()
 }
 
 // 检测 OAuth GitHub
@@ -137,7 +136,7 @@ export async function GET() {
     database,
     redis,
     email,
-    turnstile: checkTurnstile(),
+    ...getCaptchaRuntimeHealth(),
     oauthGithub: checkOAuthGitHub(),
     oauthGoogle: checkOAuthGoogle(),
     oauthLinuxdo: checkOAuthLinuxDo(),

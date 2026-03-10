@@ -779,9 +779,6 @@
     }
   },
   "errors": {
-    "backHome": "返回首页",
-    "tryAgain": "重试",
-    "turnstileRequired": "请完成人机验证后再继续",
     "400": {
       "title": "请求错误",
       "description": "服务器无法理解该请求，请求语法可能存在错误。",
@@ -811,7 +808,10 @@
       "title": "维护中",
       "description": "网站正在进行维护，请稍后再访问。",
       "hint": "维护完成后将自动恢复访问。"
-    }
+    },
+    "backHome": "返回首页",
+    "tryAgain": "重试",
+    "turnstileRequired": "请完成人机验证后再继续"
   },
   "dashboard": {
     "title": "控制台",
@@ -863,9 +863,17 @@
       "title": "预申请流程说明",
       "description": "请按以下流程提交与跟进审核。",
       "stepsTitle": "流程步骤",
-      "steps": ["填写预申请表单并提交", "管理员审核并给出指导意见", "通过站内信与审核记录查看结果"],
+      "steps": [
+        "填写预申请表单并提交",
+        "管理员审核并给出指导意见",
+        "通过站内信与审核记录查看结果"
+      ],
       "statusTitle": "审核状态",
-      "statuses": ["待审核", "已通过", "已驳回"],
+      "statuses": [
+        "待审核",
+        "已通过",
+        "已驳回"
+      ],
       "rulesTitle": "规则提示",
       "rules": [
         "仅允许提交一次预申请",
@@ -1421,7 +1429,7 @@
     "statusPending": "审核中",
     "statusApproved": "已通过",
     "statusRejected": "未通过",
-    "statusDisputed": "争议中",
+    "statusDisputed": "待重审",
     "applicationStatus": "申请状态",
     "statusLabel": "状态",
     "submittedAt": "提交时间",
@@ -1436,7 +1444,6 @@
     "stepApproved": "已通过",
     "stepRejected": "未通过",
     "stepDisputed": "争议中",
-    "statusDisputed": "待重审",
     "pendingTitle": "申请正在审核中",
     "pendingMessage": "我们正在认真审核您的申请，请耐心等待。通常会在 1-3 个工作日内完成审核。",
     "approvedTitle": "恭喜，申请已通过！",
@@ -2370,7 +2377,6 @@
     "inviteCodeUrlPrefix": "邀请码链接前缀",
     "inviteCodeUrlPrefixPlaceholder": "https://example.com/register?code=",
     "inviteCodeUrlPrefixDesc": "邀请码展示时会自动拼接此前缀，方便用户点击直接跳转注册",
-    "systemStatus": "系统状态",
     "statusDesc": "监控系统依赖服务的健康状态",
     "statusOverall": "系统整体状态",
     "statusOk": "运行正常",
@@ -2410,7 +2416,16 @@
     "statusNodeVersion": "Node.js",
     "statusMemRss": "RSS 内存",
     "statusMemHeap": "堆内存 (已用/总量)",
-    "statusMemExternal": "外部内存"
+    "statusMemExternal": "外部内存",
+    "preApplicationCaptchaEnabled": "启用提交验证码",
+    "preApplicationCaptchaEnabledDesc": "开启后，用户在提交预申请前需要先完成验证码挑战。",
+    "preApplicationCaptchaProvider": "验证码供应商",
+    "preApplicationCaptchaProviderDesc": "仅在点击提交并通过预检查后渲染所选验证码供应商。",
+    "preApplicationCaptchaProviderPlaceholder": "请选择供应商",
+    "preApplicationCaptchaProviderTurnstile": "Turnstile",
+    "preApplicationCaptchaProviderHcaptcha": "hCaptcha",
+    "preApplicationCaptchaProviderGeetest": "GeeTest",
+    "preApplicationCaptchaProviderRequired": "启用提交验证码时必须选择供应商"
   },
   "theme": {
     "toggle": "切换主题",
@@ -2478,15 +2493,25 @@
         "intro": "本项目采用 MIT 许可证。这意味着您可以自由使用、复制、修改、合并、发布、分发、再许可和/或销售该软件的副本。",
         "permissions": {
           "title": "权限",
-          "items": ["商业使用", "修改", "分发", "私人使用"]
+          "items": [
+            "商业使用",
+            "修改",
+            "分发",
+            "私人使用"
+          ]
         },
         "conditions": {
           "title": "条件",
-          "items": ["必须包含许可证和版权声明"]
+          "items": [
+            "必须包含许可证和版权声明"
+          ]
         },
         "limitations": {
           "title": "限制",
-          "items": ["无责任", "无保证"]
+          "items": [
+            "无责任",
+            "无保证"
+          ]
         },
         "fullText": {
           "title": "完整许可证文本",
@@ -2560,10 +2585,22 @@
       "title": "为什么选择预申请系统",
       "subtitle": "真诚、友善、团结、专业，共建你我引以为荣之社区",
       "items": [
-        { "title": "真诚待人", "description": "以真诚待人为荣，拒绝虚伪欺骗" },
-        { "title": "友善热心", "description": "热情帮助每一位佬友，拒绝傲慢冷漠" },
-        { "title": "团结协作", "description": "共建理想型社区，拒绝孤立对抗" },
-        { "title": "专业敬业", "description": "追求技术卓越，拒绝敷衍了事" }
+        {
+          "title": "真诚待人",
+          "description": "以真诚待人为荣，拒绝虚伪欺骗"
+        },
+        {
+          "title": "友善热心",
+          "description": "热情帮助每一位佬友，拒绝傲慢冷漠"
+        },
+        {
+          "title": "团结协作",
+          "description": "共建理想型社区，拒绝孤立对抗"
+        },
+        {
+          "title": "专业敬业",
+          "description": "追求技术卓越，拒绝敷衍了事"
+        }
       ]
     },
     "features": {

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -93,6 +94,8 @@ type SystemConfig = {
   preApplicationDailyUserLimit: number
   preApplicationSubmitStartTime: string
   preApplicationSubmitEndTime: string
+  preApplicationCaptchaEnabled: boolean
+  preApplicationCaptchaProvider: "turnstile" | "hcaptcha" | "geetest" | null
   preApplicationAppealEnabled: boolean
   preApplicationAppealAutoRejectEnabled: boolean
   preApplicationAppealAutoRejectPatterns: string[]
@@ -358,6 +361,10 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
       systemConfig.preApplicationAppealAutoRejectSubmitBanDays < 1
     ) {
       toast.error(t.submitBanDaysInvalid || "请输入 1-3650 的整数天数")
+      return
+    }
+    if (systemConfig.preApplicationCaptchaEnabled && !systemConfig.preApplicationCaptchaProvider) {
+      toast.error(t.preApplicationCaptchaProviderRequired || "启用提交验证码时必须选择供应商")
       return
     }
     setSaving(true)
@@ -1128,6 +1135,58 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                           setSystemConfig({ ...systemConfig, auditLogEnabled: v })
                         }
                       />
+                    )}
+                    {systemConfig && (
+                      <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                        <ToggleItem
+                          icon={Shield}
+                          title={t.preApplicationCaptchaEnabled || "启用提交验证码"}
+                          description={
+                            t.preApplicationCaptchaEnabledDesc ||
+                            "开启后，用户提交预申请前需要先通过验证码挑战。"
+                          }
+                          checked={systemConfig.preApplicationCaptchaEnabled}
+                          onCheckedChange={(v) =>
+                            setSystemConfig({
+                              ...systemConfig,
+                              preApplicationCaptchaEnabled: v,
+                              preApplicationCaptchaProvider: v
+                                ? systemConfig.preApplicationCaptchaProvider ?? "turnstile"
+                                : systemConfig.preApplicationCaptchaProvider,
+                            })
+                          }
+                        />
+
+                        <div className="space-y-2 border-t pt-4">
+                          <Label>{t.preApplicationCaptchaProvider || "验证码供应商"}</Label>
+                          <p className="text-sm text-muted-foreground">
+                            {t.preApplicationCaptchaProviderDesc ||
+                              "仅在点击提交并通过预检查后渲染所选验证码供应商。"}
+                          </p>
+                          <Select
+                            value={systemConfig.preApplicationCaptchaProvider ?? undefined}
+                            onValueChange={(value: "turnstile" | "hcaptcha" | "geetest") =>
+                              setSystemConfig({ ...systemConfig, preApplicationCaptchaProvider: value })
+                            }
+                            disabled={!systemConfig.preApplicationCaptchaEnabled}
+                          >
+                            <SelectTrigger className="w-full sm:w-72">
+                              <SelectValue placeholder={t.preApplicationCaptchaProviderPlaceholder || "请选择供应商"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="turnstile">
+                                {t.preApplicationCaptchaProviderTurnstile || "Turnstile"}
+                              </SelectItem>
+                              <SelectItem value="hcaptcha">
+                                {t.preApplicationCaptchaProviderHcaptcha || "hCaptcha"}
+                              </SelectItem>
+                              <SelectItem value="geetest">
+                                {t.preApplicationCaptchaProviderGeetest || "GeeTest"}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     )}
                     {systemConfig && (
                       <ToggleItem

@@ -50,6 +50,10 @@ import { preApplicationSources } from "@/lib/pre-application/constants"
 import type { QQGroupConfig } from "@/lib/pre-application/constants"
 import { EmailWithDomainInput } from "@/components/ui/email-with-domain-input"
 import { PreApplicationAppealDialog } from "@/components/dashboard/pre-application-appeal-dialog"
+import {
+  CaptchaChallengeDialog,
+  type CaptchaProvider,
+} from "@/components/captcha/captcha-challenge-dialog"
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { cn } from "@/lib/utils"
 import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
@@ -140,6 +144,24 @@ type SubmitBanStatus = {
   isSubmitBanned: boolean
   submitBannedUntil: string | null
   remainingSeconds: number
+}
+
+type SubmitPrecheckReason =
+  | "submit_banned"
+  | "submit_window_closed"
+  | "user_quota_insufficient"
+  | "quota_insufficient"
+  | "service_unavailable"
+
+type SubmitPrecheckResponse = {
+  allowed: boolean
+  reason: SubmitPrecheckReason | null
+  submitQuotaStatus?: SubmitQuotaStatus | null
+  captchaEnabled: boolean
+  captchaProvider: CaptchaProvider | null
+  captchaPublicConfig: Record<string, unknown> | null
+  submitBannedUntil?: string | null
+  remainingSeconds?: number | null
 }
 
 type PreApplicationAppealRecord = {
@@ -260,6 +282,13 @@ export function PreApplicationForm({
   const [appealLoadError, setAppealLoadError] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
   const [clearingDraft, setClearingDraft] = useState(false)
+  const [prechecking, setPrechecking] = useState(false)
+  const [captchaDialogOpen, setCaptchaDialogOpen] = useState(false)
+  const [captchaProvider, setCaptchaProvider] = useState<CaptchaProvider | null>(null)
+  const [captchaPublicConfig, setCaptchaPublicConfig] = useState<Record<string, unknown> | null>(
+    null,
+  )
+  const [captchaError, setCaptchaError] = useState<string | null>(null)
   const allowedDomains = useAllowedEmailDomains()
   const [formData, setFormData] = useState({
     essay: "",
@@ -811,57 +840,139 @@ export function PreApplicationForm({
     }
   }
 
-  const handleSubmit = async () => {
-    setSubmitting(true)
-    try {
-      const trimmedEssayLength = formData.essay.trim().length
-      if (trimmedEssayLength < essayMinChars) {
-        const template = t.validation?.essayTooShort || "申请小作文至少需要 {min} 个字符"
-        toast.error(template.replace("{min}", String(essayMinChars)))
-        return
-      }
+  const closeCaptchaDialog = () => {
+    setCaptchaDialogOpen(false)
+    setCaptchaProvider(null)
+    setCaptchaPublicConfig(null)
+    setCaptchaError(null)
+  }
 
-      if (trimmedEssayLength > essayMaxChars) {
+  const handleCaptchaDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      closeCaptchaDialog()
+      return
+    }
+
+    setCaptchaDialogOpen(true)
+  }
+
+  const getApiErrorMeta = (payload: unknown) => {
+    if (!payload || typeof payload !== "object") {
+      return undefined
+    }
+
+    const error = (payload as { error?: unknown }).error
+    if (!error || typeof error !== "object") {
+      return undefined
+    }
+
+    return "meta" in error && typeof (error as { meta?: unknown }).meta === "object"
+      ? ((error as { meta?: Record<string, unknown> }).meta ?? undefined)
+      : undefined
+  }
+
+  const getCaptchaErrorMessage = (payload: unknown) => {
+    const meta = getApiErrorMeta(payload)
+    if (meta && typeof meta.detail === "string" && meta.detail.trim()) {
+      return meta.detail.trim()
+    }
+
+    const directError =
+      payload &&
+      typeof payload === "object" &&
+      typeof (payload as { error?: unknown }).error === "string"
+        ? (payload as { error: string }).error.trim()
+        : ""
+
+    return directError || undefined
+  }
+
+  const isCaptchaChallengeMessage = (message?: string) =>
+    Boolean(
+      message &&
+      (message.includes("人机验证") ||
+        message.includes("验证码") ||
+        message.toLowerCase().includes("captcha")),
+    )
+
+  const getPrecheckFailureMessage = (result: SubmitPrecheckResponse) => {
+    if (result.reason === "submit_banned") {
+      const remainingSeconds =
+        typeof result.remainingSeconds === "number" ? result.remainingSeconds : 0
+      if (remainingSeconds > 0) {
         const template =
-          t.validation?.essayTooLong || "申请小作文最多允许 {max} 个字符，请精简后再提交"
-        toast.error(template.replace("{max}", String(essayMaxChars)))
-        return
+          ((t as Record<string, unknown>).submitBanErrorWithRemaining as string) ||
+          "你的提交权限已被管理员暂时封禁，剩余 {time}"
+        return template.replace("{time}", formatRemainingDuration(remainingSeconds))
       }
 
-      if (latest?.status === "APPROVED") {
-        toast.error(t.alreadySubmitted)
-        return
-      }
+      return (
+        ((t as Record<string, unknown>).submitBanDescription as string) ||
+        "管理员已暂时禁止你的预申请正式提交。"
+      )
+    }
 
-      if (latest?.status === "REJECTED" && pendingAppeal) {
-        toast.error(
-          ((t as Record<string, unknown>).appealPending as string) ||
-            "You already have an appeal under review.",
-        )
-        return
-      }
+    if (result.reason === "submit_window_closed") {
+      return locale === "zh" ? "当前不在可提交时间段" : "Submissions are not open right now"
+    }
 
-      if (latest?.status === "REJECTED" && (!appealAvailability || appealLoadError)) {
-        toast.error(
-          appealLoadError ||
-            ((t as Record<string, unknown>).appealLoadError as string) ||
-            "Failed to refresh appeal status. Please try again.",
-        )
-        return
-      }
+    if (result.reason === "service_unavailable") {
+      return (
+        ((t as Record<string, unknown>).submitQuotaServiceUnavailable as string) ||
+        (locale === "zh"
+          ? "提交额度信息暂不可用，请稍后重试"
+          : "Submit quota information is temporarily unavailable. Please try again later.")
+      )
+    }
 
-      // 检查重新提交次数（仅 REJECTED 状态）
-      if (latest?.status === "REJECTED" && remainingResubmits <= 0) {
-        toast.error(t.maxResubmitExceeded || `已达到最大重新提交次数限制 (${maxResubmitCount} 次)`)
-        return
-      }
+    return locale === "zh" ? "当前配额不足" : "Insufficient quota right now"
+  }
 
-      // 选择其他平台时必须填写说明
-      if (formData.source === "OTHER" && !formData.sourceDetail.trim()) {
-        toast.error(t.validation.sourceDetailRequired)
-        return
-      }
+  const runSubmitPrecheck = async (): Promise<SubmitPrecheckResponse | null> => {
+    const res = await fetch("/api/pre-application/precheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
 
+    const data = (await res.json().catch(() => ({}))) as Partial<SubmitPrecheckResponse>
+
+    if (data.submitQuotaStatus) {
+      setSubmitQuotaStatus(data.submitQuotaStatus)
+    }
+
+    if (data.reason === "submit_banned") {
+      setSubmitBanStatus({
+        isSubmitBanned: true,
+        submitBannedUntil: data.submitBannedUntil ?? null,
+        remainingSeconds: typeof data.remainingSeconds === "number" ? data.remainingSeconds : 0,
+      })
+    }
+
+    if (!res.ok) {
+      toast.error(resolveApiErrorMessage(data as never, dict) ?? t.submitFailed)
+      return null
+    }
+
+    return {
+      allowed: Boolean(data.allowed),
+      reason: data.reason ?? null,
+      submitQuotaStatus: data.submitQuotaStatus ?? null,
+      captchaEnabled: Boolean(data.captchaEnabled),
+      captchaProvider: data.captchaProvider ?? null,
+      captchaPublicConfig: data.captchaPublicConfig ?? null,
+      submitBannedUntil: data.submitBannedUntil ?? null,
+      remainingSeconds: data.remainingSeconds ?? null,
+    }
+  }
+
+  const submitApplication = async (captcha?: {
+    provider: CaptchaProvider
+    payload: Record<string, unknown>
+  }) => {
+    setSubmitting(true)
+    setCaptchaError(null)
+
+    try {
       const method = latest ? "PUT" : "POST"
       const fingerprintPayload = await collectFingerprint()
       const res = await fetch("/api/pre-application", {
@@ -874,6 +985,8 @@ export function PreApplicationForm({
           registerEmail: formData.registerEmail,
           group: formData.group,
           version: latest?.version,
+          captchaProvider: captcha?.provider ?? null,
+          captchaPayload: captcha?.payload ?? null,
           ...fingerprintPayload,
         }),
       })
@@ -881,18 +994,25 @@ export function PreApplicationForm({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         const message = resolveApiErrorMessage(data, dict) ?? t.submitFailed
+        const captchaMessage = getCaptchaErrorMessage(data)
         const errorObject = data?.error
         const errorCode =
           errorObject && typeof errorObject === "object" && typeof errorObject.code === "string"
             ? errorObject.code
             : undefined
-        const errorMeta =
-          errorObject &&
-          typeof errorObject === "object" &&
-          "meta" in errorObject &&
-          typeof (errorObject as { meta?: unknown }).meta === "object"
-            ? ((errorObject as { meta?: Record<string, unknown> }).meta ?? undefined)
-            : undefined
+        const errorMeta = getApiErrorMeta(data)
+
+        if (captcha && isCaptchaChallengeMessage(captchaMessage)) {
+          setCaptchaError(
+            captchaMessage ||
+              (locale === "zh"
+                ? "人机验证未通过，请重试"
+                : "Captcha verification failed. Please try again."),
+          )
+          return false
+        }
+
+        closeCaptchaDialog()
 
         if (res.status === 403 && errorCode === ApiErrorKeys.preApplication.submitBanned) {
           const remainingSeconds =
@@ -910,25 +1030,119 @@ export function PreApplicationForm({
           }
 
           await loadRecord(false)
-          return
+          return false
         }
 
         if (res.status === 409 && errorCode === ApiErrorKeys.preApplication.versionConflict) {
           toast.error(message)
           await loadRecord()
-          return
+          return false
         }
+
         toast.error(message)
-        return
+        return false
       }
 
+      closeCaptchaDialog()
       toast.success(method === "PUT" ? t.updateSuccess : t.submitSuccess)
       setDraft(null)
       await loadRecord()
+      return true
+    } catch (error) {
+      closeCaptchaDialog()
+      toast.error(error instanceof Error ? error.message : t.submitFailed)
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCaptchaVerify = async (payload: Record<string, unknown>) => {
+    if (!captchaProvider) {
+      setCaptchaError(
+        locale === "zh"
+          ? "验证码供应商未准备好，请重试"
+          : "Captcha provider is not ready. Please try again.",
+      )
+      return
+    }
+
+    await submitApplication({ provider: captchaProvider, payload })
+  }
+
+  const handleSubmit = async () => {
+    const trimmedEssayLength = formData.essay.trim().length
+    if (trimmedEssayLength < essayMinChars) {
+      const template = t.validation?.essayTooShort || "申请小作文至少需要 {min} 个字符"
+      toast.error(template.replace("{min}", String(essayMinChars)))
+      return
+    }
+
+    if (trimmedEssayLength > essayMaxChars) {
+      const template =
+        t.validation?.essayTooLong || "申请小作文最多允许 {max} 个字符，请精简后再提交"
+      toast.error(template.replace("{max}", String(essayMaxChars)))
+      return
+    }
+
+    if (latest?.status === "APPROVED") {
+      toast.error(t.alreadySubmitted)
+      return
+    }
+
+    if (latest?.status === "REJECTED" && pendingAppeal) {
+      toast.error(
+        ((t as Record<string, unknown>).appealPending as string) ||
+          "You already have an appeal under review.",
+      )
+      return
+    }
+
+    if (latest?.status === "REJECTED" && (!appealAvailability || appealLoadError)) {
+      toast.error(
+        appealLoadError ||
+          ((t as Record<string, unknown>).appealLoadError as string) ||
+          "Failed to refresh appeal status. Please try again.",
+      )
+      return
+    }
+
+    if (latest?.status === "REJECTED" && remainingResubmits <= 0) {
+      toast.error(t.maxResubmitExceeded || `已达到最大重新提交次数限制 (${maxResubmitCount} 次)`)
+      return
+    }
+
+    if (formData.source === "OTHER" && !formData.sourceDetail.trim()) {
+      toast.error(t.validation.sourceDetailRequired)
+      return
+    }
+
+    setPrechecking(true)
+    setCaptchaError(null)
+
+    try {
+      const precheck = await runSubmitPrecheck()
+      if (!precheck) {
+        return
+      }
+
+      if (!precheck.allowed) {
+        toast.error(getPrecheckFailureMessage(precheck))
+        return
+      }
+
+      if (!precheck.captchaEnabled || !precheck.captchaProvider || !precheck.captchaPublicConfig) {
+        await submitApplication()
+        return
+      }
+
+      setCaptchaProvider(precheck.captchaProvider)
+      setCaptchaPublicConfig(precheck.captchaPublicConfig)
+      setCaptchaDialogOpen(true)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.submitFailed)
     } finally {
-      setSubmitting(false)
+      setPrechecking(false)
     }
   }
 
@@ -1213,6 +1427,16 @@ export function PreApplicationForm({
       ) : (
         renderMainContent()
       )}
+
+      <CaptchaChallengeDialog
+        open={captchaDialogOpen}
+        provider={captchaProvider}
+        publicConfig={captchaPublicConfig}
+        onOpenChange={handleCaptchaDialogOpenChange}
+        onVerify={handleCaptchaVerify}
+        loading={submitting}
+        error={captchaError}
+      />
     </motion.div>
   )
 
@@ -1868,7 +2092,7 @@ export function PreApplicationForm({
                       type="button"
                       variant="outline"
                       onClick={handleSaveDraft}
-                      disabled={savingDraft || submitting || clearingDraft}
+                      disabled={savingDraft || prechecking || submitting || clearingDraft}
                       className="w-full sm:w-auto"
                       size="lg"
                     >
@@ -1884,11 +2108,16 @@ export function PreApplicationForm({
                   )}
                   <Button
                     onClick={handleSubmit}
-                    disabled={submitting || !canSubmitForm}
+                    disabled={prechecking || submitting || !canSubmitForm}
                     className="w-full sm:w-auto"
                     size="lg"
                   >
-                    {submitting ? (
+                    {prechecking ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {locale === "zh" ? "正在检查..." : "Checking..."}
+                      </>
+                    ) : submitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {t.submitting}

@@ -15,6 +15,8 @@ import {
 } from "@/lib/pre-application/essay-limits"
 import { invalidateSiteSettingsCache } from "@/lib/site-settings"
 import { invalidateSubmitLimitsCache } from "@/lib/pre-application/submit-limits"
+import { invalidatePreApplicationCaptchaSettingsCache } from "@/lib/pre-application/captcha-settings"
+import { getCaptchaProviderConfig } from "@/lib/captcha/config"
 import {
   DEFAULT_PREAPP_DAILY_GLOBAL_LIMIT,
   DEFAULT_PREAPP_DAILY_USER_LIMIT,
@@ -50,6 +52,8 @@ const systemConfigSchema = z.object({
   preApplicationDailyUserLimit: z.number().int().min(1).optional(),
   preApplicationSubmitStartTime: z.string().optional(),
   preApplicationSubmitEndTime: z.string().optional(),
+  preApplicationCaptchaEnabled: z.boolean().optional(),
+  preApplicationCaptchaProvider: z.enum(["turnstile", "hcaptcha", "geetest"]).optional().nullable(),
   preApplicationAppealEnabled: z.boolean().optional(),
   preApplicationAppealAutoRejectEnabled: z.boolean().optional(),
   preApplicationAppealAutoRejectPatterns: z.array(z.string()).optional(),
@@ -105,6 +109,8 @@ export async function GET(request: NextRequest) {
         preApplicationDailyUserLimit: true,
         preApplicationSubmitStartTime: true,
         preApplicationSubmitEndTime: true,
+        preApplicationCaptchaEnabled: true,
+        preApplicationCaptchaProvider: true,
         preApplicationAppealEnabled: true,
         preApplicationAppealAutoRejectEnabled: true,
         preApplicationAppealAutoRejectPatterns: true,
@@ -140,6 +146,8 @@ export async function GET(request: NextRequest) {
         preApplicationDailyUserLimit: DEFAULT_PREAPP_DAILY_USER_LIMIT,
         preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
         preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
+        preApplicationCaptchaEnabled: false,
+        preApplicationCaptchaProvider: null,
         preApplicationAppealEnabled: false,
         preApplicationAppealAutoRejectEnabled: false,
         preApplicationAppealAutoRejectPatterns: [],
@@ -185,6 +193,8 @@ export async function GET(request: NextRequest) {
       preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
       preApplicationSubmitStartTime: submitLimits.submitStartTime,
       preApplicationSubmitEndTime: submitLimits.submitEndTime,
+      preApplicationCaptchaEnabled: settings.preApplicationCaptchaEnabled ?? false,
+      preApplicationCaptchaProvider: settings.preApplicationCaptchaProvider ?? null,
       preApplicationAppealEnabled: settings.preApplicationAppealEnabled ?? false,
       preApplicationAppealAutoRejectEnabled:
         settings.preApplicationAppealAutoRejectEnabled ?? false,
@@ -316,6 +326,26 @@ export async function PUT(request: NextRequest) {
       })
     }
 
+    const captchaEnabled = data.preApplicationCaptchaEnabled ?? before?.preApplicationCaptchaEnabled ?? false
+    const captchaProvider = data.preApplicationCaptchaProvider ?? before?.preApplicationCaptchaProvider ?? null
+
+    if (captchaEnabled) {
+      if (!captchaProvider) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "启用提交验证码时必须选择供应商" },
+        })
+      }
+
+      const providerConfig = getCaptchaProviderConfig(captchaProvider)
+      if (!providerConfig.enabled) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: `所选验证码供应商 ${captchaProvider} 未完成环境变量配置` },
+        })
+      }
+    }
+
     const submitLimits = normalizeSubmitLimits({
       dailyGlobalLimit:
         data.preApplicationDailyGlobalLimit ??
@@ -343,6 +373,8 @@ export async function PUT(request: NextRequest) {
         preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
         preApplicationSubmitStartTime: submitLimits.submitStartTime,
         preApplicationSubmitEndTime: submitLimits.submitEndTime,
+        preApplicationCaptchaEnabled: captchaEnabled,
+        preApplicationCaptchaProvider: captchaProvider,
         preApplicationAppealEnabled: data.preApplicationAppealEnabled ?? false,
         preApplicationAppealAutoRejectEnabled:
           data.preApplicationAppealAutoRejectEnabled ?? false,
@@ -379,6 +411,12 @@ export async function PUT(request: NextRequest) {
         preApplicationDailyUserLimit: submitLimits.dailyUserLimit,
         preApplicationSubmitStartTime: submitLimits.submitStartTime,
         preApplicationSubmitEndTime: submitLimits.submitEndTime,
+        ...(data.preApplicationCaptchaEnabled !== undefined && {
+          preApplicationCaptchaEnabled: captchaEnabled,
+        }),
+        ...(data.preApplicationCaptchaProvider !== undefined && {
+          preApplicationCaptchaProvider: captchaProvider,
+        }),
         ...(data.preApplicationAppealEnabled !== undefined && {
           preApplicationAppealEnabled: data.preApplicationAppealEnabled,
         }),
@@ -448,6 +486,8 @@ export async function PUT(request: NextRequest) {
           "preApplicationDailyUserLimit",
           "preApplicationSubmitStartTime",
           "preApplicationSubmitEndTime",
+          "preApplicationCaptchaEnabled",
+          "preApplicationCaptchaProvider",
           "preApplicationAppealEnabled",
           "preApplicationAppealAutoRejectEnabled",
           "preApplicationAppealAutoRejectPatterns",
@@ -477,6 +517,7 @@ export async function PUT(request: NextRequest) {
 
     await invalidateSiteSettingsCache()
     await invalidateSubmitLimitsCache()
+    await invalidatePreApplicationCaptchaSettingsCache()
 
     return NextResponse.json({
       preApplicationEssayHint: updated.preApplicationEssayHint,
@@ -486,6 +527,8 @@ export async function PUT(request: NextRequest) {
       preApplicationDailyUserLimit: updated.preApplicationDailyUserLimit,
       preApplicationSubmitStartTime: updated.preApplicationSubmitStartTime,
       preApplicationSubmitEndTime: updated.preApplicationSubmitEndTime,
+      preApplicationCaptchaEnabled: updated.preApplicationCaptchaEnabled,
+      preApplicationCaptchaProvider: updated.preApplicationCaptchaProvider,
       preApplicationAppealEnabled: updated.preApplicationAppealEnabled,
       preApplicationAppealAutoRejectEnabled: updated.preApplicationAppealAutoRejectEnabled,
       preApplicationAppealAutoRejectPatterns: updated.preApplicationAppealAutoRejectPatterns,

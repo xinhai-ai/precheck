@@ -554,6 +554,8 @@ model SiteSettings {
   preApplicationDailyUserLimit   Int      @default(5)
   preApplicationSubmitStartTime              String   @default("09:00")
   preApplicationSubmitEndTime                String   @default("21:00")
+  preApplicationCaptchaEnabled              Boolean  @default(false)
+  preApplicationCaptchaProvider             String?
   preApplicationAppealEnabled                Boolean  @default(false)
   preApplicationAppealAutoRejectEnabled      Boolean  @default(false)
   preApplicationAppealAutoRejectPatterns     Json     @default("[]")

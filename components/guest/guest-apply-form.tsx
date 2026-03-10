@@ -31,6 +31,10 @@ import { cn } from "@/lib/utils"
 import { preApplicationSources } from "@/lib/pre-application/constants"
 import type { QQGroupConfig } from "@/lib/pre-application/constants"
 import { EmailWithDomainInput } from "@/components/ui/email-with-domain-input"
+import {
+  CaptchaChallengeDialog,
+  type CaptchaProvider,
+} from "@/components/captcha/captcha-challenge-dialog"
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { PostContent } from "@/components/posts/post-content"
 import type { Locale } from "@/lib/i18n/config"
@@ -120,12 +124,34 @@ type SubmitQuotaStatus = {
   globalRemainingToday: number | null
 }
 
+type SubmitPrecheckReason =
+  | "submit_window_closed"
+  | "user_quota_insufficient"
+  | "quota_insufficient"
+  | "service_unavailable"
+
+type SubmitPrecheckResponse = {
+  allowed: boolean
+  reason: SubmitPrecheckReason | null
+  submitQuotaStatus?: SubmitQuotaStatus | null
+  captchaEnabled: boolean
+  captchaProvider: CaptchaProvider | null
+  captchaPublicConfig: Record<string, unknown> | null
+}
+
 export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) {
   const [essayMinChars, setEssayMinChars] = useState(50)
   const [essayMaxChars, setEssayMaxChars] = useState(300)
   const [loadingRecord, setLoadingRecord] = useState(true)
   const [loadingGroups, setLoadingGroups] = useState(true)
+  const [prechecking, setPrechecking] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [captchaDialogOpen, setCaptchaDialogOpen] = useState(false)
+  const [captchaProvider, setCaptchaProvider] = useState<CaptchaProvider | null>(null)
+  const [captchaPublicConfig, setCaptchaPublicConfig] = useState<Record<string, unknown> | null>(
+    null,
+  )
+  const [captchaError, setCaptchaError] = useState<string | null>(null)
   const [record, setRecord] = useState<GuestRecord | null>(null)
   const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
   const [qqGroups, setQqGroups] = useState<QQGroupConfig[]>([])
@@ -219,35 +245,82 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
     }
   }, [formData.source, formData.sourceDetail])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const closeCaptchaDialog = () => {
+    setCaptchaDialogOpen(false)
+    setCaptchaProvider(null)
+    setCaptchaPublicConfig(null)
+    setCaptchaError(null)
+  }
+
+  const handleCaptchaDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      closeCaptchaDialog()
+      return
+    }
+
+    setCaptchaDialogOpen(true)
+  }
+
+  const getPrecheckFailureMessage = (result: SubmitPrecheckResponse) => {
+    switch (result.reason) {
+      case "submit_window_closed":
+        return locale === "zh" ? "当前不在可提交时间段" : "Submissions are not open right now"
+      case "service_unavailable":
+        return locale === "zh"
+          ? "提交额度信息暂不可用，请稍后重试"
+          : "Submit quota information is temporarily unavailable. Please try again later."
+      case "user_quota_insufficient":
+      case "quota_insufficient":
+      default:
+        return locale === "zh" ? "当前配额不足" : "Insufficient quota right now"
+    }
+  }
+
+  const isCaptchaChallengeMessage = (message?: string) =>
+    Boolean(
+      message &&
+      (message.includes("人机验证") ||
+        message.includes("验证码") ||
+        message.toLowerCase().includes("captcha")),
+    )
+
+  const runSubmitPrecheck = async (): Promise<SubmitPrecheckResponse | null> => {
+    const res = await fetch("/api/guest/apply/precheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+
+    const data = (await res.json().catch(() => ({}))) as Partial<SubmitPrecheckResponse> & {
+      error?: string
+    }
+
+    if (data.submitQuotaStatus) {
+      setSubmitQuotaStatus(data.submitQuotaStatus)
+    }
+
+    if (!res.ok) {
+      toast.error(data.error || dict.submitFailed)
+      return null
+    }
+
+    return {
+      allowed: Boolean(data.allowed),
+      reason: data.reason ?? null,
+      submitQuotaStatus: data.submitQuotaStatus ?? null,
+      captchaEnabled: Boolean(data.captchaEnabled),
+      captchaProvider: data.captchaProvider ?? null,
+      captchaPublicConfig: data.captchaPublicConfig ?? null,
+    }
+  }
+
+  const submitApplication = async (captcha?: {
+    provider: CaptchaProvider
+    payload: Record<string, unknown>
+  }) => {
     setSubmitting(true)
+    setCaptchaError(null)
 
     try {
-      const trimmedEssayLength = formData.essay.trim().length
-      if (trimmedEssayLength < essayMinChars) {
-        const template =
-          dict.validation.essayTooShort ||
-          (locale === "zh"
-            ? "申请内容不少于 {min} 个字符"
-            : "Essay must be at least {min} characters")
-        toast.error(template.replace("{min}", String(essayMinChars)))
-        return
-      }
-
-      if (trimmedEssayLength > essayMaxChars) {
-        const template =
-          dict.validation.essayTooLong ||
-          (locale === "zh" ? "申请内容最多 {max} 个字符" : "Essay must be at most {max} characters")
-        toast.error(template.replace("{max}", String(essayMaxChars)))
-        return
-      }
-
-      if (formData.source === "OTHER" && !formData.sourceDetail.trim()) {
-        toast.error(dict.validation.sourceDetailRequired)
-        return
-      }
-
       const res = await fetch("/api/guest/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -257,21 +330,109 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
           sourceDetail: formData.source === "OTHER" ? formData.sourceDetail : null,
           registerEmail: formData.registerEmail,
           group: formData.group,
+          captchaProvider: captcha?.provider ?? null,
+          captchaPayload: captcha?.payload ?? null,
         }),
       })
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        toast.error(data.error || dict.submitFailed)
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        const message = data.error || dict.submitFailed
+
+        if (captcha && isCaptchaChallengeMessage(message)) {
+          setCaptchaError(message)
+          return false
+        }
+
+        closeCaptchaDialog()
+        toast.error(message)
+        if (res.status === 409) {
+          await loadRecord()
+        }
+        return false
+      }
+
+      closeCaptchaDialog()
+      toast.success(dict.submitSuccess)
+      await loadRecord()
+      return true
+    } catch {
+      if (!captcha) {
+        closeCaptchaDialog()
+      }
+      toast.error(dict.submitFailed)
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCaptchaVerify = async (payload: Record<string, unknown>) => {
+    if (!captchaProvider) {
+      setCaptchaError(
+        locale === "zh"
+          ? "验证码供应商未准备好，请重试"
+          : "Captcha provider is not ready. Please try again.",
+      )
+      return
+    }
+
+    await submitApplication({ provider: captchaProvider, payload })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const trimmedEssayLength = formData.essay.trim().length
+    if (trimmedEssayLength < essayMinChars) {
+      const template =
+        dict.validation.essayTooShort ||
+        (locale === "zh"
+          ? "申请内容不少于 {min} 个字符"
+          : "Essay must be at least {min} characters")
+      toast.error(template.replace("{min}", String(essayMinChars)))
+      return
+    }
+
+    if (trimmedEssayLength > essayMaxChars) {
+      const template =
+        dict.validation.essayTooLong ||
+        (locale === "zh" ? "申请内容最多 {max} 个字符" : "Essay must be at most {max} characters")
+      toast.error(template.replace("{max}", String(essayMaxChars)))
+      return
+    }
+
+    if (formData.source === "OTHER" && !formData.sourceDetail.trim()) {
+      toast.error(dict.validation.sourceDetailRequired)
+      return
+    }
+
+    setPrechecking(true)
+    setCaptchaError(null)
+
+    try {
+      const precheck = await runSubmitPrecheck()
+      if (!precheck) {
         return
       }
 
-      toast.success(dict.submitSuccess)
-      await loadRecord()
+      if (!precheck.allowed) {
+        toast.error(getPrecheckFailureMessage(precheck))
+        return
+      }
+
+      if (!precheck.captchaEnabled || !precheck.captchaProvider || !precheck.captchaPublicConfig) {
+        await submitApplication()
+        return
+      }
+
+      setCaptchaProvider(precheck.captchaProvider)
+      setCaptchaPublicConfig(precheck.captchaPublicConfig)
+      setCaptchaDialogOpen(true)
     } catch {
       toast.error(dict.submitFailed)
     } finally {
-      setSubmitting(false)
+      setPrechecking(false)
     }
   }
 
@@ -370,7 +531,8 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
                 {submitQuotaStatus.userRemainingToday ?? "-"} / {submitQuotaStatus.dailyUserLimit}
               </p>
               <p className="text-xs text-muted-foreground">
-                {locale === "zh" ? "今日已用" : "Used Today"}: {submitQuotaStatus.userUsedToday ?? "-"}
+                {locale === "zh" ? "今日已用" : "Used Today"}:{" "}
+                {submitQuotaStatus.userUsedToday ?? "-"}
               </p>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 space-y-1">
@@ -378,7 +540,8 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
                 {locale === "zh" ? "全站剩余" : "Global Remaining"}
               </p>
               <p className="text-xl font-semibold">
-                {submitQuotaStatus.globalRemainingToday ?? "-"} / {submitQuotaStatus.dailyGlobalLimit}
+                {submitQuotaStatus.globalRemainingToday ?? "-"} /{" "}
+                {submitQuotaStatus.dailyGlobalLimit}
               </p>
               <p className="text-xs text-muted-foreground">
                 {locale === "zh" ? "今日已用" : "Used Today"}:{" "}
@@ -406,7 +569,8 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
                     : "Closed Now"}
               </Badge>
               <p className="text-xs text-muted-foreground">
-                {submitQuotaStatus.submitStartTime} - {submitQuotaStatus.submitEndTime} (Asia/Shanghai)
+                {submitQuotaStatus.submitStartTime} - {submitQuotaStatus.submitEndTime}{" "}
+                (Asia/Shanghai)
               </p>
             </div>
           </div>
@@ -684,6 +848,7 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
             <Button
               type="submit"
               disabled={
+                prechecking ||
                 submitting ||
                 formData.essay.length < essayMinChars ||
                 formData.essay.length > essayMaxChars ||
@@ -692,7 +857,12 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
               className="w-full sm:w-auto"
               size="lg"
             >
-              {submitting ? (
+              {prechecking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {locale === "zh" ? "正在检查..." : "Checking..."}
+                </>
+              ) : submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {dict.submitting}
@@ -704,6 +874,16 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
           </form>
         </CardContent>
       </Card>
+
+      <CaptchaChallengeDialog
+        open={captchaDialogOpen}
+        provider={captchaProvider}
+        publicConfig={captchaPublicConfig}
+        onOpenChange={handleCaptchaDialogOpenChange}
+        onVerify={handleCaptchaVerify}
+        loading={submitting}
+        error={captchaError}
+      />
     </motion.div>
   )
 }

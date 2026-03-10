@@ -781,9 +781,6 @@
     }
   },
   "errors": {
-    "backHome": "Back to Home",
-    "tryAgain": "Try Again",
-    "turnstileRequired": "Please complete the verification challenge before continuing.",
     "400": {
       "title": "Bad Request",
       "description": "The server could not understand the request due to invalid syntax.",
@@ -813,7 +810,10 @@
       "title": "Under Maintenance",
       "description": "The site is currently undergoing maintenance. Please check back later.",
       "hint": "Access will be restored once maintenance is complete."
-    }
+    },
+    "backHome": "Back to Home",
+    "tryAgain": "Try Again",
+    "turnstileRequired": "Please complete the verification challenge before continuing."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -871,7 +871,11 @@
         "Check results via messages and review history"
       ],
       "statusTitle": "Statuses",
-      "statuses": ["Pending", "Approved", "Rejected"],
+      "statuses": [
+        "Pending",
+        "Approved",
+        "Rejected"
+      ],
       "rulesTitle": "Rules",
       "rules": [
         "Only one pre-application is allowed",
@@ -2375,7 +2379,6 @@
     "inviteCodeUrlPrefix": "Invite Code URL Prefix",
     "inviteCodeUrlPrefixPlaceholder": "https://example.com/register?code=",
     "inviteCodeUrlPrefixDesc": "This prefix will be prepended to invite codes for easy click-through registration",
-    "systemStatus": "System Status",
     "statusDesc": "Monitor health status of system dependencies",
     "statusOverall": "Overall Status",
     "statusOk": "Operational",
@@ -2415,7 +2418,16 @@
     "statusNodeVersion": "Node.js",
     "statusMemRss": "RSS Memory",
     "statusMemHeap": "Heap Used / Total",
-    "statusMemExternal": "External Memory"
+    "statusMemExternal": "External Memory",
+    "preApplicationCaptchaEnabled": "Enable submit captcha",
+    "preApplicationCaptchaEnabledDesc": "Require a captcha challenge before users can submit a pre-application.",
+    "preApplicationCaptchaProvider": "Captcha provider",
+    "preApplicationCaptchaProviderDesc": "Only render the selected captcha provider after submit precheck passes.",
+    "preApplicationCaptchaProviderPlaceholder": "Select a provider",
+    "preApplicationCaptchaProviderTurnstile": "Turnstile",
+    "preApplicationCaptchaProviderHcaptcha": "hCaptcha",
+    "preApplicationCaptchaProviderGeetest": "GeeTest",
+    "preApplicationCaptchaProviderRequired": "Select a captcha provider before enabling submit captcha"
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -2483,15 +2495,25 @@
         "intro": "This project is licensed under the MIT License. This means you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.",
         "permissions": {
           "title": "Permissions",
-          "items": ["Commercial use", "Modification", "Distribution", "Private use"]
+          "items": [
+            "Commercial use",
+            "Modification",
+            "Distribution",
+            "Private use"
+          ]
         },
         "conditions": {
           "title": "Conditions",
-          "items": ["License and copyright notice must be included"]
+          "items": [
+            "License and copyright notice must be included"
+          ]
         },
         "limitations": {
           "title": "Limitations",
-          "items": ["No liability", "No warranty"]
+          "items": [
+            "No liability",
+            "No warranty"
+          ]
         },
         "fullText": {
           "title": "Full License Text",
@@ -2565,10 +2587,22 @@
       "title": "Why Pre-Application System",
       "subtitle": "Sincere, Friendly, United, Professional - Building a community we're proud of",
       "items": [
-        { "title": "Sincere", "description": "Be genuine and honest, reject deception" },
-        { "title": "Friendly", "description": "Help every member warmly, reject arrogance" },
-        { "title": "United", "description": "Build an ideal community together, reject isolation" },
-        { "title": "Professional", "description": "Pursue excellence, reject mediocrity" }
+        {
+          "title": "Sincere",
+          "description": "Be genuine and honest, reject deception"
+        },
+        {
+          "title": "Friendly",
+          "description": "Help every member warmly, reject arrogance"
+        },
+        {
+          "title": "United",
+          "description": "Build an ideal community together, reject isolation"
+        },
+        {
+          "title": "Professional",
+          "description": "Pursue excellence, reject mediocrity"
+        }
       ]
     },
     "features": {

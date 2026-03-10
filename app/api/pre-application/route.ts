@@ -28,6 +28,9 @@ import {
   getPreApplicationSubmitQuotaSnapshot,
 } from "@/lib/pre-application/submit-quota"
 import { getSubmitBanRemainingSeconds } from "@/lib/pre-application/submit-ban-utils"
+import { getPreApplicationCaptchaSettings } from "@/lib/pre-application/captcha-settings"
+import { checkPreApplicationSubmitEligibility } from "@/lib/pre-application/submit-precheck"
+import { verifyCaptchaChallenge } from "@/lib/captcha/verify"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -102,12 +105,18 @@ const preApplicationSchema = z.object({
   registerEmail: z.string().email(),
   group: z.string().min(1), // 动态群 ID，由 QQ 群配置决定
   version: z.number().optional(), // 乐观锁版本号
+  captchaProvider: z.enum(["turnstile", "hcaptcha", "geetest"]).optional().nullable(),
+  captchaPayload: z.record(z.string(), z.unknown()).optional().nullable(),
 })
 
 // 验证群 ID 是否在配置中
 async function isValidGroupId(groupId: string): Promise<boolean> {
   const groups = await getQQGroups()
   return groups.some((g) => g.id === groupId)
+}
+
+function getClientIp(request: NextRequest): string | undefined {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || undefined
 }
 
 async function enforcePreApplicationSubmitLimits(
@@ -337,6 +346,54 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const eligibility = await checkPreApplicationSubmitEligibility(`user:${user.id}`)
+    if (!eligibility.allowed) {
+      if (eligibility.reason === "submit_window_closed") {
+        return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitWindowClosed, {
+          status: 403,
+          meta: { detail: "当前不在可提交时间段" },
+        })
+      }
+
+      if (eligibility.reason === "service_unavailable") {
+        return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitRateServiceUnavailable, { status: 503 })
+      }
+
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.dailyGlobalLimitExceeded, {
+        status: 429,
+        meta: { detail: "当前配额不足" },
+      })
+    }
+
+    const captchaSettings = await getPreApplicationCaptchaSettings()
+    if (captchaSettings.preApplicationCaptchaEnabled) {
+      if (!captchaSettings.preApplicationCaptchaProvider) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "验证码供应商未配置" },
+        })
+      }
+
+      if (data.captchaProvider !== captchaSettings.preApplicationCaptchaProvider || !data.captchaPayload) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "请先完成人机验证" },
+        })
+      }
+
+      const captchaVerification = await verifyCaptchaChallenge({
+        provider: data.captchaProvider,
+        payload: data.captchaPayload,
+        remoteIp: getClientIp(request),
+      })
+      if (!captchaVerification.ok) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "人机验证未通过，请重试" },
+        })
+      }
+    }
+
     // 验证群 ID 是否有效
     if (!(await isValidGroupId(data.group))) {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.invalidGroup, {
@@ -521,6 +578,54 @@ export async function PUT(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.sourceDetailRequired, {
         status: 400,
       })
+    }
+
+    const eligibility = await checkPreApplicationSubmitEligibility(`user:${user.id}`)
+    if (!eligibility.allowed) {
+      if (eligibility.reason === "submit_window_closed") {
+        return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitWindowClosed, {
+          status: 403,
+          meta: { detail: "当前不在可提交时间段" },
+        })
+      }
+
+      if (eligibility.reason === "service_unavailable") {
+        return createApiErrorResponse(request, ApiErrorKeys.preApplication.submitRateServiceUnavailable, { status: 503 })
+      }
+
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.dailyGlobalLimitExceeded, {
+        status: 429,
+        meta: { detail: "当前配额不足" },
+      })
+    }
+
+    const captchaSettings = await getPreApplicationCaptchaSettings()
+    if (captchaSettings.preApplicationCaptchaEnabled) {
+      if (!captchaSettings.preApplicationCaptchaProvider) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "验证码供应商未配置" },
+        })
+      }
+
+      if (data.captchaProvider !== captchaSettings.preApplicationCaptchaProvider || !data.captchaPayload) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "请先完成人机验证" },
+        })
+      }
+
+      const captchaVerification = await verifyCaptchaChallenge({
+        provider: data.captchaProvider,
+        payload: data.captchaPayload,
+        remoteIp: getClientIp(request),
+      })
+      if (!captchaVerification.ok) {
+        return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+          status: 400,
+          meta: { detail: "人机验证未通过，请重试" },
+        })
+      }
     }
 
     // 验证群 ID 是否有效

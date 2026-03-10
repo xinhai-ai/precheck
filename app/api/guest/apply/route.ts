@@ -18,6 +18,9 @@ import {
   consumePreApplicationSubmitQuota,
   getPreApplicationSubmitQuotaSnapshot,
 } from "@/lib/pre-application/submit-quota"
+import { getPreApplicationCaptchaSettings } from "@/lib/pre-application/captcha-settings"
+import { checkPreApplicationSubmitEligibility } from "@/lib/pre-application/submit-precheck"
+import { verifyCaptchaChallenge } from "@/lib/captcha/verify"
 
 async function generateUniqueQueryToken(): Promise<string> {
   if (!db) throw new Error("Database not configured")
@@ -35,11 +38,17 @@ const guestApplicationSchema = z.object({
   sourceDetail: z.string().max(100).optional().nullable(),
   registerEmail: z.string().email(),
   group: z.string().min(1),
+  captchaProvider: z.enum(["turnstile", "hcaptcha", "geetest"]).optional().nullable(),
+  captchaPayload: z.record(z.string(), z.unknown()).optional().nullable(),
 })
 
 async function isValidGroupId(groupId: string): Promise<boolean> {
   const groups = await fetchQQGroups()
   return groups.some((g) => g.id === groupId)
+}
+
+function getClientIp(request: NextRequest): string | undefined {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || undefined
 }
 
 async function enforceGuestSubmitLimits(qqNumber: string): Promise<NextResponse | null> {
@@ -189,6 +198,39 @@ export async function POST(request: NextRequest) {
 
     if (!(await isValidGroupId(data.group))) {
       return NextResponse.json({ error: "无效的群组" }, { status: 400 })
+    }
+
+    const eligibility = await checkPreApplicationSubmitEligibility(`qq:${qqNumber}`)
+    if (!eligibility.allowed) {
+      if (eligibility.reason === "submit_window_closed") {
+        return NextResponse.json({ error: "当前不在可提交时间段" }, { status: 403 })
+      }
+
+      if (eligibility.reason === "service_unavailable") {
+        return NextResponse.json({ error: "提交限流服务不可用，请稍后重试" }, { status: 503 })
+      }
+
+      return NextResponse.json({ error: "当前配额不足" }, { status: 429 })
+    }
+
+    const captchaSettings = await getPreApplicationCaptchaSettings()
+    if (captchaSettings.preApplicationCaptchaEnabled) {
+      if (!captchaSettings.preApplicationCaptchaProvider) {
+        return NextResponse.json({ error: "验证码供应商未配置" }, { status: 400 })
+      }
+
+      if (data.captchaProvider !== captchaSettings.preApplicationCaptchaProvider || !data.captchaPayload) {
+        return NextResponse.json({ error: "请先完成人机验证" }, { status: 400 })
+      }
+
+      const captchaVerification = await verifyCaptchaChallenge({
+        provider: data.captchaProvider,
+        payload: data.captchaPayload,
+        remoteIp: getClientIp(request),
+      })
+      if (!captchaVerification.ok) {
+        return NextResponse.json({ error: "人机验证未通过，请重试" }, { status: 400 })
+      }
     }
 
     const existingByQQ = await db.preApplication.count({ where: { qqNumber } })
