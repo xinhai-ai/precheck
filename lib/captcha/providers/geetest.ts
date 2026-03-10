@@ -2,17 +2,57 @@ import { createHmac } from "node:crypto"
 
 const GEETEST_VERIFY_URL = "https://gcaptcha4.geetest.com/validate"
 
-export async function verifyGeeTestPayload(payload: Record<string, unknown>): Promise<boolean> {
+export type GeeTestVerifyResult = {
+  ok: boolean
+  detail?: string
+}
+
+type GeeTestValidateResponse = {
+  result?: string
+  reason?: string
+  status?: string
+  code?: string
+  msg?: string
+}
+
+function normalizePayloadValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim()
+  }
+
+  if (typeof value === "number" || typeof value === "bigint") {
+    return String(value)
+  }
+
+  return ""
+}
+
+function buildDetail(response: GeeTestValidateResponse): string | undefined {
+  const parts = [
+    typeof response.reason === "string" ? response.reason.trim() : "",
+    typeof response.msg === "string" ? response.msg.trim() : "",
+    typeof response.code === "string" ? `code=${response.code.trim()}` : "",
+  ].filter(Boolean)
+
+  return parts.length > 0 ? parts.join(" | ") : undefined
+}
+
+export async function verifyGeeTestPayload(
+  payload: Record<string, unknown>,
+): Promise<GeeTestVerifyResult> {
   const captchaId = process.env.NEXT_PUBLIC_GEETEST_CAPTCHA_ID?.trim()
   const captchaKey = process.env.GEETEST_CAPTCHA_KEY?.trim()
-  const lotNumber = typeof payload.lot_number === "string" ? payload.lot_number.trim() : ""
-  const captchaOutput =
-    typeof payload.captcha_output === "string" ? payload.captcha_output.trim() : ""
-  const passToken = typeof payload.pass_token === "string" ? payload.pass_token.trim() : ""
-  const genTime = typeof payload.gen_time === "string" ? payload.gen_time.trim() : ""
+  const lotNumber = normalizePayloadValue(payload.lot_number)
+  const captchaOutput = normalizePayloadValue(payload.captcha_output)
+  const passToken = normalizePayloadValue(payload.pass_token)
+  const genTime = normalizePayloadValue(payload.gen_time)
 
-  if (!captchaId || !captchaKey || !lotNumber || !captchaOutput || !passToken || !genTime) {
-    return false
+  if (!captchaId || !captchaKey) {
+    return { ok: false, detail: "GeeTest 环境变量未配置完整" }
+  }
+
+  if (!lotNumber || !captchaOutput || !passToken || !genTime) {
+    return { ok: false, detail: "GeeTest 验证参数不完整" }
   }
 
   const signToken = createHmac("sha256", captchaKey).update(lotNumber).digest("hex")
@@ -25,15 +65,28 @@ export async function verifyGeeTestPayload(payload: Record<string, unknown>): Pr
   })
 
   try {
-    const response = await fetch(`${GEETEST_VERIFY_URL}?captcha_id=${encodeURIComponent(captchaId)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData,
+    const response = await fetch(
+      `${GEETEST_VERIFY_URL}?captcha_id=${encodeURIComponent(captchaId)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData,
+      },
+    )
+
+    const data = (await response.json()) as GeeTestValidateResponse
+    if (response.ok && data.result === "success") {
+      return { ok: true }
+    }
+
+    const detail = buildDetail(data) || (!response.ok ? `HTTP ${response.status}` : undefined)
+    console.warn("GeeTest secondary verification rejected:", {
+      httpStatus: response.status,
+      response: data,
     })
-    const data = (await response.json()) as { result?: string }
-    return data.result === "success"
+    return { ok: false, detail }
   } catch (error) {
     console.error("GeeTest verification failed:", error)
-    return false
+    return { ok: false, detail: "GeeTest 服务请求失败" }
   }
 }

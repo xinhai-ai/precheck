@@ -12,6 +12,7 @@ export type CaptchaVerifyInput = {
 export type CaptchaVerifyResult = {
   ok: boolean
   reason?: string
+  detail?: string
 }
 
 export async function verifyCaptchaChallenge(
@@ -34,6 +35,10 @@ export async function verifyCaptchaChallenge(
     return { ok, reason: ok ? undefined : "hcaptcha_verification_failed" }
   }
 
-  const ok = await verifyGeeTestPayload(input.payload)
-  return { ok, reason: ok ? undefined : "geetest_verification_failed" }
+  const result = await verifyGeeTestPayload(input.payload)
+  return {
+    ok: result.ok,
+    reason: result.ok ? undefined : "geetest_verification_failed",
+    detail: result.detail,
+  }
 }

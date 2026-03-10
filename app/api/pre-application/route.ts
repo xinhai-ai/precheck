@@ -183,9 +183,17 @@ async function validatePreApplicationSubmitCaptcha(
     remoteIp: getClientIp(request),
   })
   if (!captchaVerification.ok) {
+    const providerDetail = captchaVerification.detail?.trim()
+    const detail = providerDetail
+      ? `人机验证未通过，请重新提交（${providerDetail}）`
+      : "人机验证未通过，请重新提交"
+
     return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
       status: 400,
-      meta: { detail: "人机验证未通过，请重新提交" },
+      meta: {
+        detail,
+        providerDetail: providerDetail ?? null,
+      },
     })
   }
 
