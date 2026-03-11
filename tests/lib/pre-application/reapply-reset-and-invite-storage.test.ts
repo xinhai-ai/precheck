@@ -45,6 +45,7 @@ const permissionsUrl = new URL("../../../lib/auth/permissions.ts", import.meta.u
 const openApiSpecUrl = new URL("../../../lib/openapi-spec.ts", import.meta.url)
 const systemStatsRouteUrl = new URL("../../../app/api/system-stats/route.ts", import.meta.url)
 const statsBannerUrl = new URL("../../../components/sections/stats-banner.tsx", import.meta.url)
+const reapplyMigrationUrl = new URL("../../../prisma/migrations/202603110002_add_user_preapplication_reapply_state/migration.sql", import.meta.url)
 
 const schemaSource = readFileSync(schemaUrl, "utf8")
 const usersTableSource = readFileSync(usersTableUrl, "utf8")
@@ -61,6 +62,7 @@ const systemStatsRouteSource = readFileSync(systemStatsRouteUrl, "utf8")
 const statsBannerSource = readFileSync(statsBannerUrl, "utf8")
 
 test("user schema supports approved-user reapply state", () => {
+  assert.equal(existsSync(reapplyMigrationUrl), true)
   assert.match(schemaSource, /preApplicationReapplyEligibleAt\s+DateTime\?/) 
   assert.match(schemaSource, /preApplicationReapplyStartedAt\s+DateTime\?/) 
 })
