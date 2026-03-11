@@ -1866,6 +1866,7 @@
     "duplicateCheckSimilarity": "Similarity",
     "duplicateCheckViewOriginal": "View Original",
     "duplicateCheckFailed": "Duplicate check failed, please retry",
+    "copied": "Copied",
     "inviteCodeCreate": "Create Invite Code",
     "inviteCodeRequired": "Invite code is required",
     "inviteCodePlaceholder": "Paste invite code or link",

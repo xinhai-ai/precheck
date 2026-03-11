@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
 import {
@@ -26,7 +26,6 @@ import {
   Users,
   Inbox,
   Archive,
-  Sparkles,
   Copy,
   Check,
   ExternalLink,
@@ -93,20 +92,6 @@ import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
 import { extractPureCode } from "@/lib/invite-code/utils"
 import { MAX_PRE_APPLICATION_ADMIN_NOTE_LENGTH } from "@/lib/pre-application/admin-note-utils"
 
-// AI 审核结果类型
-type AIReviewResult = {
-  suggestion: "APPROVE" | "REJECT" | "DISPUTE"
-  confidence: number
-  scores: {
-    relevance: number
-    authenticity: number
-    completeness: number
-    expression: number
-  }
-  referenceReply: string
-  reasoning: string
-}
-
 // 查重结果类型
 type DuplicateRecord = {
   id: string
@@ -116,14 +101,12 @@ type DuplicateRecord = {
   registerEmail?: string
   createdAt: string
   status: string
-  aiReason?: string
 }
 
 type DuplicateCheckResult = {
   hasDuplicates: boolean
   records: DuplicateRecord[]
   totalCandidates: number
-  aiEnabled: boolean
 }
 
 type AdminPreApplication = {
@@ -413,18 +396,13 @@ export function AdminPreApplicationsTable({
   const [exporting, setExporting] = useState(false)
   const [shadowBanSubmitting, setShadowBanSubmitting] = useState(false)
 
-  // AI 审核相关状态
-  const [aiReviewLoading, setAIReviewLoading] = useState(false)
-  const [aiReviewResult, setAIReviewResult] = useState<AIReviewResult | null>(null)
-  const [aiReviewError, setAIReviewError] = useState<string | null>(null)
-  const [replyCopied, setReplyCopied] = useState(false)
-
   // 查重相关状态
   const [duplicateCheckLoading, setDuplicateCheckLoading] = useState(false)
   const [duplicateCheckResult, setDuplicateCheckResult] = useState<DuplicateCheckResult | null>(
     null,
   )
   const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null)
+  const duplicateCheckRequestRef = useRef(0)
   const [fingerprintLoading, setFingerprintLoading] = useState(false)
   const [fingerprintError, setFingerprintError] = useState<string | null>(null)
   const [fingerprintDetail, setFingerprintDetail] = useState<FingerprintDetail | null>(null)
@@ -493,6 +471,11 @@ export function AdminPreApplicationsTable({
   useEffect(() => {
     loadReviewTemplates()
   }, [])
+
+  useEffect(() => {
+    if (!dialogOpen || !selected?.id) return
+    void handleDuplicateCheck(selected.id)
+  }, [dialogOpen, selected?.id])
 
   const fetchRecords = async () => {
     setLoading(true)
@@ -630,7 +613,6 @@ export function AdminPreApplicationsTable({
     return (dict.preApplication.sources as Record<string, string>)[key] || value
   }
 
-
   const getAppealSourceLabel = (value: "USER_APPEAL" | "ADMIN_REVIEW_REQUEST") => {
     if (value === "ADMIN_REVIEW_REQUEST") {
       return adminExt.adminReviewRequestSource || "管理员复审"
@@ -684,9 +666,7 @@ export function AdminPreApplicationsTable({
         throw new Error(message)
       }
 
-      toast.success(
-        adminExt.preApplicationReviewRequestSuccess || "已提交复审请求并通知申请人",
-      )
+      toast.success(adminExt.preApplicationReviewRequestSuccess || "已提交复审请求并通知申请人")
       closeReviewRequestDialog()
       await fetchRecords()
     } catch (error) {
@@ -1069,9 +1049,8 @@ export function AdminPreApplicationsTable({
     setNewNoteContent("")
     setEditingNoteId(null)
     setEditingNoteContent("")
-    // 重置 AI 审核状态
-    setAIReviewResult(null)
-    setAIReviewError(null)
+    duplicateCheckRequestRef.current += 1
+    setDuplicateCheckLoading(true)
     setDuplicateCheckResult(null)
     setDuplicateCheckError(null)
     setInviteCodeCheckResult(null)
@@ -1098,39 +1077,16 @@ export function AdminPreApplicationsTable({
     loadFingerprintDetail(record.id)
   }
 
-  // AI 审核处理函数
-  const handleAIReview = async () => {
-    if (!selected) return
-    setAIReviewLoading(true)
-    setAIReviewError(null)
-
-    try {
-      const res = await fetch(`/api/admin/pre-applications/${selected.id}/ai-review`, {
-        method: "POST",
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        const message = resolveApiErrorMessage(data, dict) ?? t.aiReviewFailed
-        throw new Error(message)
-      }
-      const data = await res.json()
-      setAIReviewResult(data)
-    } catch (error) {
-      setAIReviewError(error instanceof Error ? error.message : t.aiReviewFailed)
-      toast.error(t.aiReviewFailed)
-    } finally {
-      setAIReviewLoading(false)
-    }
-  }
-
   // 查重处理函数
-  const handleDuplicateCheck = async () => {
-    if (!selected) return
+  const handleDuplicateCheck = async (recordId = selected?.id) => {
+    if (!recordId) return
+    const requestId = duplicateCheckRequestRef.current + 1
+    duplicateCheckRequestRef.current = requestId
     setDuplicateCheckLoading(true)
     setDuplicateCheckError(null)
 
     try {
-      const res = await fetch(`/api/admin/pre-applications/${selected.id}/duplicate-check`, {
+      const res = await fetch(`/api/admin/pre-applications/${recordId}/duplicate-check`, {
         method: "POST",
       })
       if (!res.ok) {
@@ -1139,51 +1095,17 @@ export function AdminPreApplicationsTable({
         throw new Error(message)
       }
       const data = await res.json()
+      if (duplicateCheckRequestRef.current !== requestId) return
       setDuplicateCheckResult(data)
     } catch (error) {
+      if (duplicateCheckRequestRef.current !== requestId) return
       setDuplicateCheckError(error instanceof Error ? error.message : t.duplicateCheckFailed)
       toast.error(t.duplicateCheckFailed)
     } finally {
-      setDuplicateCheckLoading(false)
+      if (duplicateCheckRequestRef.current === requestId) {
+        setDuplicateCheckLoading(false)
+      }
     }
-  }
-
-  // 复制参考回复
-  const handleCopyReply = () => {
-    if (aiReviewResult?.referenceReply) {
-      navigator.clipboard.writeText(aiReviewResult.referenceReply)
-      setReplyCopied(true)
-      setTimeout(() => setReplyCopied(false), 2000)
-    }
-  }
-
-  // 获取 AI 建议配置
-  const getAISuggestionConfig = (suggestion: "APPROVE" | "REJECT" | "DISPUTE") => {
-    const configs = {
-      APPROVE: {
-        label: t.aiReviewSuggestApprove,
-        className:
-          "bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-500/20 dark:text-green-400",
-      },
-      REJECT: {
-        label: t.aiReviewSuggestReject,
-        className:
-          "bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/20 dark:text-red-400",
-      },
-      DISPUTE: {
-        label: t.aiReviewSuggestDispute,
-        className:
-          "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400",
-      },
-    }
-    return configs[suggestion]
-  }
-
-  // 获取分数颜色
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return "bg-green-500"
-    if (score >= 40) return "bg-amber-500"
-    return "bg-red-500"
   }
 
   const handleReview = async () => {
@@ -2114,7 +2036,7 @@ export function AdminPreApplicationsTable({
                           className="h-5 w-5 text-muted-foreground hover:text-foreground"
                           onClick={() => {
                             navigator.clipboard.writeText(selected.queryToken!)
-                            toast.success(t.aiReviewCopied || "已复制")
+                            toast.success(t.copied || "已复制")
                           }}
                         >
                           <Copy className="h-3 w-3" />
@@ -2165,7 +2087,7 @@ export function AdminPreApplicationsTable({
                                     selected.fingerprintHash ||
                                     "",
                                 )
-                                toast.success(t.aiReviewCopied || "已复制")
+                                toast.success(t.copied || "已复制")
                               }}
                             >
                               <Copy className="h-3 w-3" />
@@ -2287,145 +2209,10 @@ export function AdminPreApplicationsTable({
                         className="select-text"
                       />
                     </div>
-
-                    {/* AI 辅助工具栏 */}
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs"
-                        onClick={handleAIReview}
-                        disabled={aiReviewLoading}
-                      >
-                        {aiReviewLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3.5 w-3.5" />
-                        )}
-                        {aiReviewLoading ? t.aiReviewLoading : t.aiReview}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs"
-                        onClick={handleDuplicateCheck}
-                        disabled={duplicateCheckLoading}
-                      >
-                        {duplicateCheckLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Search className="h-3.5 w-3.5" />
-                        )}
-                        {duplicateCheckLoading ? t.duplicateCheckLoading : t.duplicateCheck}
-                      </Button>
-                    </div>
-
-                    {/* AI 审核结果卡片 */}
-                    {aiReviewResult && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-3 space-y-3 rounded-lg border bg-gradient-to-br from-primary/5 to-transparent p-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-medium">{t.aiReviewResult}</span>
-                          </div>
-                          <Badge
-                            className={cn(
-                              "border",
-                              getAISuggestionConfig(aiReviewResult.suggestion).className,
-                            )}
-                          >
-                            {getAISuggestionConfig(aiReviewResult.suggestion).label}
-                            <span className="ml-1 opacity-70">({aiReviewResult.confidence}%)</span>
-                          </Badge>
-                        </div>
-
-                        {/* 多维度评分 */}
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                          {[
-                            { key: "relevance", label: t.aiReviewRelevance },
-                            { key: "authenticity", label: t.aiReviewAuthenticity },
-                            { key: "completeness", label: t.aiReviewCompleteness },
-                            { key: "expression", label: t.aiReviewExpression },
-                          ].map(({ key, label }) => {
-                            const score =
-                              aiReviewResult.scores[key as keyof typeof aiReviewResult.scores]
-                            return (
-                              <div key={key} className="space-y-1">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-muted-foreground">{label}</span>
-                                  <span className="font-medium">{score}</span>
-                                </div>
-                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                  <div
-                                    className={cn(
-                                      "h-full rounded-full transition-all",
-                                      getScoreColor(score),
-                                    )}
-                                    style={{ width: `${score}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-
-                        {/* 分析理由 */}
-                        {aiReviewResult.reasoning && (
-                          <div className="rounded-md border bg-muted/30 p-3">
-                            <p className="text-xs text-muted-foreground">
-                              {aiReviewResult.reasoning}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* 参考回复 */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {t.aiReviewReferenceReply}
-                            </span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={handleCopyReply}
-                                >
-                                  {replyCopied ? (
-                                    <Check className="h-3 w-3 text-green-500" />
-                                  ) : (
-                                    <Copy className="h-3 w-3" />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {replyCopied ? t.aiReviewCopied : t.aiReviewCopy}
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          <div className="rounded-md border bg-card p-3 text-sm">
-                            {aiReviewResult.referenceReply}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* AI 审核错误 */}
-                    {aiReviewError && (
-                      <div className="mt-3 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                        <div className="flex items-center gap-2 text-sm text-destructive">
-                          <XCircle className="h-4 w-4" />
-                          <span>{t.aiReviewFailed}</span>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={handleAIReview}>
-                          <RotateCcw className="mr-1.5 h-3 w-3" />
-                          {dict.errors.tryAgain}
-                        </Button>
+                    {duplicateCheckLoading && (
+                      <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>{t.duplicateCheckLoading}</span>
                       </div>
                     )}
 
@@ -2546,7 +2333,11 @@ export function AdminPreApplicationsTable({
                           <XCircle className="h-4 w-4" />
                           <span>{t.duplicateCheckFailed}</span>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={handleDuplicateCheck}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDuplicateCheck()}
+                        >
                           <RotateCcw className="mr-1.5 h-3 w-3" />
                           {dict.errors.tryAgain}
                         </Button>
@@ -3092,7 +2883,12 @@ export function AdminPreApplicationsTable({
         </DrawerContent>
       </Drawer>
 
-      <Dialog open={reviewRequestDialogOpen} onOpenChange={(open) => (!open ? closeReviewRequestDialog() : setReviewRequestDialogOpen(true))}>
+      <Dialog
+        open={reviewRequestDialogOpen}
+        onOpenChange={(open) =>
+          !open ? closeReviewRequestDialog() : setReviewRequestDialogOpen(true)
+        }
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>

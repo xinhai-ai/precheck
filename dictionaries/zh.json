@@ -1860,6 +1860,7 @@
     "duplicateCheckSimilarity": "相似度",
     "duplicateCheckViewOriginal": "查看原申请",
     "duplicateCheckFailed": "查重失败，请重试",
+    "copied": "已复制",
     "inviteCodeCreate": "新增邀请码",
     "inviteCodeRequired": "请输入邀请码",
     "inviteCodePlaceholder": "粘贴邀请码或链接",
