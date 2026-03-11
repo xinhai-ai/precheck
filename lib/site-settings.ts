@@ -17,6 +17,11 @@ export type SiteSettings = {
   inviteCodeUrlPrefix: string
   analyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
+  newUserAnnouncementEnabled: boolean
+  newUserAnnouncementContent: string
+  newUserAnnouncementConfirmText: string
+  newUserAnnouncementDelaySeconds: number
+  newUserAnnouncementVersion: number
 }
 
 type SiteSettingsRecord = {
@@ -33,6 +38,11 @@ type SiteSettingsRecord = {
   inviteCodeUrlPrefix: string | null
   analyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
+  newUserAnnouncementEnabled: boolean
+  newUserAnnouncementContent: string
+  newUserAnnouncementConfirmText: string
+  newUserAnnouncementDelaySeconds: number
+  newUserAnnouncementVersion: number
 }
 
 const defaultSettings: SiteSettings = {
@@ -49,6 +59,11 @@ const defaultSettings: SiteSettings = {
   inviteCodeUrlPrefix: "",
   analyticsEnabled: true,
   linuxdoAutoAdmin: false,
+  newUserAnnouncementEnabled: false,
+  newUserAnnouncementContent: "",
+  newUserAnnouncementConfirmText: "",
+  newUserAnnouncementDelaySeconds: 0,
+  newUserAnnouncementVersion: 1,
 }
 
 const SITE_SETTINGS_CACHE_KEY = "site-settings:global:v1"
@@ -72,6 +87,11 @@ function toSiteSettings(record: SiteSettingsRecord): SiteSettings {
     inviteCodeUrlPrefix: record.inviteCodeUrlPrefix ?? "",
     analyticsEnabled: record.analyticsEnabled,
     linuxdoAutoAdmin: record.linuxdoAutoAdmin,
+    newUserAnnouncementEnabled: record.newUserAnnouncementEnabled,
+    newUserAnnouncementContent: record.newUserAnnouncementContent ?? "",
+    newUserAnnouncementConfirmText: record.newUserAnnouncementConfirmText ?? "",
+    newUserAnnouncementDelaySeconds: record.newUserAnnouncementDelaySeconds,
+    newUserAnnouncementVersion: record.newUserAnnouncementVersion,
   }
 }
 
@@ -93,7 +113,12 @@ function parseCachedSiteSettings(raw: string): SiteSettings | null {
       typeof parsed.userTicketsEnabled !== "boolean" ||
       typeof parsed.inviteCodeUrlPrefix !== "string" ||
       typeof parsed.analyticsEnabled !== "boolean" ||
-      typeof parsed.linuxdoAutoAdmin !== "boolean"
+      typeof parsed.linuxdoAutoAdmin !== "boolean" ||
+      typeof parsed.newUserAnnouncementEnabled !== "boolean" ||
+      typeof parsed.newUserAnnouncementContent !== "string" ||
+      typeof parsed.newUserAnnouncementConfirmText !== "string" ||
+      typeof parsed.newUserAnnouncementDelaySeconds !== "number" ||
+      typeof parsed.newUserAnnouncementVersion !== "number"
     ) {
       return null
     }
@@ -170,6 +195,11 @@ async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
       inviteCodeUrlPrefix: true,
       analyticsEnabled: true,
       linuxdoAutoAdmin: true,
+      newUserAnnouncementEnabled: true,
+      newUserAnnouncementContent: true,
+      newUserAnnouncementConfirmText: true,
+      newUserAnnouncementDelaySeconds: true,
+      newUserAnnouncementVersion: true,
     },
   })
 
@@ -230,6 +260,16 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
     inviteCodeUrlPrefix: updates.inviteCodeUrlPrefix ?? current.inviteCodeUrlPrefix,
     analyticsEnabled: updates.analyticsEnabled ?? current.analyticsEnabled,
     linuxdoAutoAdmin: updates.linuxdoAutoAdmin ?? current.linuxdoAutoAdmin,
+    newUserAnnouncementEnabled:
+      updates.newUserAnnouncementEnabled ?? current.newUserAnnouncementEnabled,
+    newUserAnnouncementContent:
+      updates.newUserAnnouncementContent ?? current.newUserAnnouncementContent,
+    newUserAnnouncementConfirmText:
+      updates.newUserAnnouncementConfirmText ?? current.newUserAnnouncementConfirmText,
+    newUserAnnouncementDelaySeconds:
+      updates.newUserAnnouncementDelaySeconds ?? current.newUserAnnouncementDelaySeconds,
+    newUserAnnouncementVersion:
+      updates.newUserAnnouncementVersion ?? current.newUserAnnouncementVersion,
   }
 
   const saved = await db.siteSettings.upsert({
@@ -253,6 +293,11 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       inviteCodeUrlPrefix: true,
       analyticsEnabled: true,
       linuxdoAutoAdmin: true,
+      newUserAnnouncementEnabled: true,
+      newUserAnnouncementContent: true,
+      newUserAnnouncementConfirmText: true,
+      newUserAnnouncementDelaySeconds: true,
+      newUserAnnouncementVersion: true,
     },
   })
 

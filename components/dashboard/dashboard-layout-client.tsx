@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState } from "react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
+import { NewUserAnnouncementGate } from "@/components/dashboard/new-user-announcement-gate"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Watermark } from "@/components/ui/watermark"
@@ -10,6 +11,14 @@ import type { Locale } from "@/lib/i18n/config"
 
 type DashboardFeatureFlags = {
   userTicketsEnabled: boolean
+}
+
+type DashboardAnnouncement = {
+  enabled: boolean
+  content: string
+  confirmText: string
+  delaySeconds: number
+  version: number
 }
 
 const DashboardFeatureFlagsContext = createContext<DashboardFeatureFlags>({
@@ -25,6 +34,7 @@ interface DashboardLayoutClientProps {
   dict: Dictionary
   user: { id: string; name?: string | null; email: string; role: string; avatar?: string | null }
   userTicketsEnabled: boolean
+  announcement: DashboardAnnouncement
   children: React.ReactNode
 }
 
@@ -33,12 +43,14 @@ export function DashboardLayoutClient({
   dict,
   user,
   userTicketsEnabled,
+  announcement,
   children,
 }: DashboardLayoutClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <DashboardFeatureFlagsContext.Provider value={{ userTicketsEnabled }}>
+      <NewUserAnnouncementGate locale={locale} user={user} announcement={announcement} />
       <div className="flex min-h-screen bg-muted/30">
         {/* 水印 */}
         <Watermark userId={user.id} email={user.email} name={user.name ?? undefined} />

@@ -413,6 +413,11 @@ export interface SiteSettings {
   inviteCodeCheckApiKey: string | null
   analyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
+  newUserAnnouncementEnabled: boolean
+  newUserAnnouncementContent: string
+  newUserAnnouncementConfirmText: string
+  newUserAnnouncementDelaySeconds: number
+  newUserAnnouncementVersion: number
   createdAt: Date
   updatedAt: Date
   selectedEmailApiConfig: EmailApiConfig | null

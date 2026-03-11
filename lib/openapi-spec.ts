@@ -998,6 +998,11 @@ export const openApiSpec = {
                       type: "integer",
                       minimum: 1,
                     },
+                    newUserAnnouncementEnabled: { type: "boolean" },
+                    newUserAnnouncementContent: { type: "string" },
+                    newUserAnnouncementConfirmText: { type: "string" },
+                    newUserAnnouncementDelaySeconds: { type: "integer", minimum: 0 },
+                    newUserAnnouncementVersion: { type: "integer", minimum: 1 },
                     maxResubmitCount: { type: "integer" },
                   },
                 },
@@ -1041,6 +1046,11 @@ export const openApiSpec = {
                     type: "integer",
                     minimum: 1,
                   },
+                  newUserAnnouncementEnabled: { type: "boolean" },
+                  newUserAnnouncementContent: { type: "string" },
+                  newUserAnnouncementConfirmText: { type: "string" },
+                  newUserAnnouncementDelaySeconds: { type: "integer", minimum: 0 },
+                  newUserAnnouncementVersion: { type: "integer", minimum: 1 },
                   maxResubmitCount: { type: "integer", minimum: 0 },
                 },
               },
@@ -1050,6 +1060,28 @@ export const openApiSpec = {
         responses: {
           "200": { description: "更新成功" },
           "400": { description: "参数错误" },
+        },
+      },
+    },
+    "/admin/system-config/dashboard-user-announcement/retrigger": {
+      post: {
+        tags: ["Admin"],
+        summary: "重新触发后台公告确认",
+        responses: {
+          "200": {
+            description: "触发成功",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    newUserAnnouncementVersion: { type: "integer", minimum: 1 },
+                  },
+                },
+              },
+            },
+          },
+          "403": { description: "无权限" },
         },
       },
     },

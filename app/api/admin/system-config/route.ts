@@ -59,6 +59,11 @@ const systemConfigSchema = z.object({
   preApplicationAppealAutoRejectPatterns: z.array(z.string()).optional(),
   preApplicationAppealAutoRejectApplySubmitBan: z.boolean().optional(),
   preApplicationAppealAutoRejectSubmitBanDays: z.number().int().min(1).optional(),
+  newUserAnnouncementEnabled: z.boolean().optional(),
+  newUserAnnouncementContent: z.string().optional(),
+  newUserAnnouncementConfirmText: z.string().optional(),
+  newUserAnnouncementDelaySeconds: z.number().int().min(0).max(300).optional(),
+  newUserAnnouncementVersion: z.number().int().min(1).optional(),
   allowedEmailDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).min(1),
   auditLogEnabled: z.boolean().optional(),
   reviewTemplatesApprove: z.array(z.string()).optional(),
@@ -116,6 +121,11 @@ export async function GET(request: NextRequest) {
         preApplicationAppealAutoRejectPatterns: true,
         preApplicationAppealAutoRejectApplySubmitBan: true,
         preApplicationAppealAutoRejectSubmitBanDays: true,
+        newUserAnnouncementEnabled: true,
+        newUserAnnouncementContent: true,
+        newUserAnnouncementConfirmText: true,
+        newUserAnnouncementDelaySeconds: true,
+        newUserAnnouncementVersion: true,
         allowedEmailDomains: true,
         auditLogEnabled: true,
         reviewTemplatesApprove: true,
@@ -153,6 +163,11 @@ export async function GET(request: NextRequest) {
         preApplicationAppealAutoRejectPatterns: [],
         preApplicationAppealAutoRejectApplySubmitBan: false,
         preApplicationAppealAutoRejectSubmitBanDays: PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+        newUserAnnouncementEnabled: false,
+        newUserAnnouncementContent: "",
+        newUserAnnouncementConfirmText: "",
+        newUserAnnouncementDelaySeconds: 0,
+        newUserAnnouncementVersion: 1,
         allowedEmailDomains: defaultEmailDomains,
         auditLogEnabled: false,
         reviewTemplatesApprove: [],
@@ -208,6 +223,11 @@ export async function GET(request: NextRequest) {
       preApplicationAppealAutoRejectSubmitBanDays:
         settings.preApplicationAppealAutoRejectSubmitBanDays ??
         PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
+      newUserAnnouncementEnabled: settings.newUserAnnouncementEnabled ?? false,
+      newUserAnnouncementContent: settings.newUserAnnouncementContent ?? "",
+      newUserAnnouncementConfirmText: settings.newUserAnnouncementConfirmText ?? "",
+      newUserAnnouncementDelaySeconds: settings.newUserAnnouncementDelaySeconds ?? 0,
+      newUserAnnouncementVersion: settings.newUserAnnouncementVersion ?? 1,
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
@@ -326,8 +346,40 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    const captchaEnabled = data.preApplicationCaptchaEnabled ?? before?.preApplicationCaptchaEnabled ?? false
-    const captchaProvider = data.preApplicationCaptchaProvider ?? before?.preApplicationCaptchaProvider ?? null
+    const captchaEnabled =
+      data.preApplicationCaptchaEnabled ?? before?.preApplicationCaptchaEnabled ?? false
+    const captchaProvider =
+      data.preApplicationCaptchaProvider ?? before?.preApplicationCaptchaProvider ?? null
+    const newUserAnnouncementEnabled =
+      data.newUserAnnouncementEnabled ?? before?.newUserAnnouncementEnabled ?? false
+    const newUserAnnouncementContent = (
+      data.newUserAnnouncementContent ??
+      before?.newUserAnnouncementContent ??
+      ""
+    ).trim()
+    const newUserAnnouncementConfirmText = (
+      data.newUserAnnouncementConfirmText ??
+      before?.newUserAnnouncementConfirmText ??
+      ""
+    ).trim()
+    const newUserAnnouncementDelaySeconds =
+      data.newUserAnnouncementDelaySeconds ?? before?.newUserAnnouncementDelaySeconds ?? 0
+    const newUserAnnouncementVersion =
+      data.newUserAnnouncementVersion ?? before?.newUserAnnouncementVersion ?? 1
+
+    if (newUserAnnouncementEnabled && !newUserAnnouncementContent) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "启用公告确认时必须填写公告内容" },
+      })
+    }
+
+    if (newUserAnnouncementEnabled && !newUserAnnouncementConfirmText) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "启用公告确认时必须填写确认口令" },
+      })
+    }
 
     if (captchaEnabled) {
       if (!captchaProvider) {
@@ -376,12 +428,16 @@ export async function PUT(request: NextRequest) {
         preApplicationCaptchaEnabled: captchaEnabled,
         preApplicationCaptchaProvider: captchaProvider,
         preApplicationAppealEnabled: data.preApplicationAppealEnabled ?? false,
-        preApplicationAppealAutoRejectEnabled:
-          data.preApplicationAppealAutoRejectEnabled ?? false,
+        preApplicationAppealAutoRejectEnabled: data.preApplicationAppealAutoRejectEnabled ?? false,
         preApplicationAppealAutoRejectPatterns: autoRejectPatterns,
         preApplicationAppealAutoRejectApplySubmitBan:
           data.preApplicationAppealAutoRejectApplySubmitBan ?? false,
         preApplicationAppealAutoRejectSubmitBanDays: autoRejectSubmitBanDays,
+        newUserAnnouncementEnabled,
+        newUserAnnouncementContent,
+        newUserAnnouncementConfirmText,
+        newUserAnnouncementDelaySeconds,
+        newUserAnnouncementVersion,
         allowedEmailDomains: data.allowedEmailDomains,
         auditLogEnabled: data.auditLogEnabled ?? false,
         reviewTemplatesApprove: data.reviewTemplatesApprove ?? [],
@@ -432,6 +488,21 @@ export async function PUT(request: NextRequest) {
         }),
         ...(data.preApplicationAppealAutoRejectSubmitBanDays !== undefined && {
           preApplicationAppealAutoRejectSubmitBanDays: autoRejectSubmitBanDays,
+        }),
+        ...(data.newUserAnnouncementEnabled !== undefined && {
+          newUserAnnouncementEnabled,
+        }),
+        ...(data.newUserAnnouncementContent !== undefined && {
+          newUserAnnouncementContent,
+        }),
+        ...(data.newUserAnnouncementConfirmText !== undefined && {
+          newUserAnnouncementConfirmText,
+        }),
+        ...(data.newUserAnnouncementDelaySeconds !== undefined && {
+          newUserAnnouncementDelaySeconds,
+        }),
+        ...(data.newUserAnnouncementVersion !== undefined && {
+          newUserAnnouncementVersion,
         }),
         allowedEmailDomains: data.allowedEmailDomains,
         ...(data.auditLogEnabled !== undefined && { auditLogEnabled: data.auditLogEnabled }),
@@ -493,6 +564,11 @@ export async function PUT(request: NextRequest) {
           "preApplicationAppealAutoRejectPatterns",
           "preApplicationAppealAutoRejectApplySubmitBan",
           "preApplicationAppealAutoRejectSubmitBanDays",
+          "newUserAnnouncementEnabled",
+          "newUserAnnouncementContent",
+          "newUserAnnouncementConfirmText",
+          "newUserAnnouncementDelaySeconds",
+          "newUserAnnouncementVersion",
           "allowedEmailDomains",
           "auditLogEnabled",
           "reviewTemplatesApprove",
@@ -536,6 +612,11 @@ export async function PUT(request: NextRequest) {
         updated.preApplicationAppealAutoRejectApplySubmitBan,
       preApplicationAppealAutoRejectSubmitBanDays:
         updated.preApplicationAppealAutoRejectSubmitBanDays,
+      newUserAnnouncementEnabled: updated.newUserAnnouncementEnabled,
+      newUserAnnouncementContent: updated.newUserAnnouncementContent,
+      newUserAnnouncementConfirmText: updated.newUserAnnouncementConfirmText,
+      newUserAnnouncementDelaySeconds: updated.newUserAnnouncementDelaySeconds,
+      newUserAnnouncementVersion: updated.newUserAnnouncementVersion,
       allowedEmailDomains: updated.allowedEmailDomains,
       auditLogEnabled: updated.auditLogEnabled,
       reviewTemplatesApprove: updated.reviewTemplatesApprove,

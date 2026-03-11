@@ -38,6 +38,13 @@ export default async function DashboardLayout({ children, params }: DashboardLay
       dict={dict}
       user={user}
       userTicketsEnabled={settings.userTicketsEnabled}
+      announcement={{
+        enabled: settings.newUserAnnouncementEnabled,
+        content: settings.newUserAnnouncementContent,
+        confirmText: settings.newUserAnnouncementConfirmText,
+        delaySeconds: settings.newUserAnnouncementDelaySeconds,
+        version: settings.newUserAnnouncementVersion,
+      }}
     >
       {children}
     </DashboardLayoutClient>

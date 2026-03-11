@@ -8,7 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -101,6 +107,11 @@ type SystemConfig = {
   preApplicationAppealAutoRejectPatterns: string[]
   preApplicationAppealAutoRejectApplySubmitBan: boolean
   preApplicationAppealAutoRejectSubmitBanDays: number
+  newUserAnnouncementEnabled: boolean
+  newUserAnnouncementContent: string
+  newUserAnnouncementConfirmText: string
+  newUserAnnouncementDelaySeconds: number
+  newUserAnnouncementVersion: number
 }
 
 type EmailApiConfig = {
@@ -149,6 +160,7 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
   const [newTemplateDispute, setNewTemplateDispute] = useState("")
   const [newAutoRejectPattern, setNewAutoRejectPattern] = useState("")
   const [testingEmail, setTestingEmail] = useState(false)
+  const [retriggeringAnnouncement, setRetriggeringAnnouncement] = useState(false)
   const [testEmailAddress, setTestEmailAddress] = useState("")
 
   // API 配置管理
@@ -367,6 +379,20 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
       toast.error(t.preApplicationCaptchaProviderRequired || "启用提交验证码时必须选择供应商")
       return
     }
+    if (
+      systemConfig.newUserAnnouncementEnabled &&
+      !systemConfig.newUserAnnouncementContent.trim()
+    ) {
+      toast.error(t.newUserAnnouncementContentRequired || "启用公告确认时必须填写公告内容")
+      return
+    }
+    if (
+      systemConfig.newUserAnnouncementEnabled &&
+      !systemConfig.newUserAnnouncementConfirmText.trim()
+    ) {
+      toast.error(t.newUserAnnouncementConfirmTextRequired || "启用公告确认时必须填写确认口令")
+      return
+    }
     setSaving(true)
     setError("")
 
@@ -408,6 +434,55 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
       toast.error(message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleRetriggerNewUserAnnouncement = async () => {
+    if (!systemConfig) return
+
+    setRetriggeringAnnouncement(true)
+    try {
+      const res = await fetch("/api/admin/system-config/dashboard-user-announcement/retrigger", {
+        method: "POST",
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message =
+          resolveApiErrorMessage(data, dict) ??
+          t.newUserAnnouncementRetriggerFailed ??
+          "重新触发失败"
+        throw new Error(message)
+      }
+
+      const data = await res.json()
+      setSystemConfig((current) =>
+        current
+          ? {
+              ...current,
+              newUserAnnouncementVersion:
+                data.newUserAnnouncementVersion ?? current.newUserAnnouncementVersion,
+            }
+          : current,
+      )
+      setInitialSystemConfig((current) =>
+        current
+          ? {
+              ...current,
+              newUserAnnouncementVersion:
+                data.newUserAnnouncementVersion ?? current.newUserAnnouncementVersion,
+            }
+          : current,
+      )
+      toast.success(t.newUserAnnouncementRetriggerSuccess || "已重新触发确认")
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : (t.newUserAnnouncementRetriggerFailed ?? "重新触发失败"),
+      )
+    } finally {
+      setRetriggeringAnnouncement(false)
     }
   }
 
@@ -1139,6 +1214,113 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                     {systemConfig && (
                       <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
                         <ToggleItem
+                          icon={MessageSquare}
+                          title={t.newUserAnnouncementEnabled || "启用后台公告确认"}
+                          description={
+                            t.newUserAnnouncementEnabledDesc ||
+                            "普通用户进入后台前必须阅读公告并输入确认口令，管理员不受影响。"
+                          }
+                          checked={systemConfig.newUserAnnouncementEnabled}
+                          onCheckedChange={(v) =>
+                            setSystemConfig({
+                              ...systemConfig,
+                              newUserAnnouncementEnabled: v,
+                            })
+                          }
+                        />
+
+                        <div className="grid gap-4 border-t pt-4">
+                          <div className="space-y-2">
+                            <Label>{t.newUserAnnouncementContent || "公告内容"}</Label>
+                            <Textarea
+                              value={systemConfig.newUserAnnouncementContent}
+                              onChange={(e) =>
+                                setSystemConfig({
+                                  ...systemConfig,
+                                  newUserAnnouncementContent: e.target.value,
+                                })
+                              }
+                              rows={6}
+                              disabled={!systemConfig.newUserAnnouncementEnabled}
+                              placeholder={
+                                t.newUserAnnouncementContentPlaceholder ||
+                                "请输入需要用户阅读的公告内容"
+                              }
+                            />
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>{t.newUserAnnouncementConfirmText || "确认口令"}</Label>
+                              <Input
+                                value={systemConfig.newUserAnnouncementConfirmText}
+                                onChange={(e) =>
+                                  setSystemConfig({
+                                    ...systemConfig,
+                                    newUserAnnouncementConfirmText: e.target.value,
+                                  })
+                                }
+                                disabled={!systemConfig.newUserAnnouncementEnabled}
+                                placeholder={
+                                  t.newUserAnnouncementConfirmTextPlaceholder ||
+                                  "例如：我已阅读并知晓"
+                                }
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>{t.newUserAnnouncementDelaySeconds || "延迟秒数"}</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={300}
+                                value={systemConfig.newUserAnnouncementDelaySeconds}
+                                onChange={(e) =>
+                                  setSystemConfig({
+                                    ...systemConfig,
+                                    newUserAnnouncementDelaySeconds: Math.min(
+                                      300,
+                                      Math.max(0, Number(e.target.value) || 0),
+                                    ),
+                                  })
+                                }
+                                disabled={!systemConfig.newUserAnnouncementEnabled}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Badge variant="secondary">
+                                {t.newUserAnnouncementVersion || "当前版本"}:{" "}
+                                {systemConfig.newUserAnnouncementVersion}
+                              </Badge>
+                              <span>
+                                {t.newUserAnnouncementVersionDesc ||
+                                  "只有点击重新触发时，已确认用户才会在当前浏览器再次弹出。"}
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleRetriggerNewUserAnnouncement}
+                              disabled={retriggeringAnnouncement}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  retriggeringAnnouncement && "animate-spin",
+                                )}
+                              />
+                              {t.newUserAnnouncementRetrigger || "重新触发确认"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {systemConfig && (
+                      <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                        <ToggleItem
                           icon={Shield}
                           title={t.preApplicationCaptchaEnabled || "启用提交验证码"}
                           description={
@@ -1151,7 +1333,7 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                               ...systemConfig,
                               preApplicationCaptchaEnabled: v,
                               preApplicationCaptchaProvider: v
-                                ? systemConfig.preApplicationCaptchaProvider ?? "turnstile"
+                                ? (systemConfig.preApplicationCaptchaProvider ?? "turnstile")
                                 : systemConfig.preApplicationCaptchaProvider,
                             })
                           }
@@ -1166,12 +1348,19 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                           <Select
                             value={systemConfig.preApplicationCaptchaProvider ?? undefined}
                             onValueChange={(value: "turnstile" | "hcaptcha" | "geetest") =>
-                              setSystemConfig({ ...systemConfig, preApplicationCaptchaProvider: value })
+                              setSystemConfig({
+                                ...systemConfig,
+                                preApplicationCaptchaProvider: value,
+                              })
                             }
                             disabled={!systemConfig.preApplicationCaptchaEnabled}
                           >
                             <SelectTrigger className="w-full sm:w-72">
-                              <SelectValue placeholder={t.preApplicationCaptchaProviderPlaceholder || "请选择供应商"} />
+                              <SelectValue
+                                placeholder={
+                                  t.preApplicationCaptchaProviderPlaceholder || "请选择供应商"
+                                }
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="turnstile">
@@ -1223,9 +1412,9 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                         {systemConfig.preApplicationAppealAutoRejectEnabled ? (
                           <div className="space-y-4 border-t pt-4">
                             <div className="space-y-2">
-                              <Label>{
-                                t.preApplicationAppealAutoRejectPatterns || "自动拒绝正则规则"
-                              }</Label>
+                              <Label>
+                                {t.preApplicationAppealAutoRejectPatterns || "自动拒绝正则规则"}
+                              </Label>
                               <p className="text-sm text-muted-foreground">
                                 {t.preApplicationAppealAutoRejectPatternsDesc ||
                                   "仅匹配当前驳回意见 guidance，任意一条命中即自动拒绝申诉。"}
@@ -1289,9 +1478,7 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                                   type="number"
                                   min={1}
                                   max={3650}
-                                  value={
-                                    systemConfig.preApplicationAppealAutoRejectSubmitBanDays
-                                  }
+                                  value={systemConfig.preApplicationAppealAutoRejectSubmitBanDays}
                                   onChange={(e) =>
                                     setSystemConfig({
                                       ...systemConfig,
