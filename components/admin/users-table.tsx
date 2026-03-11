@@ -19,6 +19,7 @@ import {
   Crown,
   Key,
   Download,
+  RotateCcw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -111,6 +112,10 @@ interface AdminUser {
   latestFingerprintAt?: string | null
   banReason?: string | null
   preApplicationSubmitBannedUntil?: string | null
+  preApplicationReapplyEligibleAt?: string | null
+  preApplicationReapplyStartedAt?: string | null
+  latestPreApplicationStatus?: string | null
+  latestPreApplicationId?: string | null
   shadowBanned?: boolean
   shadowBanReason?: string | null
   shadowBannedAt?: string | null
@@ -353,6 +358,30 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     }
   }
 
+  const resetUserPreApplicationReapply = async (id: string) => {
+    setBusyId(id)
+    setError("")
+    try {
+      const res = await fetch(`/api/admin/users/${id}/reapply`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
+        throw new Error(message)
+      }
+      toast.success(
+        adminExt.preApplicationReapplyResetSuccess || "已允许该用户重新发起新一轮申请",
+      )
+      await fetchUsers()
+    } catch (resetError) {
+      console.error("Admin reset pre-application reapply error:", resetError)
+      setError(resetError instanceof Error ? resetError.message : t.actionFailed)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const batchUpdateRole = async (role: "ADMIN" | "USER") => {
     if (selectedIds.size === 0) return
     setBatchBusy(true)
@@ -487,6 +516,12 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     const canPromote = user.role === "USER" && isSuperAdmin
     const canDemote = user.role === "ADMIN" && isSuperAdmin
     const isSubmitBanned = isSubmitBanActive(user.preApplicationSubmitBannedUntil)
+    const canResetPreApplicationReapply =
+      isSuperAdmin &&
+      user.id !== currentUserId &&
+      user.role !== "SUPER_ADMIN" &&
+      user.latestPreApplicationStatus === "APPROVED" &&
+      !user.preApplicationReapplyEligibleAt
     const shouldActivate = user.status !== "ACTIVE"
     const statusLabel = shouldActivate ? t.activate : t.ban
 
@@ -546,6 +581,27 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           )}
           {isSuperAdmin && user.role !== "SUPER_ADMIN" && (
             <>
+              {canResetPreApplicationReapply && (
+                <DropdownMenuItem
+                  disabled={isBusy}
+                  onClick={() => {
+                    setConfirmState({
+                      title: adminExt.preApplicationReapplyResetTitle || "允许重新申请",
+                      description:
+                        adminExt.preApplicationReapplyResetDescription ||
+                        "此操作会将该用户最新一条已通过申请归档为历史记录，并允许其手动开始新一轮申请。",
+                      confirmLabel:
+                        adminExt.preApplicationReapplyResetAction || "允许重新申请",
+                      onConfirm: async () => {
+                        await resetUserPreApplicationReapply(user.id)
+                      },
+                    })
+                  }}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {adminExt.preApplicationReapplyResetAction || "允许重新申请"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 disabled={isBusy}
                 onClick={() => {

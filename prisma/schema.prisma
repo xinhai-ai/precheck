@@ -27,6 +27,8 @@ model User {
   status                          UserStatus @default(ACTIVE)
   banReason                       String?
   preApplicationSubmitBannedUntil DateTime?
+  preApplicationReapplyEligibleAt DateTime?
+  preApplicationReapplyStartedAt  DateTime?
   country                         String?
   latestFingerprintHash           String?
   latestFingerprintAt             DateTime?

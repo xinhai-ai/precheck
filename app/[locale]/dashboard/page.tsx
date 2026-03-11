@@ -16,7 +16,6 @@ import {
   Clock,
   AlertCircle,
   Inbox,
-  Gift,
   Settings,
   Ticket,
   MessageCircle,
@@ -24,7 +23,6 @@ import {
   Activity,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
 import { useDashboardFeatureFlags } from "@/components/dashboard/dashboard-layout-client"
 
 interface DashboardPageProps {
@@ -148,15 +146,6 @@ export default function DashboardPage({ params }: DashboardPageProps) {
       gradient: "from-teal-500/10 via-teal-500/5 to-transparent",
       iconBg: "bg-teal-500/10",
       iconColor: "text-teal-600 dark:text-teal-400",
-    },
-    {
-      href: `/${locale}/dashboard/contribute`,
-      icon: Gift,
-      title: dict.dashboard.contribute,
-      description: dict.dashboard.contributeDesc,
-      gradient: "from-emerald-500/10 via-emerald-500/5 to-transparent",
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-600 dark:text-emerald-400",
     },
     {
       href: `/${locale}/dashboard/settings`,

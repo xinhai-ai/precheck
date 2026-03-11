@@ -9,7 +9,6 @@ import {
   Mail,
   ChevronRight,
   ClipboardList,
-  Gift,
   Settings,
   Ticket,
   MessageCircle,
@@ -166,18 +165,11 @@ export function DashboardCommandMenu({
       shortcut: "⌘7",
     },
     {
-      id: "contribute",
-      label: dict.dashboard.contribute,
-      path: `/${locale}/dashboard/contribute`,
-      icon: Gift,
-      shortcut: "⌘8",
-    },
-    {
       id: "settings",
       label: dict.dashboard.settings,
       path: `/${locale}/dashboard/settings`,
       icon: Settings,
-      shortcut: "⌘9",
+      shortcut: "⌘8",
     },
   ]
 

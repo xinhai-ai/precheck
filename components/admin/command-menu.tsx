@@ -13,7 +13,6 @@ import {
   ClipboardList,
   ClipboardCheck,
   Users,
-  Key,
   ScrollText,
   History,
   ShieldAlert,
@@ -146,13 +145,6 @@ export function CommandMenu({ locale, isSuperAdmin = false }: CommandMenuProps) 
       path: `/${locale}/admin/risk-control`,
       icon: ShieldAlert,
       shortcut: "⌘8",
-    },
-    {
-      id: "invite-codes",
-      label: dict.admin.inviteCodes,
-      path: `/${locale}/admin/invite-codes`,
-      icon: Key,
-      shortcut: "⌘4",
     },
     {
       id: "messages",

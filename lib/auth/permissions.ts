@@ -15,7 +15,6 @@ const SUPER_ADMIN_ONLY_ACTIONS = [
   "audit-logs:view", // 审计日志查看
   "email-logs:view", // 邮件日志查看
   "posts:delete", // 删除文章
-  "invite-codes:delete", // 删除邀请码
   "messages:delete", // 删除站内消息
 ] as const
 

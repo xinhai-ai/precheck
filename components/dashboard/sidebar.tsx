@@ -11,7 +11,6 @@ import {
   Mail,
   ClipboardList,
   Shield,
-  Gift,
   Settings,
   Ticket,
   MessageCircle,
@@ -107,11 +106,6 @@ export function DashboardSidebar({
       name: ((dict.dashboard as unknown as Record<string, unknown>).feed as string) || "申请动态",
       href: `/${locale}/dashboard/feed`,
       icon: Activity,
-    },
-    {
-      name: dict.dashboard.contribute,
-      href: `/${locale}/dashboard/contribute`,
-      icon: Gift,
     },
     {
       name: dict.dashboard.settings,

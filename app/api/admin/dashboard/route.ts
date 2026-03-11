@@ -1,9 +1,9 @@
+import { Prisma } from "@prisma/client"
 import { NextResponse, type NextRequest } from "next/server"
 import { z } from "zod"
-import { Prisma } from "@prisma/client"
-import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
+import { getCurrentUser } from "@/lib/auth/session"
+import { db } from "@/lib/db"
 
 const querySchema = z.object({
   range: z.coerce
@@ -119,12 +119,6 @@ export async function GET(request: NextRequest) {
       bucket: toBucketKey(bucketStarts[index]),
       users: 0,
     }))
-    const inviteSeries = Array.from({ length: bucketCount }, (_, index) => ({
-      bucket: toBucketKey(bucketStarts[index]),
-      assigned: 0,
-      used: 0,
-      expired: 0,
-    }))
 
     const dateTrunc = (column: string) => Prisma.raw(`date_trunc('${granularity}', "${column}")`)
 
@@ -133,22 +127,10 @@ export async function GET(request: NextRequest) {
       approvedCount,
       rejectedCount,
       submissionsRangeCount,
-      inviteTotalCount,
-      inviteAssignedCount,
-      inviteExpiredCount,
-      inviteAvailableUnassignedCount,
-      inviteAvailableUnusedCount,
-      inviteUsedCount,
-      inviteExpiringSoonCount,
-      inviteExpiredUnusedCount,
       submissionsRows,
       reviewRows,
       userRows,
-      inviteAssignedRows,
-      inviteUsedRows,
-      inviteExpiredRows,
       sourceRows,
-      inviteStatusAssignedUnusedCount,
       reviewerStatsRows,
     ] = await Promise.all([
       db.preApplication.count({ where: { status: "PENDING" } }),
@@ -156,44 +138,6 @@ export async function GET(request: NextRequest) {
       db.preApplication.count({ where: { status: "REJECTED" } }),
       db.preApplication.count({
         where: { createdAt: { gte: rangeStart, lte: rangeEnd } },
-      }),
-      db.inviteCode.count({ where: { deletedAt: null } }),
-      db.inviteCode.count({ where: { deletedAt: null, assignedAt: { not: null } } }),
-      db.inviteCode.count({
-        where: { deletedAt: null, usedAt: null, expiresAt: { not: null, lte: now } },
-      }),
-      db.inviteCode.count({
-        where: {
-          deletedAt: null,
-          assignedAt: null,
-          usedAt: null,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-      }),
-      db.inviteCode.count({
-        where: {
-          deletedAt: null,
-          usedAt: null,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-      }),
-      db.inviteCode.count({ where: { deletedAt: null, usedAt: { not: null } } }),
-      db.inviteCode.count({
-        where: {
-          deletedAt: null,
-          usedAt: null,
-          expiresAt: {
-            gt: now,
-            lte: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-      db.inviteCode.count({
-        where: {
-          deletedAt: null,
-          usedAt: null,
-          expiresAt: { not: null, lte: now },
-        },
       }),
       db.$queryRaw<Array<{ bucket: Date; count: number }>>`
         SELECT ${dateTrunc("createdAt")} AS bucket, COUNT(*)::int AS count
@@ -218,49 +162,10 @@ export async function GET(request: NextRequest) {
         GROUP BY bucket
         ORDER BY bucket ASC
       `,
-      db.$queryRaw<Array<{ bucket: Date; count: number }>>`
-        SELECT ${dateTrunc("assignedAt")} AS bucket, COUNT(*)::int AS count
-        FROM "InviteCode"
-        WHERE "deletedAt" IS NULL
-          AND "assignedAt" IS NOT NULL
-          AND "assignedAt" >= ${rangeStart}
-          AND "assignedAt" <= ${rangeEnd}
-        GROUP BY bucket
-        ORDER BY bucket ASC
-      `,
-      db.$queryRaw<Array<{ bucket: Date; count: number }>>`
-        SELECT ${dateTrunc("usedAt")} AS bucket, COUNT(*)::int AS count
-        FROM "InviteCode"
-        WHERE "deletedAt" IS NULL
-          AND "usedAt" IS NOT NULL
-          AND "usedAt" >= ${rangeStart}
-          AND "usedAt" <= ${rangeEnd}
-        GROUP BY bucket
-        ORDER BY bucket ASC
-      `,
-      db.$queryRaw<Array<{ bucket: Date; count: number }>>`
-        SELECT ${dateTrunc("expiresAt")} AS bucket, COUNT(*)::int AS count
-        FROM "InviteCode"
-        WHERE "deletedAt" IS NULL
-          AND "usedAt" IS NULL
-          AND "expiresAt" IS NOT NULL
-          AND "expiresAt" >= ${rangeStart}
-          AND "expiresAt" <= ${rangeEnd}
-        GROUP BY bucket
-        ORDER BY bucket ASC
-      `,
       db.preApplication.groupBy({
         by: ["source"],
         where: { createdAt: { gte: rangeStart, lte: rangeEnd } },
         _count: true,
-      }),
-      db.inviteCode.count({
-        where: {
-          deletedAt: null,
-          assignedAt: { not: null },
-          usedAt: null,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
       }),
       db.$queryRaw<
         Array<{
@@ -312,27 +217,6 @@ export async function GET(request: NextRequest) {
       userSeries[index].users = Number(row.count)
     }
 
-    for (const row of inviteAssignedRows) {
-      const key = toBucketKey(new Date(row.bucket))
-      const index = bucketIndex.get(key)
-      if (index === undefined) continue
-      inviteSeries[index].assigned = Number(row.count)
-    }
-
-    for (const row of inviteUsedRows) {
-      const key = toBucketKey(new Date(row.bucket))
-      const index = bucketIndex.get(key)
-      if (index === undefined) continue
-      inviteSeries[index].used = Number(row.count)
-    }
-
-    for (const row of inviteExpiredRows) {
-      const key = toBucketKey(new Date(row.bucket))
-      const index = bucketIndex.get(key)
-      if (index === undefined) continue
-      inviteSeries[index].expired = Number(row.count)
-    }
-
     const sourceDistribution = sourceRows
       .map((row) => ({
         source: row.source ?? "UNKNOWN",
@@ -365,11 +249,11 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.total - a.total)
 
-    const currentUserStats = reviewerStats.find((r) => r.reviewerId === user.id)
+    const currentUserStats = reviewerStats.find((reviewer) => reviewer.reviewerId === user.id)
     const currentUserReviewed = currentUserStats?.total ?? 0
     const othersReviewed = reviewerStats
-      .filter((r) => r.reviewerId !== user.id)
-      .reduce((sum, r) => sum + r.total, 0)
+      .filter((reviewer) => reviewer.reviewerId !== user.id)
+      .reduce((sum, reviewer) => sum + reviewer.total, 0)
 
     return NextResponse.json({
       range: rangeDays,
@@ -379,27 +263,13 @@ export async function GET(request: NextRequest) {
         preApplicationApproved: approvedCount,
         preApplicationRejected: rejectedCount,
         preApplicationSubmitted: submissionsRangeCount,
-        inviteTotal: inviteTotalCount,
-        inviteAssigned: inviteAssignedCount,
-        inviteExpired: inviteExpiredCount,
-        inviteAvailableUnassigned: inviteAvailableUnassignedCount,
-        inviteAvailableUnused: inviteAvailableUnusedCount,
-        inviteExpiringSoon: inviteExpiringSoonCount,
-        inviteAssignedUnused: inviteStatusAssignedUnusedCount,
       },
       series: {
         preApplications: preApplicationSeries,
         users: userSeries,
-        invites: inviteSeries,
       },
       distributions: {
         sources: sourceDistribution,
-        inviteStatuses: [
-          { key: "unassigned", count: inviteAvailableUnassignedCount },
-          { key: "assignedUnused", count: inviteStatusAssignedUnusedCount },
-          { key: "used", count: inviteUsedCount },
-          { key: "expired", count: inviteExpiredUnusedCount },
-        ],
       },
       reviewerStats: {
         currentUser: currentUserReviewed,

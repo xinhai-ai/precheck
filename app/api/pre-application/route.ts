@@ -67,6 +67,31 @@ type SubmitBanStatus = {
   remainingSeconds: number
 }
 
+type ReapplyStatus = {
+  eligible: boolean
+  started: boolean
+  canStart: boolean
+  eligibleAt: string | null
+  startedAt: string | null
+}
+
+function buildReapplyStatus(input: {
+  latestStatus: PreApplicationStatus | null
+  eligibleAt: Date | null | undefined
+  startedAt: Date | null | undefined
+}): ReapplyStatus {
+  const eligible = Boolean(input.eligibleAt)
+  const started = Boolean(input.startedAt)
+
+  return {
+    eligible,
+    started,
+    canStart: eligible && !started && input.latestStatus === PreApplicationStatus.ARCHIVED,
+    eligibleAt: input.eligibleAt?.toISOString() ?? null,
+    startedAt: input.startedAt?.toISOString() ?? null,
+  }
+}
+
 async function getSubmitBanStatus(userId: string, clearExpired: boolean): Promise<SubmitBanStatus> {
   if (!db) {
     return { isSubmitBanned: false, submitBannedUntil: null, remainingSeconds: 0 }
@@ -359,6 +384,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       records: recordsForUserView,
       latest: recordsForUserView[0] ?? null,
+      reapply: buildReapplyStatus({
+        latestStatus: latest?.status ?? null,
+        eligibleAt: user.preApplicationReapplyEligibleAt,
+        startedAt: user.preApplicationReapplyStartedAt,
+      }),
       maxResubmitCount: await getMaxResubmitCount(),
       queueInfo,
       submitQuotaStatus: await getSubmitQuotaStatus(`user:${user.id}`),
@@ -462,12 +492,38 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const latest = await db.preApplication.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, status: true },
+    })
+
     const existingCount = await db.preApplication.count({
       where: { userId: user.id },
     })
 
-    if (existingCount > 0) {
-      return createApiErrorResponse(request, ApiErrorKeys.preApplication.alreadySubmitted, {
+    const isReapplyCreate =
+      Boolean(user.preApplicationReapplyEligibleAt) &&
+      Boolean(user.preApplicationReapplyStartedAt) &&
+      latest?.status === PreApplicationStatus.ARCHIVED
+
+    if (existingCount > 0 && !isReapplyCreate) {
+      const errorKey =
+        user.preApplicationReapplyEligibleAt && !user.preApplicationReapplyStartedAt
+          ? ApiErrorKeys.preApplication.reapplyStartRequired
+          : ApiErrorKeys.preApplication.alreadySubmitted
+      return createApiErrorResponse(request, errorKey, {
+        status: 409,
+      })
+    }
+
+    if (
+      existingCount > 0 &&
+      user.preApplicationReapplyEligibleAt &&
+      user.preApplicationReapplyStartedAt &&
+      latest?.status !== PreApplicationStatus.ARCHIVED
+    ) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.reapplyNotAvailable, {
         status: 409,
       })
     }
@@ -485,6 +541,16 @@ export async function POST(request: NextRequest) {
 
     // 使用事务创建预申请和版本记录
     const record = await db.$transaction(async (tx) => {
+      if (isReapplyCreate) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            preApplicationReapplyEligibleAt: null,
+            preApplicationReapplyStartedAt: null,
+          },
+        })
+      }
+
       const preApp = await tx.preApplication.create({
         data: {
           userId: user.id,
@@ -528,12 +594,12 @@ export async function POST(request: NextRequest) {
     })
 
     await writeAuditLog(db, {
-      action: "PRE_APPLICATION_SUBMIT",
+      action: isReapplyCreate ? "PRE_APPLICATION_REAPPLY_SUBMIT" : "PRE_APPLICATION_SUBMIT",
       entityType: "PRE_APPLICATION",
       entityId: record.id,
       actor: user,
       after: record,
-      metadata: { payload: data, version: 1 },
+      metadata: { payload: data, version: 1, isReapplyCreate },
       request,
     })
 
@@ -673,6 +739,16 @@ export async function PUT(request: NextRequest) {
     if (latest.status === "APPROVED") {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.alreadyApproved, {
         status: 400,
+      })
+    }
+
+    if (latest.status === "ARCHIVED") {
+      const errorKey =
+        user.preApplicationReapplyEligibleAt && !user.preApplicationReapplyStartedAt
+          ? ApiErrorKeys.preApplication.reapplyStartRequired
+          : ApiErrorKeys.preApplication.reapplyNotAvailable
+      return createApiErrorResponse(request, errorKey, {
+        status: 409,
       })
     }
 

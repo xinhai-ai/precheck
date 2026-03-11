@@ -30,7 +30,6 @@ import {
   Check,
   ExternalLink,
   PauseCircle,
-  ChevronDown,
   Download,
   MoreHorizontal,
   Plus,
@@ -88,7 +87,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
-import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
 import { extractPureCode } from "@/lib/invite-code/utils"
 import { MAX_PRE_APPLICATION_ADMIN_NOTE_LENGTH } from "@/lib/pre-application/admin-note-utils"
 
@@ -381,10 +379,6 @@ export function AdminPreApplicationsTable({
   const [newNoteContent, setNewNoteContent] = useState("")
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editingNoteContent, setEditingNoteContent] = useState("")
-  const [inviteOptions, setInviteOptions] = useState<
-    Array<{ id: string; code: string; expiresAt: string | null; usedAt: string | null }>
-  >([])
-  const [inviteOptionsLoading, setInviteOptionsLoading] = useState(false)
   const [reviewTemplates, setReviewTemplates] = useState<{
     approve: string[]
     approveNoCode: string[]
@@ -464,7 +458,6 @@ export function AdminPreApplicationsTable({
     )
       return
     if (!selected?.status || !isReviewEditableStatus(selected.status)) return
-    loadInviteOptions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, reviewAction, selected?.status])
 
@@ -942,35 +935,6 @@ export function AdminPreApplicationsTable({
     }
   }
 
-  const loadInviteOptions = async () => {
-    setInviteOptionsLoading(true)
-    try {
-      const params = new URLSearchParams({
-        status: "unused",
-        assignment: "unassigned",
-        page: "1",
-        limit: "200",
-      })
-      const res = await fetch(`/api/admin/invite-codes?${params}`)
-      if (!res.ok) {
-        throw new Error("Fetch failed")
-      }
-      const data = await res.json()
-      const now = new Date()
-      const available = (data.records || []).filter(
-        (record: { expiresAt: string | null }) =>
-          !record.expiresAt || new Date(record.expiresAt) > now,
-      )
-      setInviteOptions(available)
-    } catch (error) {
-      console.error("Invite options fetch error:", error)
-      toast.error(t.fetchFailed)
-      setInviteOptions([])
-    } finally {
-      setInviteOptionsLoading(false)
-    }
-  }
-
   const checkInviteCodeValidity = async () => {
     const trimmed = inviteCode.trim()
     if (!trimmed) return
@@ -1033,7 +997,7 @@ export function AdminPreApplicationsTable({
   const getCurrentTemplates = () => {
     if (reviewAction === "APPROVE") {
       // 当审核通过但没有选择邀请码时，使用"通过无码"模板
-      if (!inviteCodeStorageEnabled || !inviteCode.trim()) return reviewTemplates.approveNoCode
+      if (!inviteCode.trim()) return reviewTemplates.approveNoCode
       return reviewTemplates.approve
     }
     if (reviewAction === "REJECT") return reviewTemplates.reject
@@ -2688,34 +2652,6 @@ export function AdminPreApplicationsTable({
                               <Search className="h-4 w-4" />
                             )}
                           </Button>
-                          {inviteCodeStorageEnabled && inviteOptions.length > 0 && (
-                            <Select
-                              value=""
-                              onValueChange={(v) => {
-                                setInviteCode(v)
-                                setInviteCodeCheckResult(null)
-                              }}
-                              disabled={inviteOptionsLoading}
-                            >
-                              <SelectTrigger className="h-9 w-9 shrink-0 px-0 [&>svg:last-child]:hidden">
-                                <ChevronDown className="h-4 w-4" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {inviteOptions.map((option) => (
-                                  <SelectItem key={option.id} value={option.code}>
-                                    <div className="flex flex-col">
-                                      <span className="text-sm font-mono">{option.code}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {option.expiresAt
-                                          ? `${t.inviteExpiresAt} ${formatDateTime(option.expiresAt, locale)}`
-                                          : t.inviteCodeSelectNoExpiry}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
                         </div>
                         {inviteCodeCheckResult && (
                           <div

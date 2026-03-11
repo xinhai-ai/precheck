@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const mode = searchParams.get("mode")
   if (mode === "bind") {
-    return NextResponse.redirect(buildRedirectUrl("/dashboard/contribute?error=bind_disabled", request.url))
+    return NextResponse.redirect(buildRedirectUrl("/dashboard?error=bind_disabled", request.url))
   }
 
   const fpCtx = searchParams.get("fp_ctx")?.trim()

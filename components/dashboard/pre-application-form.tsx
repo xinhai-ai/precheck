@@ -35,7 +35,6 @@ import {
   Heart,
   Sparkles,
   Trash2,
-  Gift,
   MessageCircle,
   Copy,
   Check,
@@ -56,7 +55,6 @@ import {
 } from "@/components/captcha/captcha-challenge-dialog"
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { cn } from "@/lib/utils"
-import { inviteCodeStorageEnabled } from "@/lib/invite-code/client"
 import { collectFingerprint } from "@/lib/fingerprint/client"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -146,6 +144,14 @@ type SubmitBanStatus = {
   remainingSeconds: number
 }
 
+type PreApplicationReapplyState = {
+  eligible: boolean
+  started: boolean
+  canStart: boolean
+  eligibleAt: string | null
+  startedAt: string | null
+}
+
 type SubmitPrecheckReason =
   | "submit_banned"
   | "submit_window_closed"
@@ -201,6 +207,7 @@ interface PreApplicationFormProps {
   locale: Locale
   dict: Dictionary
   initialRecords?: PreApplicationRecord[]
+  initialReapply?: PreApplicationReapplyState | null
   maxResubmitCount?: number
   userEmail?: string
   userRole?: Role
@@ -248,6 +255,7 @@ export function PreApplicationForm({
   locale,
   dict,
   initialRecords,
+  initialReapply,
   maxResubmitCount: initialMaxResubmit = 3,
   userEmail,
   userRole,
@@ -260,10 +268,7 @@ export function PreApplicationForm({
   const [loading, setLoading] = useState(!initialRecords)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [claiming, setClaiming] = useState(false)
   const [copiedToken, setCopiedToken] = useState(false)
-  const [checkingCode, setCheckingCode] = useState(false)
-  const [hasAvailableCode, setHasAvailableCode] = useState<boolean | null>(null)
   const [records, setRecords] = useState<PreApplicationRecord[]>(initialRecords || [])
   const [maxResubmitCount, setMaxResubmitCount] = useState(initialMaxResubmit)
   const [activeTab, setActiveTab] = useState<"form" | "history">("form")
@@ -275,6 +280,15 @@ export function PreApplicationForm({
   } | null>(null)
   const [submitQuotaStatus, setSubmitQuotaStatus] = useState<SubmitQuotaStatus | null>(null)
   const [submitBanStatus, setSubmitBanStatus] = useState<SubmitBanStatus | null>(null)
+  const [reapply, setReapply] = useState<PreApplicationReapplyState>(
+    initialReapply ?? {
+      eligible: false,
+      started: false,
+      canStart: false,
+      eligibleAt: null,
+      startedAt: null,
+    },
+  )
   const [draft, setDraft] = useState<PreApplicationDraft | null>(null)
   const [appeals, setAppeals] = useState<PreApplicationAppealRecord[]>([])
   const [appealAvailability, setAppealAvailability] =
@@ -283,6 +297,7 @@ export function PreApplicationForm({
   const [appealLoadError, setAppealLoadError] = useState<string | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
   const [clearingDraft, setClearingDraft] = useState(false)
+  const [startingNewApplication, setStartingNewApplication] = useState(false)
   const [prechecking, setPrechecking] = useState(false)
   const [captchaDialogOpen, setCaptchaDialogOpen] = useState(false)
   const [captchaProvider, setCaptchaProvider] = useState<CaptchaProvider | null>(null)
@@ -326,6 +341,8 @@ export function PreApplicationForm({
 
   const latest = records[0] ?? null
   const pendingAppeal = appeals.find((appeal) => appeal.status === "PENDING") ?? null
+  const canStartNewApplication = latest?.status === "ARCHIVED" && reapply.canStart
+  const isNewRoundStarted = latest?.status === "ARCHIVED" && reapply.started
   const isEditing = Boolean(latest)
   const hasReviewInfo = Boolean(
     latest?.reviewedAt || latest?.reviewedBy || latest?.guidance || latest?.inviteCode,
@@ -348,6 +365,53 @@ export function PreApplicationForm({
   const isSubmitBanned = submitBanStatus?.isSubmitBanned ?? false
 
   // 删除申请记录
+
+  const handleStartNewApplication = async () => {
+    setStartingNewApplication(true)
+    try {
+      const res = await fetch("/api/pre-application/reapply/start", { method: "POST" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const message =
+          resolveApiErrorMessage(data, dict) ??
+          (((t as Record<string, unknown>).startNewApplicationFailed as string) || "开始新申请失败")
+        toast.error(message)
+        return
+      }
+
+      setReapply(
+        (data?.reapply as PreApplicationReapplyState | undefined) ?? {
+          eligible: true,
+          started: true,
+          canStart: false,
+          eligibleAt: reapply.eligibleAt,
+          startedAt: new Date().toISOString(),
+        },
+      )
+      setDraft(null)
+      setFormData({
+        essay: "",
+        source: "",
+        sourceDetail: "",
+        registerEmail: userEmail || "",
+        group: qqGroups[0]?.id || "GROUP_ONE",
+      })
+      toast.success(
+        (((t as Record<string, unknown>).startNewApplicationSuccess as string) || "已开始新一轮申请")
+      )
+      await loadRecord(false)
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : (((t as Record<string, unknown>).startNewApplicationFailed as string) ||
+            "开始新申请失败"),
+      )
+    } finally {
+      setStartingNewApplication(false)
+    }
+  }
+
   const handleDelete = async () => {
     setDeleting(true)
     try {
@@ -385,34 +449,6 @@ export function PreApplicationForm({
     }
   }
 
-  // 领取邀请码
-  const handleClaimCode = async () => {
-    setClaiming(true)
-    try {
-      const res = await fetch("/api/pre-application/claim-code", { method: "POST" })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        const message =
-          resolveApiErrorMessage(data, dict) ??
-          ((t as Record<string, unknown>).claimCodeFailed as string) ??
-          "领取失败"
-        toast.error(message)
-        return
-      }
-      toast.success(((t as Record<string, unknown>).claimCodeSuccess as string) ?? "邀请码领取成功")
-      await loadRecord()
-      router.refresh()
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : (((t as Record<string, unknown>).claimCodeFailed as string) ?? "领取失败"),
-      )
-    } finally {
-      setClaiming(false)
-    }
-  }
-
   const loadRecord = async (withLoading = true): Promise<boolean> => {
     if (withLoading) {
       setLoading(true)
@@ -432,6 +468,15 @@ export function PreApplicationForm({
       let appealRefreshSucceeded = true
 
       setRecords(nextRecords)
+      setReapply(
+        (data.reapply as PreApplicationReapplyState | undefined) ?? {
+          eligible: false,
+          started: false,
+          canStart: false,
+          eligibleAt: null,
+          startedAt: null,
+        },
+      )
       setDraft((draftData?.draft as PreApplicationDraft | null) ?? null)
 
       if (appealRes.ok) {
@@ -477,21 +522,6 @@ export function PreApplicationForm({
   }
 
   // 检查是否有可用邀请码
-  const checkAvailableCode = async () => {
-    setCheckingCode(true)
-    try {
-      const res = await fetch("/api/pre-application/check-available-code")
-      if (res.ok) {
-        const data = await res.json()
-        setHasAvailableCode(data.hasAvailableCode)
-      }
-    } catch {
-      setHasAvailableCode(false)
-    } finally {
-      setCheckingCode(false)
-    }
-  }
-
   useEffect(() => {
     if (!initialRecords) {
       loadRecord(true)
@@ -500,13 +530,6 @@ export function PreApplicationForm({
 
     loadRecord(false)
   }, [])
-
-  // 审核通过但无码时，自动检查是否有可用邀请码
-  useEffect(() => {
-    if (latest?.status === "APPROVED" && !latest?.inviteCode) {
-      checkAvailableCode()
-    }
-  }, [latest?.status, latest?.inviteCode])
 
   useEffect(() => {
     const loadSystemConfig = async () => {
@@ -563,7 +586,7 @@ export function PreApplicationForm({
       return
     }
 
-    if (!latest || latest.status === "APPROVED") {
+    if (!latest || latest.status === "APPROVED" || latest.status === "ARCHIVED") {
       return
     }
 
@@ -756,7 +779,7 @@ export function PreApplicationForm({
   }
 
   const handleSaveDraft = async () => {
-    if (latest?.status === "APPROVED") {
+    if (latest?.status === "APPROVED" || (latest?.status === "ARCHIVED" && !reapply.started)) {
       return
     }
 
@@ -978,7 +1001,8 @@ export function PreApplicationForm({
     setCaptchaError(null)
 
     try {
-      const method = latest ? "PUT" : "POST"
+      const isCreatingNewRound = latest?.status === "ARCHIVED" && reapply.started
+      const method = latest && !isCreatingNewRound ? "PUT" : "POST"
       const fingerprintPayload = await collectFingerprint()
       const res = await fetch("/api/pre-application", {
         method,
@@ -1104,6 +1128,20 @@ export function PreApplicationForm({
 
     if (latest?.status === "APPROVED") {
       toast.error(t.alreadySubmitted)
+      return
+    }
+
+    if (canStartNewApplication) {
+      toast.error(
+        (((t as Record<string, unknown>).startNewApplicationFirst as string) || "请先开始新一轮申请")
+      )
+      return
+    }
+
+    if (latest?.status === "ARCHIVED" && !reapply.started) {
+      toast.error(
+        (((t as Record<string, unknown>).startNewApplicationFirst as string) || "请先开始新一轮申请")
+      )
       return
     }
 
@@ -1244,8 +1282,12 @@ export function PreApplicationForm({
 
   const hasHistory = latest?.versions && latest.versions.length > 1
   const canSubmitForm =
-    !isSubmitBanned && (!latest || latest.status === "PENDING" || canResubmit || canEditDisputed)
-  const showForm = !latest || latest.status !== "APPROVED"
+    !isSubmitBanned &&
+    (!latest || latest.status === "PENDING" || canResubmit || canEditDisputed || isNewRoundStarted)
+  const showForm =
+    !latest ||
+    isNewRoundStarted ||
+    (latest.status !== "APPROVED" && latest.status !== "ARCHIVED")
   const appealStatusContent = renderAppealStatusContent()
 
   return (
@@ -1265,6 +1307,46 @@ export function PreApplicationForm({
           <p className="text-sm text-muted-foreground">{t.description}</p>
         </div>
       </div>
+
+      {canStartNewApplication && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="border-0 shadow-md">
+            <CardHeader>
+              <CardTitle>
+                {((t as Record<string, unknown>).reapplyReadyTitle as string) || "可以开始新一轮申请"}
+              </CardTitle>
+              <CardDescription>
+                {((t as Record<string, unknown>).reapplyReadyDescription as string) ||
+                  "管理员已重置你的申请状态。点击下方按钮后，将进入一张全新的空白申请表单。"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                {((t as Record<string, unknown>).reapplyReadyHint as string) ||
+                  "历史申请会继续保留在下方记录中，新一轮申请不会自动复制旧内容。"}
+              </div>
+              <Button onClick={handleStartNewApplication} disabled={startingNewApplication}>
+                {startingNewApplication ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {((t as Record<string, unknown>).startingNewApplication as string) ||
+                      "启动中..."}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {((t as Record<string, unknown>).startNewApplication as string) ||
+                      "开始新申请"}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* PENDING 状态 - 排队信息和温馨提示 */}
       {latest?.status === "PENDING" && (
@@ -1658,67 +1740,16 @@ export function PreApplicationForm({
                   </div>
                 )}
 
-                {/* 审核通过但无码时显示领取按钮 */}
+                {/* 审核通过但未记录具体邀请码时，提示改为人工发码 */}
                 {latest.status === "APPROVED" && !latest.inviteCode && (
-                  <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium text-amber-800 dark:text-amber-200">
-                          {((t as Record<string, unknown>).noCodeYetTitle as string) ??
-                            "暂无邀请码"}
-                        </p>
-                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                          {hasAvailableCode === false
-                            ? (((t as Record<string, unknown>).noCodeAvailableDesc as string) ??
-                              "当前暂无可用邀请码，请稍后再来查看。")
-                            : (((t as Record<string, unknown>).noCodeYetDesc as string) ??
-                              "审核已通过，但暂无可用邀请码。您可以尝试领取，如无可用码请稍后再试。")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {inviteCodeStorageEnabled && hasAvailableCode === false && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={checkAvailableCode}
-                            disabled={checkingCode}
-                            className="text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/50"
-                          >
-                            {checkingCode ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              (((t as Record<string, unknown>).refreshStatus as string) ??
-                              "刷新状态")
-                            )}
-                          </Button>
-                        )}
-                        {inviteCodeStorageEnabled ? (
-                          <Button
-                            onClick={handleClaimCode}
-                            disabled={claiming || checkingCode || hasAvailableCode === false}
-                            className="bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
-                          >
-                            {claiming ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                {((t as Record<string, unknown>).claiming as string) ?? "领取中..."}
-                              </>
-                            ) : (
-                              <>
-                                <Gift className="mr-2 h-4 w-4" />
-                                {((t as Record<string, unknown>).claimCode as string) ??
-                                  "领取邀请码"}
-                              </>
-                            )}
-                          </Button>
-                        ) : (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-                            {((t as Record<string, unknown>).manualIssueHint as string) ||
-                              "邀请码改为人工发放，请联系管理员并在控制台记录人工发码。"}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                    <p className="font-medium">
+                      {((t as Record<string, unknown>).manualIssueTitle as string) || "人工发码"}
+                    </p>
+                    <p className="mt-1 text-amber-700 dark:text-amber-300">
+                      {((t as Record<string, unknown>).manualIssueHint as string) ||
+                        "邀请码改为人工发放，请联系管理员并在控制台记录人工发码。"}
+                    </p>
                   </div>
                 )}
               </CardContent>

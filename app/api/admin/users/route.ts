@@ -97,9 +97,19 @@ export async function GET(request: NextRequest) {
           status: true,
           banReason: true,
           preApplicationSubmitBannedUntil: true,
+          preApplicationReapplyEligibleAt: true,
+          preApplicationReapplyStartedAt: true,
           createdAt: true,
           latestFingerprintHash: true,
           latestFingerprintAt: true,
+          preApplications: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+            },
+          },
           _count: {
             select: {
               preApplications: true,
@@ -139,8 +149,10 @@ export async function GET(request: NextRequest) {
       })),
     ])
 
-    const users = usersRaw.map(({ _count, shadowBannedEntry, ...rest }) => ({
+    const users = usersRaw.map(({ _count, shadowBannedEntry, preApplications, ...rest }) => ({
       ...rest,
+      latestPreApplicationStatus: preApplications[0]?.status ?? null,
+      latestPreApplicationId: preApplications[0]?.id ?? null,
       applicationCount: _count.preApplications,
       reviewCount: _count.preApplicationsReviewed,
       shadowBanned: Boolean(shadowBannedEntry),

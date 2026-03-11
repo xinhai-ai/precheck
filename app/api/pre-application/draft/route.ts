@@ -62,6 +62,22 @@ export async function PUT(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
 
+    const latestPreApplication = await db.preApplication.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: { status: true },
+    })
+
+    if (
+      user.preApplicationReapplyEligibleAt &&
+      !user.preApplicationReapplyStartedAt &&
+      latestPreApplication?.status === "ARCHIVED"
+    ) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.reapplyStartRequired, {
+        status: 409,
+      })
+    }
+
     const body = await request.json()
     const parsed = draftPayloadSchema.parse(body)
     const normalized = normalizePreApplicationDraftPayload(parsed)

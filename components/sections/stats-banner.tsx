@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Users, FileCheck, CheckCircle, Ticket } from "lucide-react"
-import type { Dictionary } from "@/lib/i18n/get-dictionary"
+import { CheckCircle, FileCheck, Users } from "lucide-react"
 import type { Locale } from "@/lib/i18n/config"
+import type { Dictionary } from "@/lib/i18n/get-dictionary"
 
 interface StatsBannerProps {
   dict: Dictionary
@@ -15,7 +15,6 @@ interface Stats {
   users_count: number
   applications_count: number
   approved_count: number
-  invite_codes_count: number
 }
 
 function formatNumber(num: number): string {
@@ -35,7 +34,6 @@ export function StatsBanner({ dict }: StatsBannerProps) {
     members: "Members",
     applications: "Applications",
     approved: "Approved",
-    inviteCodes: "Invite Codes",
   }
 
   useEffect(() => {
@@ -47,7 +45,6 @@ export function StatsBanner({ dict }: StatsBannerProps) {
           users_count: 0,
           applications_count: 0,
           approved_count: 0,
-          invite_codes_count: 0,
         })
       })
   }, [])
@@ -68,15 +65,10 @@ export function StatsBanner({ dict }: StatsBannerProps) {
       value: stats ? formatNumber(stats.approved_count) : "—",
       label: t.approved ?? "Approved",
     },
-    {
-      icon: Ticket,
-      value: stats ? formatNumber(stats.invite_codes_count) : "—",
-      label: t.inviteCodes ?? "Invite Codes",
-    },
   ]
 
   return (
-    <section className="relative py-8 border-y border-border/40 bg-muted/20 overflow-hidden">
+    <section className="relative overflow-hidden border-y border-border/40 bg-muted/20 py-8">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -85,7 +77,7 @@ export function StatsBanner({ dict }: StatsBannerProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="grid grid-cols-2 gap-6 md:grid-cols-4 md:gap-8"
+          className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:gap-8"
         >
           {statItems.map((stat, index) => (
             <motion.div

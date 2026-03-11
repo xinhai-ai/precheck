@@ -33,6 +33,8 @@ export interface User {
   status: UserStatus
   banReason: string | null
   preApplicationSubmitBannedUntil: Date | null
+  preApplicationReapplyEligibleAt: Date | null
+  preApplicationReapplyStartedAt: Date | null
   country: string | null
   latestFingerprintHash: string | null
   latestFingerprintAt: Date | null

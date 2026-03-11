@@ -18,7 +18,6 @@ export default async function PreApplicationPage({ params }: PreApplicationPageP
     redirect(`/${locale}/login`)
   }
 
-  // Server Component 数据预取
   let initialRecords = undefined
   if (db) {
     const records = await db.preApplication.findMany({
@@ -36,7 +35,6 @@ export default async function PreApplicationPage({ params }: PreApplicationPageP
       },
     })
 
-    // 序列化日期字段
     initialRecords = records.map((r) => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
@@ -66,11 +64,24 @@ export default async function PreApplicationPage({ params }: PreApplicationPageP
     maxResubmitCount = limitSettings?.maxResubmitCount ?? 2
   }
 
+  const latestStatus = initialRecords?.[0]?.status ?? null
+  const initialReapply = {
+    eligible: Boolean(user.preApplicationReapplyEligibleAt),
+    started: Boolean(user.preApplicationReapplyStartedAt),
+    canStart:
+      Boolean(user.preApplicationReapplyEligibleAt) &&
+      !user.preApplicationReapplyStartedAt &&
+      latestStatus === "ARCHIVED",
+    eligibleAt: user.preApplicationReapplyEligibleAt?.toISOString() ?? null,
+    startedAt: user.preApplicationReapplyStartedAt?.toISOString() ?? null,
+  }
+
   return (
     <PreApplicationForm
       locale={locale}
       dict={dict}
       initialRecords={initialRecords}
+      initialReapply={initialReapply}
       maxResubmitCount={maxResubmitCount}
       userEmail={user.email}
       userRole={user.role}

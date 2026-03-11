@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Mail,
   ClipboardList,
-  Key,
   ScrollText,
   LogOut,
   ChevronLeft,
@@ -71,12 +70,6 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       name: ((dict.admin as Record<string, unknown>).riskControl as string) || "风险控制",
       href: `/${locale}/admin/risk-control`,
       icon: ShieldAlert,
-      superAdminOnly: false,
-    },
-    {
-      name: dict.admin.inviteCodes,
-      href: `/${locale}/admin/invite-codes`,
-      icon: Key,
       superAdminOnly: false,
     },
     {

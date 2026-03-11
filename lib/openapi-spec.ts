@@ -745,6 +745,21 @@ export const openApiSpec = {
         },
       },
     },
+
+    "/admin/users/{id}/reapply": {
+      post: {
+        tags: ["Admin"],
+        summary: "允许已通过用户重新提交预申请（仅超级管理员）",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "已开放重新申请" },
+          "400": { description: "当前状态不支持重新申请" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "404": { description: "用户不存在" },
+        },
+      },
+    },
     "/admin/users/export": {
       get: {
         tags: ["Admin"],
@@ -901,38 +916,6 @@ export const openApiSpec = {
         responses: {
           "200": { description: "撤回成功" },
           "404": { description: "消息不存在" },
-        },
-      },
-    },
-    "/admin/invite-codes": {
-      get: {
-        tags: ["Admin"],
-        summary: "邀请码列表",
-        responses: {
-          "200": { description: "邀请码列表" },
-          "403": { description: "无权限" },
-        },
-      },
-      post: {
-        tags: ["Admin"],
-        summary: "创建/导入邀请码",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  codes: { type: "array", items: { type: "string" } },
-                  count: { type: "integer" },
-                },
-              },
-            },
-          },
-        },
-        responses: {
-          "201": { description: "创建成功" },
-          "400": { description: "参数错误" },
         },
       },
     },
@@ -1322,6 +1305,24 @@ export const openApiSpec = {
                         remainingSeconds: { type: "integer" },
                       },
                     },
+                    reapply: {
+                      type: "object",
+                      properties: {
+                        eligible: { type: "boolean" },
+                        started: { type: "boolean" },
+                        canStart: { type: "boolean" },
+                        eligibleAt: {
+                          type: "string",
+                          format: "date-time",
+                          nullable: true,
+                        },
+                        startedAt: {
+                          type: "string",
+                          format: "date-time",
+                          nullable: true,
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -1412,6 +1413,19 @@ export const openApiSpec = {
           "429": { description: "超过个人或全站每日提交限额" },
           "503": { description: "限流服务不可用" },
           "409": { description: "版本冲突" },
+        },
+      },
+    },
+
+    "/pre-application/reapply/start": {
+      post: {
+        tags: ["PreApplication"],
+        summary: "开始新一轮预申请",
+        responses: {
+          "200": { description: "已进入重新申请流程" },
+          "401": { description: "未认证" },
+          "404": { description: "预申请记录不存在" },
+          "409": { description: "当前状态不支持开始新申请" },
         },
       },
     },
