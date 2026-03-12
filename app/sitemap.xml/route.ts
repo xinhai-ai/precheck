@@ -61,9 +61,6 @@ export async function GET() {
   const baseUrl = getBaseUrl()
   const entries: string[] = []
 
-  // 根路由
-  pushSitemapEntry(entries, baseUrl, baseUrl, getLastModified("dynamic"), "daily", 1.0, "")
-
   for (const locale of locales) {
     pushSitemapEntry(
       entries,

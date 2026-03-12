@@ -1,4 +1,4 @@
-import { locales, type Locale } from "@/lib/i18n/config"
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
 
 function normalizeBaseUrl(url: string) {
   return url.replace(/\/$/, "")
@@ -54,7 +54,9 @@ export function getAlternateUrls(path: string) {
       acc[locale] = `${baseUrl}/${locale}${path}`
       return acc
     },
-    {} as Record<Locale, string>,
+    {
+      "x-default": `${baseUrl}/${defaultLocale}${path}`,
+    } as Record<string, string>,
   )
 }
 
