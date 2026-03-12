@@ -25,6 +25,14 @@ export const ApiErrorKeys = {
     me: {
       failedToGetUser: "apiErrors.auth.me.failedToGetUser",
     },
+    passkey: {
+      notConfigured: "apiErrors.auth.passkey.notConfigured",
+      challengeExpired: "apiErrors.auth.passkey.challengeExpired",
+      verificationFailed: "apiErrors.auth.passkey.verificationFailed",
+      alreadyExists: "apiErrors.auth.passkey.alreadyExists",
+      registrationFailed: "apiErrors.auth.passkey.registrationFailed",
+      authenticationFailed: "apiErrors.auth.passkey.authenticationFailed",
+    },
   },
   admin: {
     users: {
@@ -224,6 +232,11 @@ export const ApiErrorKeys = {
       alreadyApplied: "apiErrors.dashboard.applyAdmin.alreadyApplied",
       noSuperAdmin: "apiErrors.dashboard.applyAdmin.noSuperAdmin",
       disabled: "apiErrors.dashboard.applyAdmin.disabled",
+    },
+    passkeys: {
+      failedToFetch: "apiErrors.dashboard.passkeys.failedToFetch",
+      notFound: "apiErrors.dashboard.passkeys.notFound",
+      failedToDelete: "apiErrors.dashboard.passkeys.failedToDelete",
     },
   },
   preApplication: {

@@ -287,6 +287,9 @@ export function SettingsForm({ locale, dict, user, hasPassword }: SettingsFormPr
                 <AlertDescription>{t.noPasswordHint}</AlertDescription>
               </Alert>
             )}
+            <Alert>
+              <AlertDescription>{t.passkeyHint}</AlertDescription>
+            </Alert>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">{t.currentPassword}</Label>

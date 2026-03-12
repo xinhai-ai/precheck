@@ -102,6 +102,14 @@
       },
       "me": {
         "failedToGetUser": "Failed to get user"
+      },
+      "passkey": {
+        "notConfigured": "Passkey service is not configured",
+        "challengeExpired": "Passkey verification expired, please try again",
+        "verificationFailed": "Passkey verification failed",
+        "alreadyExists": "This passkey is already linked to an account",
+        "registrationFailed": "Failed to register passkey",
+        "authenticationFailed": "Failed to sign in with passkey"
       }
     },
     "admin": {
@@ -307,6 +315,11 @@
         "alreadyApplied": "You have already applied. Please wait for admin review",
         "noSuperAdmin": "No super admin found to receive your application",
         "disabled": "Admin application is currently disabled"
+      },
+      "passkeys": {
+        "failedToFetch": "Failed to load passkeys",
+        "notFound": "Passkey not found",
+        "failedToDelete": "Failed to delete passkey"
       }
     },
     "preApplication": {
@@ -678,7 +691,13 @@
         "passwordRequired": "Password is required",
         "serviceUnavailable": "Authentication service not configured",
         "failed": "Login failed"
-      }
+      },
+      "passkeyLogin": "Sign in with passkey",
+      "passkeyLoggingIn": "Signing in with passkey...",
+      "passkeyLoginSuccess": "Signed in with passkey",
+      "passkeyLoginFailed": "Passkey sign-in failed",
+      "passkeyCancelled": "Passkey action was cancelled",
+      "passkeyUnsupported": "This browser or device does not support passkeys"
     },
     "register": {
       "title": "Create an account",
@@ -900,7 +919,11 @@
         "Check results via messages and review history"
       ],
       "statusTitle": "Statuses",
-      "statuses": ["Pending", "Approved", "Rejected"],
+      "statuses": [
+        "Pending",
+        "Approved",
+        "Rejected"
+      ],
       "rulesTitle": "Rules",
       "rules": [
         "Only one pre-application is allowed",
@@ -1169,7 +1192,34 @@
     "feedDisputed": "Disputed",
     "feedArchived": "Archived",
     "feedPendingReview": "Pending Review",
-    "feedOnHold": "On Hold"
+    "feedOnHold": "On Hold",
+    "passkeyHint": "You can also bind a passkey below for passwordless sign-in later.",
+    "passkeyTitle": "Passkeys",
+    "passkeyDesc": "Bind passkeys to this account so you can sign in without typing a password.",
+    "passkeyListHint": "Linked passkeys appear here and can be removed at any time.",
+    "passkeyAdd": "Add passkey",
+    "passkeyLoading": "Loading passkeys...",
+    "passkeyLoadFailed": "Failed to load passkeys",
+    "passkeyRegistering": "Registering...",
+    "passkeyRegisterSuccess": "Passkey added",
+    "passkeyRegisterFailed": "Failed to add passkey",
+    "passkeyCancelled": "Passkey action was cancelled",
+    "passkeyUnsupported": "This browser or device does not support passkeys",
+    "passkeyEmpty": "No passkeys linked yet. Add one on a trusted device.",
+    "passkeyLabelPrefix": "Passkey",
+    "passkeyTypeMultiDevice": "Multi-device",
+    "passkeyTypeSingleDevice": "Single-device",
+    "passkeyBackedUp": "Backed up",
+    "passkeyCreatedAt": "Created",
+    "passkeyLastUsedAt": "Last used",
+    "passkeyNeverUsed": "Never",
+    "passkeyTransports": "Transports",
+    "passkeyDelete": "Remove",
+    "passkeyDeleteTitle": "Remove passkey?",
+    "passkeyDeleteDesc": "After removal, this passkey can no longer be used to sign in to this account.",
+    "passkeyDeleteConfirm": "Remove",
+    "passkeyDeleteSuccess": "Passkey removed",
+    "passkeyDeleteFailed": "Failed to remove passkey"
   },
   "preApplication": {
     "title": "Pre-Application",
@@ -2291,7 +2341,6 @@
     "preApplicationAppealAutoRejectApplySubmitBanDesc": "When a rule auto-rejects an appeal, also ban new pre-application submissions for the configured days.",
     "preApplicationAppealAutoRejectSubmitBanDays": "Auto-reject submit-ban days",
     "preApplicationAppealAutoRejectSubmitBanDaysDesc": "Set to 7 to ban submissions for 7 days after automatic rejection.",
-    "preApplicationAppealAutoRejectSubmitBanDaysDesc": "Set to 7 to ban submissions for 7 days after automatic rejection.",
     "newUserAnnouncementEnabled": "Enable dashboard announcement confirmation",
     "newUserAnnouncementEnabledDesc": "Require regular users to read the announcement and enter the confirmation text before using the dashboard. Admins are exempt.",
     "newUserAnnouncementContent": "Announcement content",
@@ -2480,7 +2529,11 @@
     "preApplicationCaptchaProviderTurnstile": "Turnstile",
     "preApplicationCaptchaProviderHcaptcha": "hCaptcha",
     "preApplicationCaptchaProviderGeetest": "GeeTest",
-    "preApplicationCaptchaProviderRequired": "Select a captcha provider before enabling submit captcha"
+    "preApplicationCaptchaProviderRequired": "Select a captcha provider before enabling submit captcha",
+    "auditAction_AUTH_PASSKEY_LOGIN": "Passkey login",
+    "auditAction_AUTH_PASSKEY_REGISTER": "Register passkey",
+    "auditAction_AUTH_PASSKEY_DELETE": "Delete passkey",
+    "auditEntity_PASSKEY": "Passkey"
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -2548,15 +2601,25 @@
         "intro": "This project is licensed under the MIT License. This means you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.",
         "permissions": {
           "title": "Permissions",
-          "items": ["Commercial use", "Modification", "Distribution", "Private use"]
+          "items": [
+            "Commercial use",
+            "Modification",
+            "Distribution",
+            "Private use"
+          ]
         },
         "conditions": {
           "title": "Conditions",
-          "items": ["License and copyright notice must be included"]
+          "items": [
+            "License and copyright notice must be included"
+          ]
         },
         "limitations": {
           "title": "Limitations",
-          "items": ["No liability", "No warranty"]
+          "items": [
+            "No liability",
+            "No warranty"
+          ]
         },
         "fullText": {
           "title": "Full License Text",

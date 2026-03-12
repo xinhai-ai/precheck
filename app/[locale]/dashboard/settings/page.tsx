@@ -1,6 +1,7 @@
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { getCurrentUser } from "@/lib/auth/session"
 import { SettingsForm } from "@/components/dashboard/settings-form"
+import { PasskeySettingsCard } from "@/components/dashboard/passkey-settings-card"
 import type { Locale } from "@/lib/i18n/config"
 
 interface SettingsPageProps {
@@ -17,11 +18,14 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
   }
 
   return (
-    <SettingsForm
-      locale={locale}
-      dict={dict}
-      user={{ name: user.name, email: user.email, avatar: user.avatar, role: user.role }}
-      hasPassword={!!user.password}
-    />
+    <div className="space-y-8">
+      <SettingsForm
+        locale={locale}
+        dict={dict}
+        user={{ name: user.name, email: user.email, avatar: user.avatar, role: user.role }}
+        hasPassword={!!user.password}
+      />
+      <PasskeySettingsCard locale={locale} dict={dict} />
+    </div>
   )
 }

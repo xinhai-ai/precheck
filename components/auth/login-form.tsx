@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Turnstile, type TurnstileRef } from "@/components/ui/turnstile"
 import { OAuthButtons } from "./oauth-buttons"
+import { PasskeyLoginButton } from "./passkey-login-button"
 import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
@@ -446,6 +447,8 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
             )}
           </span>
         </Button>
+
+        <PasskeyLoginButton locale={locale} dict={dict} disabled={isLoading} />
 
         <OAuthButtons
           providers={oauthProviders}

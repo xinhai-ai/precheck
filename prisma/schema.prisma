@@ -65,6 +65,7 @@ model User {
   privateChatsAsAdmin              PrivateChat[]                     @relation("PrivateChatAdmin")
   privateChatMessages              PrivateChatMessage[]              @relation("PrivateChatMessageSender")
   apiTokens                        ApiToken[]
+  passkeyCredentials                PasskeyCredential[]
   fingerprintEvents                FingerprintEvent[]                @relation("UserFingerprintEvents")
   riskIgnoredEntry                 RiskIgnoredUser?                  @relation("RiskIgnoredTarget")
   riskIgnoredCreated               RiskIgnoredUser[]                 @relation("RiskIgnoredCreator")
@@ -119,6 +120,22 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model PasskeyCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  credentialID String   @unique
+  publicKey    Bytes
+  counter      BigInt   @default(0)
+  transports   String[] @default([])
+  deviceType   String
+  backedUp     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Post {

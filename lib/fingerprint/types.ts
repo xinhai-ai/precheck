@@ -10,5 +10,6 @@ export type FingerprintEventType =
   | "LOGIN_PASSWORD"
   | "LOGIN_CODE"
   | "LOGIN_OAUTH"
+  | "LOGIN_PASSKEY"
   | "PRE_APPLICATION_SUBMIT"
 

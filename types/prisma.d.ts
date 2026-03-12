@@ -69,6 +69,7 @@ export interface User {
   privateChatsAsAdmin: PrivateChat[]
   privateChatMessages: PrivateChatMessage[]
   apiTokens: ApiToken[]
+  passkeyCredentials: PasskeyCredential[]
   fingerprintEvents: FingerprintEvent[]
   riskIgnoredEntry: RiskIgnoredUser | null
   riskIgnoredCreated: RiskIgnoredUser[]
@@ -109,6 +110,20 @@ export interface VerificationToken {
   identifier: string
   token: string
   expires: Date
+}
+
+export interface PasskeyCredential {
+  id: string
+  userId: string
+  credentialID: string
+  publicKey: Buffer
+  counter: bigint
+  transports: string[]
+  deviceType: string
+  backedUp: boolean
+  createdAt: Date
+  lastUsedAt: Date | null
+  user: User
 }
 
 export interface Post {

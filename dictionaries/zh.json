@@ -100,6 +100,14 @@
       },
       "me": {
         "failedToGetUser": "获取用户信息失败"
+      },
+      "passkey": {
+        "notConfigured": "通行密钥服务未配置",
+        "challengeExpired": "通行密钥验证已过期，请重试",
+        "verificationFailed": "通行密钥验证失败",
+        "alreadyExists": "该通行密钥已绑定到账户",
+        "registrationFailed": "绑定通行密钥失败",
+        "authenticationFailed": "通行密钥登录失败"
       }
     },
     "admin": {
@@ -305,6 +313,11 @@
         "alreadyApplied": "您已经提交过申请，请等待管理员审核",
         "noSuperAdmin": "没有超级管理员可以接收您的申请",
         "disabled": "管理员申请功能已关闭"
+      },
+      "passkeys": {
+        "failedToFetch": "获取通行密钥列表失败",
+        "notFound": "未找到该通行密钥",
+        "failedToDelete": "删除通行密钥失败"
       }
     },
     "preApplication": {
@@ -677,7 +690,13 @@
         "passwordRequired": "请输入密码",
         "serviceUnavailable": "认证服务未配置",
         "failed": "登录失败"
-      }
+      },
+      "passkeyLogin": "使用通行密钥登录",
+      "passkeyLoggingIn": "通行密钥登录中...",
+      "passkeyLoginSuccess": "通行密钥登录成功",
+      "passkeyLoginFailed": "通行密钥登录失败",
+      "passkeyCancelled": "已取消通行密钥操作",
+      "passkeyUnsupported": "当前浏览器或设备不支持通行密钥"
     },
     "register": {
       "title": "创建账户",
@@ -892,9 +911,17 @@
       "title": "预申请流程说明",
       "description": "请按以下流程提交与跟进审核。",
       "stepsTitle": "流程步骤",
-      "steps": ["填写预申请表单并提交", "管理员审核并给出指导意见", "通过站内信与审核记录查看结果"],
+      "steps": [
+        "填写预申请表单并提交",
+        "管理员审核并给出指导意见",
+        "通过站内信与审核记录查看结果"
+      ],
       "statusTitle": "审核状态",
-      "statuses": ["待审核", "已通过", "已驳回"],
+      "statuses": [
+        "待审核",
+        "已通过",
+        "已驳回"
+      ],
       "rulesTitle": "规则提示",
       "rules": [
         "仅允许提交一次预申请",
@@ -1163,7 +1190,34 @@
     "feedDisputed": "有争议",
     "feedArchived": "已归档",
     "feedPendingReview": "待复核",
-    "feedOnHold": "暂缓处理"
+    "feedOnHold": "暂缓处理",
+    "passkeyHint": "你也可以在下方绑定通行密钥，用于后续免密码登录。",
+    "passkeyTitle": "通行密钥",
+    "passkeyDesc": "为当前账户绑定通行密钥，后续可直接免密码登录。",
+    "passkeyListHint": "已绑定的通行密钥会显示在这里，你可以随时移除。",
+    "passkeyAdd": "添加通行密钥",
+    "passkeyLoading": "正在加载通行密钥...",
+    "passkeyLoadFailed": "加载通行密钥失败",
+    "passkeyRegistering": "绑定中...",
+    "passkeyRegisterSuccess": "通行密钥已绑定",
+    "passkeyRegisterFailed": "绑定通行密钥失败",
+    "passkeyCancelled": "已取消通行密钥操作",
+    "passkeyUnsupported": "当前浏览器或设备不支持通行密钥",
+    "passkeyEmpty": "暂未绑定任何通行密钥，请在受信设备上添加。",
+    "passkeyLabelPrefix": "通行密钥",
+    "passkeyTypeMultiDevice": "多设备",
+    "passkeyTypeSingleDevice": "单设备",
+    "passkeyBackedUp": "已备份",
+    "passkeyCreatedAt": "绑定时间",
+    "passkeyLastUsedAt": "最近使用",
+    "passkeyNeverUsed": "从未使用",
+    "passkeyTransports": "传输方式",
+    "passkeyDelete": "移除",
+    "passkeyDeleteTitle": "移除通行密钥？",
+    "passkeyDeleteDesc": "移除后，该通行密钥将不能再用于登录当前账户。",
+    "passkeyDeleteConfirm": "确认移除",
+    "passkeyDeleteSuccess": "通行密钥已移除",
+    "passkeyDeleteFailed": "移除通行密钥失败"
   },
   "preApplication": {
     "title": "预申请",
@@ -2285,7 +2339,6 @@
     "preApplicationAppealAutoRejectApplySubmitBanDesc": "命中自动拒绝规则后，按下方天数限制用户再次提交预申请。",
     "preApplicationAppealAutoRejectSubmitBanDays": "自动拒绝封禁天数",
     "preApplicationAppealAutoRejectSubmitBanDaysDesc": "设为 7 表示自动拒绝后封禁 7 天。",
-    "preApplicationAppealAutoRejectSubmitBanDaysDesc": "设为 7 表示自动拒绝后封禁 7 天。",
     "newUserAnnouncementEnabled": "启用后台公告确认",
     "newUserAnnouncementEnabledDesc": "普通用户进入后台前必须阅读公告并输入确认口令，管理员和超级管理员不受影响。",
     "newUserAnnouncementContent": "公告内容",
@@ -2474,7 +2527,11 @@
     "preApplicationCaptchaProviderTurnstile": "Turnstile",
     "preApplicationCaptchaProviderHcaptcha": "hCaptcha",
     "preApplicationCaptchaProviderGeetest": "GeeTest",
-    "preApplicationCaptchaProviderRequired": "启用提交验证码时必须选择供应商"
+    "preApplicationCaptchaProviderRequired": "启用提交验证码时必须选择供应商",
+    "auditAction_AUTH_PASSKEY_LOGIN": "通行密钥登录",
+    "auditAction_AUTH_PASSKEY_REGISTER": "绑定通行密钥",
+    "auditAction_AUTH_PASSKEY_DELETE": "移除通行密钥",
+    "auditEntity_PASSKEY": "通行密钥"
   },
   "theme": {
     "toggle": "切换主题",
@@ -2542,15 +2599,25 @@
         "intro": "本项目采用 MIT 许可证。这意味着您可以自由使用、复制、修改、合并、发布、分发、再许可和/或销售该软件的副本。",
         "permissions": {
           "title": "权限",
-          "items": ["商业使用", "修改", "分发", "私人使用"]
+          "items": [
+            "商业使用",
+            "修改",
+            "分发",
+            "私人使用"
+          ]
         },
         "conditions": {
           "title": "条件",
-          "items": ["必须包含许可证和版权声明"]
+          "items": [
+            "必须包含许可证和版权声明"
+          ]
         },
         "limitations": {
           "title": "限制",
-          "items": ["无责任", "无保证"]
+          "items": [
+            "无责任",
+            "无保证"
+          ]
         },
         "fullText": {
           "title": "完整许可证文本",

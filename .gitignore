@@ -35,3 +35,4 @@ next-env.d.ts
 logs/
 scripts/*.js
 *.tar.gz
+.pnpm-store/
