@@ -3,6 +3,11 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import {
+  ARCHIVED_PRE_APPLICATION_STATUS,
+  canViewArchivedPreApplications,
+  shouldHidePreApplicationFromAdmin,
+} from "@/lib/pre-application/admin-archived-visibility"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -21,19 +26,21 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const { id } = await context.params
+    const canViewArchived = canViewArchivedPreApplications(user.role)
 
     const current = await db.preApplication.findUnique({
       where: { id },
       select: {
         id: true,
         userId: true,
+        status: true,
         fingerprintHash: true,
         fingerprintStatus: true,
         fingerprintCollectedAt: true,
       },
     })
 
-    if (!current) {
+    if (!current || shouldHidePreApplicationFromAdmin(current.status, user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
     }
 
@@ -48,6 +55,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         relatedUsers: [],
         relatedApplications: [],
       })
+    }
+
+    const visibleRelatedApplicationsWhere = {
+      fingerprintHash: current.fingerprintHash,
+      ...(canViewArchived ? {} : { status: { not: ARCHIVED_PRE_APPLICATION_STATUS } }),
     }
 
     const [relatedUsers, relatedApplications, relatedUsersCount, relatedApplicationsCount] =
@@ -68,8 +80,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         }),
         db.preApplication.findMany({
           where: {
+            ...visibleRelatedApplicationsWhere,
             id: { not: current.id },
-            fingerprintHash: current.fingerprintHash,
           },
           orderBy: { createdAt: "desc" },
           take: 20,
@@ -93,7 +105,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
           where: { latestFingerprintHash: current.fingerprintHash },
         }),
         db.preApplication.count({
-          where: { fingerprintHash: current.fingerprintHash },
+          where: visibleRelatedApplicationsWhere,
         }),
       ])
 

@@ -416,10 +416,10 @@ export function AdminPreApplicationsTable({
       { value: "ON_HOLD", label: t.onHold || "暂缓处理" },
       { value: "APPROVED", label: t.approved },
       { value: "REJECTED", label: t.rejected },
-      { value: "ARCHIVED", label: t.archived || "已归档" },
+      ...(isSuperAdmin ? [{ value: "ARCHIVED", label: t.archived || "已归档" }] : []),
       { value: "SHADOW_HIDDEN", label: adminExt.shadowHidden || "Shadowban 隐藏" },
     ],
-    [adminExt.shadowHidden, t],
+    [adminExt.shadowHidden, isSuperAdmin, t],
   )
 
   useEffect(() => {
@@ -1411,17 +1411,19 @@ export function AdminPreApplicationsTable({
             setPage(1)
           }}
         />
-        <StatCard
-          icon={Archive}
-          label={t.archived || "已归档"}
-          value={stats.archived}
-          color="primary"
-          active={statusFilter.length === 1 && statusFilter[0] === "ARCHIVED"}
-          onClick={() => {
-            setStatusFilter(["ARCHIVED"])
-            setPage(1)
-          }}
-        />
+        {isSuperAdmin && (
+          <StatCard
+            icon={Archive}
+            label={t.archived || "已归档"}
+            value={stats.archived}
+            color="primary"
+            active={statusFilter.length === 1 && statusFilter[0] === "ARCHIVED"}
+            onClick={() => {
+              setStatusFilter(["ARCHIVED"])
+              setPage(1)
+            }}
+          />
+        )}
         <StatCard
           icon={Filter}
           label={adminExt.shadowHidden || "Shadowban 隐藏"}

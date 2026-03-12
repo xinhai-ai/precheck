@@ -14,6 +14,7 @@ import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
+import { shouldHidePreApplicationFromAdmin } from "@/lib/pre-application/admin-archived-visibility"
 
 const reviewRequestSchema = z.object({
   reason: z.string().trim().min(1).max(2000),
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       },
     })
 
-    if (!preApplication) {
+    if (!preApplication || shouldHidePreApplicationFromAdmin(preApplication.status, user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
     }
 

@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import { shouldHidePreApplicationFromAdmin } from "@/lib/pre-application/admin-archived-visibility"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -21,6 +22,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const { id } = await context.params
+
+    const preApplication = await db.preApplication.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    })
+
+    if (!preApplication || shouldHidePreApplicationFromAdmin(preApplication.status, user.role)) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
+    }
 
     // 获取预申请的版本历史
     const versions = await db.preApplicationVersion.findMany({

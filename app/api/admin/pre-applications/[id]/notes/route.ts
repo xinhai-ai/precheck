@@ -11,6 +11,7 @@ import {
   type PreApplicationAdminRole,
   normalizePreApplicationAdminNoteContent,
 } from "@/lib/pre-application/admin-note-utils"
+import { shouldHidePreApplicationFromAdmin } from "@/lib/pre-application/admin-archived-visibility"
 
 const createNoteSchema = z.object({
   content: z.string(),
@@ -83,10 +84,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     const preApplication = await db.preApplication.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, status: true },
     })
 
-    if (!preApplication) {
+    if (!preApplication || shouldHidePreApplicationFromAdmin(preApplication.status, user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
     }
 
@@ -151,10 +152,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const preApplication = await db.preApplication.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, status: true },
     })
 
-    if (!preApplication) {
+    if (!preApplication || shouldHidePreApplicationFromAdmin(preApplication.status, user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
     }
 

@@ -5,6 +5,11 @@ import { PreApplicationAppealStatus, PreApplicationStatus, type Prisma } from "@
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { SHADOW_HIDDEN_STATUS } from "@/lib/pre-application/shadowban"
+import {
+  ARCHIVED_PRE_APPLICATION_STATUS,
+  canViewArchivedPreApplications,
+  filterAdminVisiblePreApplicationStatuses,
+} from "@/lib/pre-application/admin-archived-visibility"
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,6 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const database = db
+    const canViewArchived = canViewArchivedPreApplications(user.role)
     const { searchParams } = request.nextUrl
     const search = (searchParams.get("search") || "").trim()
     const status = searchParams.get("status") || ""
@@ -51,19 +57,27 @@ export async function GET(request: NextRequest) {
     const where: Prisma.PreApplicationWhereInput = {}
 
     if (!status) {
-      where.status = { not: SHADOW_HIDDEN_STATUS }
+      where.status = canViewArchived
+        ? { not: SHADOW_HIDDEN_STATUS }
+        : { notIn: [SHADOW_HIDDEN_STATUS, ARCHIVED_PRE_APPLICATION_STATUS] }
     }
 
+    let requestedStatuses: PreApplicationStatus[] = []
     if (status) {
-      const statuses = status
-        .split(",")
-        .filter((s) =>
-          Object.values(PreApplicationStatus).includes(s as PreApplicationStatus),
-        ) as PreApplicationStatus[]
-      if (statuses.length === 1) {
-        where.status = statuses[0]
-      } else if (statuses.length > 1) {
-        where.status = { in: statuses }
+      requestedStatuses = filterAdminVisiblePreApplicationStatuses(
+        status
+          .split(",")
+          .filter((s) =>
+            Object.values(PreApplicationStatus).includes(s as PreApplicationStatus),
+          ) as PreApplicationStatus[],
+        user.role,
+      ) as PreApplicationStatus[]
+      if (requestedStatuses.length === 1) {
+        where.status = requestedStatuses[0]
+      } else if (requestedStatuses.length > 1) {
+        where.status = { in: requestedStatuses }
+      } else {
+        where.status = { in: requestedStatuses }
       }
     }
 
@@ -100,6 +114,10 @@ export async function GET(request: NextRequest) {
         { user: { name: { contains: search, mode: "insensitive" as const } } },
         { user: { email: { contains: search, mode: "insensitive" as const } } },
       ]
+    }
+
+    if (status && requestedStatuses.length === 0) {
+      where.status = { in: [] }
     }
 
     const preApplicationSelect = {
@@ -198,7 +216,9 @@ export async function GET(request: NextRequest) {
       database.preApplication.count({ where: { status: "APPROVED" } }),
       database.preApplication.count({ where: { status: "REJECTED" } }),
       database.preApplication.count({ where: { status: "DISPUTED" } }),
-      database.preApplication.count({ where: { status: "ARCHIVED" } }),
+      canViewArchived
+        ? database.preApplication.count({ where: { status: "ARCHIVED" } })
+        : Promise.resolve(0),
       database.preApplication.count({ where: { status: SHADOW_HIDDEN_STATUS } }),
     ])
 

@@ -4,6 +4,11 @@ import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { calculateSimilarity, quickSimilarityCheck } from "@/lib/text-similarity"
+import {
+  ARCHIVED_PRE_APPLICATION_STATUS,
+  canViewArchivedPreApplications,
+  shouldHidePreApplicationFromAdmin,
+} from "@/lib/pre-application/admin-archived-visibility"
 
 interface DuplicateRecord {
   id: string
@@ -32,28 +37,31 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const { id } = await context.params
+    const canViewArchived = canViewArchivedPreApplications(user.role)
 
     const currentRecord = await db.preApplication.findUnique({
       where: { id },
       select: {
         id: true,
         essay: true,
+        status: true,
       },
     })
 
-    if (!currentRecord) {
+    if (!currentRecord || shouldHidePreApplicationFromAdmin(currentRecord.status, user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
     }
 
     const otherRecords = await db.preApplication.findMany({
       where: {
         id: { not: id },
+        ...(canViewArchived ? {} : { status: { not: ARCHIVED_PRE_APPLICATION_STATUS } }),
       },
       select: {
         id: true,
         essay: true,
-        createdAt: true,
         status: true,
+        createdAt: true,
         registerEmail: true,
         user: {
           select: {

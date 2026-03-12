@@ -4,6 +4,11 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import {
+  ARCHIVED_PRE_APPLICATION_STATUS,
+  canViewArchivedPreApplications,
+  filterAdminVisiblePreApplicationStatuses,
+} from "@/lib/pre-application/admin-archived-visibility"
 
 function toCsvCell(value: unknown) {
   if (value === null || value === undefined) return ""
@@ -34,6 +39,7 @@ export async function GET(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
 
+    const canViewArchived = canViewArchivedPreApplications(user.role)
     const { searchParams } = request.nextUrl
     const search = (searchParams.get("search") || "").trim()
     const status = searchParams.get("status") || ""
@@ -44,7 +50,7 @@ export async function GET(request: NextRequest) {
     const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
 
     const where: {
-      status?: PreApplicationStatus | { in: PreApplicationStatus[] }
+      status?: PreApplicationStatus | { in: PreApplicationStatus[] } | { not: PreApplicationStatus }
       registerEmail?: { contains: string; mode: "insensitive" }
       queryToken?: { contains: string; mode: "insensitive" }
       resubmitCount?: number
@@ -53,16 +59,26 @@ export async function GET(request: NextRequest) {
       OR?: Array<Record<string, unknown>>
     } = {}
 
+    if (!status && !canViewArchived) {
+      where.status = { not: ARCHIVED_PRE_APPLICATION_STATUS }
+    }
+
+    let requestedStatuses: PreApplicationStatus[] = []
     if (status) {
-      const statuses = status
-        .split(",")
-        .filter((s) =>
-          Object.values(PreApplicationStatus).includes(s as PreApplicationStatus),
-        ) as PreApplicationStatus[]
-      if (statuses.length === 1) {
-        where.status = statuses[0]
-      } else if (statuses.length > 1) {
-        where.status = { in: statuses }
+      requestedStatuses = filterAdminVisiblePreApplicationStatuses(
+        status
+          .split(",")
+          .filter((s) =>
+            Object.values(PreApplicationStatus).includes(s as PreApplicationStatus),
+          ) as PreApplicationStatus[],
+        user.role,
+      ) as PreApplicationStatus[]
+      if (requestedStatuses.length === 1) {
+        where.status = requestedStatuses[0]
+      } else if (requestedStatuses.length > 1) {
+        where.status = { in: requestedStatuses }
+      } else {
+        where.status = { in: requestedStatuses }
       }
     }
 
@@ -89,6 +105,10 @@ export async function GET(request: NextRequest) {
         { user: { name: { contains: search, mode: "insensitive" as const } } },
         { user: { email: { contains: search, mode: "insensitive" as const } } },
       ]
+    }
+
+    if (status && requestedStatuses.length === 0) {
+      where.status = { in: [] }
     }
 
     const records = await db.preApplication.findMany({

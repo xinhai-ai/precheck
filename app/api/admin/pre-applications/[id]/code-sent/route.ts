@@ -6,6 +6,7 @@ import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { writeAuditLog } from "@/lib/audit"
 import { isShadowHiddenLockedForAdminMutation } from "@/lib/pre-application/shadowban"
+import { shouldHidePreApplicationFromAdmin } from "@/lib/pre-application/admin-archived-visibility"
 
 const schema = z.object({
   codeSent: z.boolean(),
@@ -33,7 +34,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       select: { id: true, status: true, codeSent: true },
     })
 
-    if (!record) {
+    if (!record || shouldHidePreApplicationFromAdmin(record.status, user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.notFound, { status: 404 })
     }
 
