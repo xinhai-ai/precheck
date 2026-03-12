@@ -224,6 +224,7 @@ export async function verifyPasskeyRegistration(input: {
     expectedChallenge: input.expectedChallenge,
     expectedOrigin,
     expectedRPID,
+    requireUserVerification: false,
   })
 }
 
@@ -254,6 +255,7 @@ export async function verifyPasskeyAuthentication(input: {
     expectedOrigin,
     expectedRPID,
     credential,
+    requireUserVerification: false,
   })
 }
 

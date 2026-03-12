@@ -110,6 +110,12 @@ test("login form exposes passkey login flow", () => {
   assert.match(passkeyLoginButtonSource, /\/api\/auth\/passkey\/authenticate\/verify/)
 })
 
+test("passkey verification stays aligned with preferred user verification", () => {
+  assert.match(passkeyLibSource, /userVerification:\s*"preferred"/)
+  assert.match(passkeyLibSource, /verifyRegistrationResponse\([\s\S]*requireUserVerification:\s*false/)
+  assert.match(passkeyLibSource, /verifyAuthenticationResponse\([\s\S]*requireUserVerification:\s*false/)
+})
+
 test("dependencies and copy include passkey support", () => {
   assert.match(packageJsonSource, /@simplewebauthn\/server/)
   assert.match(packageJsonSource, /@simplewebauthn\/browser/)
