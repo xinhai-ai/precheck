@@ -69,7 +69,8 @@
         "registrationFailed": "Registration failed",
         "maintenanceMode": "The site is under maintenance. Registration is temporarily unavailable.",
         "emailSuffixLabel": "Quickly choose an allowed email suffix",
-        "emailSuffixPlaceholder": "Select suffix"
+        "emailSuffixPlaceholder": "Select suffix",
+        "qqEmailOnly": "Only QQ number@qq.com is supported"
       },
       "forgotPassword": {
         "serviceUnavailable": "Authentication service not configured",
@@ -744,6 +745,7 @@
         "passwordMismatch": "Passwords do not match",
         "weakPassword": "Password is too weak",
         "invalidEmail": "Invalid email address",
+        "qqEmailOnly": "Only QQ number@qq.com is supported",
         "invalidEmailLocalPart": "Email must start with at least 3 letters or numbers and cannot include spaces or alias characters",
         "passwordTooShort": "Password must be at least 8 characters",
         "passwordUppercase": "Password must contain at least one uppercase letter",
@@ -919,11 +921,7 @@
         "Check results via messages and review history"
       ],
       "statusTitle": "Statuses",
-      "statuses": [
-        "Pending",
-        "Approved",
-        "Rejected"
-      ],
+      "statuses": ["Pending", "Approved", "Rejected"],
       "rulesTitle": "Rules",
       "rules": [
         "Only one pre-application is allowed",
@@ -2372,6 +2370,10 @@
     "preApplicationSubmitEndTime": "End time",
     "preApplicationSubmitWindowInvalidFormat": "Invalid submit window format. Use HH:mm",
     "preApplicationSubmitWindowInvalid": "Submit start time must be earlier than end time",
+    "registerQqNumberEmailOnlyTitle": "Registration Email Restriction",
+    "registerQqNumberEmailOnlyDesc": "When enabled, the register page only accepts a QQ number and appends @qq.com automatically",
+    "registerQqNumberEmailOnlyLabel": "Only allow QQ number@qq.com for registration",
+    "registerQqNumberEmailOnlyHelp": "This switch only affects registration and does not change pre-application, password reset, or other email flows",
     "systemConfigEmailDomains": "Allowed Email Domains",
     "systemConfigEmailDomainsDesc": "Only emails with these domains can submit pre-applications",
     "systemConfigEmailDomainPlaceholder": "e.g. gmail.com",
@@ -2601,25 +2603,15 @@
         "intro": "This project is licensed under the MIT License. This means you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.",
         "permissions": {
           "title": "Permissions",
-          "items": [
-            "Commercial use",
-            "Modification",
-            "Distribution",
-            "Private use"
-          ]
+          "items": ["Commercial use", "Modification", "Distribution", "Private use"]
         },
         "conditions": {
           "title": "Conditions",
-          "items": [
-            "License and copyright notice must be included"
-          ]
+          "items": ["License and copyright notice must be included"]
         },
         "limitations": {
           "title": "Limitations",
-          "items": [
-            "No liability",
-            "No warranty"
-          ]
+          "items": ["No liability", "No warranty"]
         },
         "fullText": {
           "title": "Full License Text",

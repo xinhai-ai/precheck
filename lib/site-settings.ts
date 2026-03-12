@@ -22,6 +22,7 @@ export type SiteSettings = {
   newUserAnnouncementConfirmText: string
   newUserAnnouncementDelaySeconds: number
   newUserAnnouncementVersion: number
+  registerQqNumberEmailOnly: boolean
 }
 
 type SiteSettingsRecord = {
@@ -43,6 +44,7 @@ type SiteSettingsRecord = {
   newUserAnnouncementConfirmText: string
   newUserAnnouncementDelaySeconds: number
   newUserAnnouncementVersion: number
+  registerQqNumberEmailOnly: boolean
 }
 
 const defaultSettings: SiteSettings = {
@@ -64,6 +66,7 @@ const defaultSettings: SiteSettings = {
   newUserAnnouncementConfirmText: "",
   newUserAnnouncementDelaySeconds: 0,
   newUserAnnouncementVersion: 1,
+  registerQqNumberEmailOnly: false,
 }
 
 const SITE_SETTINGS_CACHE_KEY = "site-settings:global:v1"
@@ -92,6 +95,7 @@ function toSiteSettings(record: SiteSettingsRecord): SiteSettings {
     newUserAnnouncementConfirmText: record.newUserAnnouncementConfirmText ?? "",
     newUserAnnouncementDelaySeconds: record.newUserAnnouncementDelaySeconds,
     newUserAnnouncementVersion: record.newUserAnnouncementVersion,
+    registerQqNumberEmailOnly: record.registerQqNumberEmailOnly ?? false,
   }
 }
 
@@ -118,7 +122,8 @@ function parseCachedSiteSettings(raw: string): SiteSettings | null {
       typeof parsed.newUserAnnouncementContent !== "string" ||
       typeof parsed.newUserAnnouncementConfirmText !== "string" ||
       typeof parsed.newUserAnnouncementDelaySeconds !== "number" ||
-      typeof parsed.newUserAnnouncementVersion !== "number"
+      typeof parsed.newUserAnnouncementVersion !== "number" ||
+      typeof parsed.registerQqNumberEmailOnly !== "boolean"
     ) {
       return null
     }
@@ -200,6 +205,7 @@ async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
       newUserAnnouncementConfirmText: true,
       newUserAnnouncementDelaySeconds: true,
       newUserAnnouncementVersion: true,
+      registerQqNumberEmailOnly: true,
     },
   })
 
@@ -270,6 +276,8 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       updates.newUserAnnouncementDelaySeconds ?? current.newUserAnnouncementDelaySeconds,
     newUserAnnouncementVersion:
       updates.newUserAnnouncementVersion ?? current.newUserAnnouncementVersion,
+    registerQqNumberEmailOnly:
+      updates.registerQqNumberEmailOnly ?? current.registerQqNumberEmailOnly,
   }
 
   const saved = await db.siteSettings.upsert({
@@ -298,6 +306,7 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       newUserAnnouncementConfirmText: true,
       newUserAnnouncementDelaySeconds: true,
       newUserAnnouncementVersion: true,
+      registerQqNumberEmailOnly: true,
     },
   })
 

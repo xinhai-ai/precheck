@@ -65,7 +65,7 @@ model User {
   privateChatsAsAdmin              PrivateChat[]                     @relation("PrivateChatAdmin")
   privateChatMessages              PrivateChatMessage[]              @relation("PrivateChatMessageSender")
   apiTokens                        ApiToken[]
-  passkeyCredentials                PasskeyCredential[]
+  passkeyCredentials               PasskeyCredential[]
   fingerprintEvents                FingerprintEvent[]                @relation("UserFingerprintEvents")
   riskIgnoredEntry                 RiskIgnoredUser?                  @relation("RiskIgnoredTarget")
   riskIgnoredCreated               RiskIgnoredUser[]                 @relation("RiskIgnoredCreator")
@@ -123,17 +123,17 @@ model VerificationToken {
 }
 
 model PasskeyCredential {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  credentialID String   @unique
+  credentialID String    @unique
   publicKey    Bytes
-  counter      BigInt   @default(0)
-  transports   String[] @default([])
+  counter      BigInt    @default(0)
+  transports   String[]  @default([])
   deviceType   String
-  backedUp     Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  backedUp     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -550,6 +550,7 @@ model SiteSettings {
   preApplicationEssayMinLength                 Int      @default(50)
   preApplicationEssayMaxLength                 Int      @default(300)
   allowedEmailDomains                          Json     @default("[]")
+  registerQqNumberEmailOnly                    Boolean  @default(false)
   reviewTemplatesApprove                       Json     @default("[]")
   reviewTemplatesApproveNoCode                 Json     @default("[]") // 审核通过但无邀请码时的模板
   reviewTemplatesReject                        Json     @default("[]")

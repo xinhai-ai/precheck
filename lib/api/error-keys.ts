@@ -22,6 +22,9 @@ export const ApiErrorKeys = {
       emailServiceNotConfigured: "apiErrors.auth.verificationCode.emailServiceNotConfigured",
       sendFailed: "apiErrors.auth.verificationCode.sendFailed",
     },
+    register: {
+      qqEmailOnly: "apiErrors.auth.register.qqEmailOnly",
+    },
     me: {
       failedToGetUser: "apiErrors.auth.me.failedToGetUser",
     },

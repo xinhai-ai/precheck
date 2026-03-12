@@ -47,6 +47,7 @@ import type { Locale } from "@/lib/i18n/config"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import { cn } from "@/lib/utils"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
+import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 
 type SiteSettings = {
   siteName: string
@@ -79,6 +80,7 @@ type SystemConfig = {
   preApplicationEssayMinLength: number
   preApplicationEssayMaxLength: number
   allowedEmailDomains: string[]
+  registerQqNumberEmailOnly: boolean
   auditLogEnabled: boolean
   reviewTemplatesApprove: string[]
   reviewTemplatesApproveNoCode: string[]
@@ -195,6 +197,16 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
   const [revokeTokenId, setRevokeTokenId] = useState<string | null>(null)
 
   const t = dict.admin
+  const registerQqNumberEmailOnlyTitle =
+    getDictionaryEntry(dict, "admin.registerQqNumberEmailOnlyTitle") ?? "注册邮箱限制"
+  const registerQqNumberEmailOnlyDesc =
+    getDictionaryEntry(dict, "admin.registerQqNumberEmailOnlyDesc") ??
+    "开启后，注册页仅允许输入 QQ 号，并自动拼接为 @qq.com"
+  const registerQqNumberEmailOnlyLabel =
+    getDictionaryEntry(dict, "admin.registerQqNumberEmailOnlyLabel") ?? "注册邮箱仅允许 QQ号@qq.com"
+  const registerQqNumberEmailOnlyHelp =
+    getDictionaryEntry(dict, "admin.registerQqNumberEmailOnlyHelp") ??
+    "该开关只影响注册流程，不影响预申请、找回密码或其他邮箱场景"
 
   const tabs: TabItem[] = [
     { id: "general", label: t.tabGeneral || "基础设置", icon: Globe },
@@ -2045,6 +2057,35 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                           </div>
                         </div>
                       )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Mail className="h-5 w-5" />
+                        {registerQqNumberEmailOnlyTitle}
+                      </CardTitle>
+                      <CardDescription>{registerQqNumberEmailOnlyDesc}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="registerQqNumberEmailOnly">
+                            {registerQqNumberEmailOnlyLabel}
+                          </Label>
+                          <p className="text-sm text-muted-foreground">
+                            {registerQqNumberEmailOnlyHelp}
+                          </p>
+                        </div>
+                        <Switch
+                          id="registerQqNumberEmailOnly"
+                          checked={systemConfig.registerQqNumberEmailOnly}
+                          onCheckedChange={(checked) =>
+                            setSystemConfig({ ...systemConfig, registerQqNumberEmailOnly: checked })
+                          }
+                        />
+                      </div>
                     </CardContent>
                   </Card>
 

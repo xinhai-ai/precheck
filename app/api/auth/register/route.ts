@@ -11,6 +11,7 @@ import { isRedisAvailable } from "@/lib/redis"
 import { verifyTurnstileToken } from "@/lib/turnstile"
 import { z } from "zod"
 import { createApiErrorResponse } from "@/lib/api/error-response"
+import { isRegisterQqEmail } from "@/lib/auth/register-email-policy"
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -59,6 +60,12 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { email, password, name, verificationCode, turnstileToken } = registerSchema.parse(body)
+
+    if (settings.registerQqNumberEmailOnly && !isRegisterQqEmail(email)) {
+      return createApiErrorResponse(request, "apiErrors.auth.register.qqEmailOnly", {
+        status: 400,
+      })
+    }
 
     // 验证 Turnstile (如果提供)
     if (turnstileToken) {

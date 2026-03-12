@@ -8,6 +8,8 @@ import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
 import { verifyTurnstileToken } from "@/lib/turnstile"
 import type { Locale } from "@/lib/i18n/config"
+import { getSiteSettings } from "@/lib/site-settings"
+import { isRegisterQqEmail } from "@/lib/auth/register-email-policy"
 
 const sendCodeSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -74,13 +76,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 注册验证码：检查邮箱是否已存在
-    if (data.purpose === "register" && db) {
-      const existingUser = await db.user.findUnique({ where: { email: data.email } })
-      if (existingUser) {
-        return createApiErrorResponse(request, "apiErrors.auth.register.emailExists", {
+    // 注册验证码：检查注册邮箱策略与邮箱是否已存在
+    if (data.purpose === "register") {
+      const settings = await getSiteSettings()
+      if (settings.registerQqNumberEmailOnly && !isRegisterQqEmail(data.email)) {
+        return createApiErrorResponse(request, "apiErrors.auth.register.qqEmailOnly", {
           status: 400,
         })
+      }
+
+      if (db) {
+        const existingUser = await db.user.findUnique({ where: { email: data.email } })
+        if (existingUser) {
+          return createApiErrorResponse(request, "apiErrors.auth.register.emailExists", {
+            status: 400,
+          })
+        }
       }
     }
 

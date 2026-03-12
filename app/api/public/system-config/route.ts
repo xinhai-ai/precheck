@@ -26,6 +26,7 @@ export async function GET() {
         preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
         preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
+        registerQqNumberEmailOnly: false,
       })
     }
 
@@ -40,6 +41,7 @@ export async function GET() {
         preApplicationSubmitStartTime: true,
         preApplicationSubmitEndTime: true,
         allowedEmailDomains: true,
+        registerQqNumberEmailOnly: true,
       },
     })
 
@@ -53,6 +55,7 @@ export async function GET() {
         preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
         preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
+        registerQqNumberEmailOnly: false,
       })
     }
 
@@ -78,6 +81,7 @@ export async function GET() {
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
+      registerQqNumberEmailOnly: settings.registerQqNumberEmailOnly ?? false,
     })
   } catch (error) {
     console.error("Public system config fetch error:", error)
@@ -91,6 +95,7 @@ export async function GET() {
         preApplicationSubmitStartTime: DEFAULT_PREAPP_SUBMIT_START_TIME,
         preApplicationSubmitEndTime: DEFAULT_PREAPP_SUBMIT_END_TIME,
         allowedEmailDomains: defaultEmailDomains,
+        registerQqNumberEmailOnly: false,
       },
       { status: 500 },
     )

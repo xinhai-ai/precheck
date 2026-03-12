@@ -17,7 +17,7 @@ import { EmailWithDomainInput } from "@/components/ui/email-with-domain-input"
 import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
-import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
+import { useRegistrationEmailPolicy } from "@/lib/hooks/use-allowed-email-domains"
 import {
   isDomainPartValid,
   LOCAL_PART_MIN_LENGTH,
@@ -60,8 +60,13 @@ export function RegisterForm({
   const termsAgreement = t.termsAgreement
   const emailLocalPartError =
     getDictionaryEntry(dict, "auth.register.errors.invalidEmailLocalPart") ?? t.errors.invalidEmail
+  const registerQqEmailOnlyError =
+    getDictionaryEntry(dict, "auth.register.errors.qqEmailOnly") ?? t.errors.invalidEmail
   const emailSuffixPlaceholder = t.emailSuffixPlaceholder ?? t.emailPlaceholder
-  const allowedDomains = useAllowedEmailDomains()
+  const { allowedDomains, registerQqNumberEmailOnly } = useRegistrationEmailPolicy()
+  const qqNumberPlaceholder =
+    getDictionaryEntry(dict, "auth.register.qqNumberPlaceholder") ?? "输入 QQ 号"
+  const qqEmailHint = getDictionaryEntry(dict, "auth.register.qqEmailHint") ?? "仅支持 QQ号@qq.com"
   const errorMap: Record<string, string> = {
     "Registration service not configured": t.errors.serviceUnavailable,
     "User registration is disabled": t.errors.registrationDisabled,
@@ -73,10 +78,22 @@ export function RegisterForm({
 
   const getEmailValidationError = (email: string) => {
     if (!email) {
-      return t.errors.invalidEmail
+      return registerQqNumberEmailOnly ? registerQqEmailOnlyError : t.errors.invalidEmail
     }
 
     const [rawLocal, ...domainParts] = email.split("@")
+
+    if (registerQqNumberEmailOnly) {
+      const qqNumber = (rawLocal ?? "").trim()
+      const domain = domainParts.join("@").toLowerCase()
+
+      if (!/^\d+$/.test(qqNumber) || domain !== "qq.com") {
+        return registerQqEmailOnlyError
+      }
+
+      return null
+    }
+
     const normalizedLocal = normalizeLocalPart(rawLocal ?? "")
 
     if (normalizedLocal.length < LOCAL_PART_MIN_LENGTH) {
@@ -327,16 +344,40 @@ export function RegisterForm({
 
           <div className="space-y-1">
             <Label htmlFor="email">{t.email}</Label>
-            <EmailWithDomainInput
-              value={formData.email}
-              domains={allowedDomains}
-              onChange={(email) => setFormData({ ...formData, email })}
-              selectPlaceholder={emailSuffixPlaceholder}
-              inputId="email"
-              inputPlaceholder={t.emailPlaceholder}
-              disabled={isLoading}
-            />
-            <p className="text-xs text-muted-foreground">{t.eduEmailHint}</p>
+            {registerQqNumberEmailOnly ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  id="email"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={formData.email.replace(/@qq\.com$/i, "")}
+                  onChange={(e) => {
+                    const qqNumber = e.target.value.replace(/\D/g, "")
+                    setFormData({
+                      ...formData,
+                      email: qqNumber ? `${qqNumber}@qq.com` : "",
+                    })
+                  }}
+                  placeholder={qqNumberPlaceholder}
+                  disabled={isLoading}
+                />
+                <span className="text-sm text-muted-foreground">@qq.com</span>
+              </div>
+            ) : (
+              <EmailWithDomainInput
+                value={formData.email}
+                domains={allowedDomains}
+                onChange={(email) => setFormData({ ...formData, email })}
+                selectPlaceholder={emailSuffixPlaceholder}
+                inputId="email"
+                inputPlaceholder={t.emailPlaceholder}
+                disabled={isLoading}
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
+              {registerQqNumberEmailOnly ? qqEmailHint : t.eduEmailHint}
+            </p>
           </div>
 
           {verificationAvailable && (
@@ -369,10 +410,7 @@ export function RegisterForm({
                 variant="outline"
                 onClick={handleSendCode}
                 disabled={
-                  sendingCode ||
-                  countdown > 0 ||
-                  isLoading ||
-                  (turnstileEnabled && !turnstileToken)
+                  sendingCode || countdown > 0 || isLoading || (turnstileEnabled && !turnstileToken)
                 }
                 className="whitespace-nowrap"
               >

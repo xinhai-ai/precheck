@@ -67,7 +67,8 @@
         "registrationFailed": "注册失败",
         "maintenanceMode": "网站正在维护中，暂时无法注册",
         "emailSuffixLabel": "快速选择允许的邮箱后缀",
-        "emailSuffixPlaceholder": "请选择后缀"
+        "emailSuffixPlaceholder": "请选择后缀",
+        "qqEmailOnly": "仅支持 QQ号@qq.com"
       },
       "forgotPassword": {
         "serviceUnavailable": "认证服务未配置",
@@ -705,6 +706,8 @@
       "namePlaceholder": "输入您的姓名",
       "email": "邮箱",
       "emailPlaceholder": "输入您的邮箱",
+      "qqNumberPlaceholder": "输入 QQ 号",
+      "qqEmailHint": "仅支持 QQ号@qq.com",
       "eduEmailHint": "支持教育邮箱 @*.edu.cn，请先输入用户名，再从后缀列表选择「其他」手动输入完整后缀",
       "password": "密码",
       "passwordPlaceholder": "创建密码",
@@ -743,6 +746,7 @@
         "passwordMismatch": "两次输入的密码不一致",
         "weakPassword": "密码强度不够",
         "invalidEmail": "邮箱格式不正确",
+        "qqEmailOnly": "仅支持 QQ号@qq.com",
         "passwordTooShort": "密码至少需要 8 位",
         "passwordUppercase": "密码需要包含至少一个大写字母",
         "passwordLowercase": "密码需要包含至少一个小写字母",
@@ -911,17 +915,9 @@
       "title": "预申请流程说明",
       "description": "请按以下流程提交与跟进审核。",
       "stepsTitle": "流程步骤",
-      "steps": [
-        "填写预申请表单并提交",
-        "管理员审核并给出指导意见",
-        "通过站内信与审核记录查看结果"
-      ],
+      "steps": ["填写预申请表单并提交", "管理员审核并给出指导意见", "通过站内信与审核记录查看结果"],
       "statusTitle": "审核状态",
-      "statuses": [
-        "待审核",
-        "已通过",
-        "已驳回"
-      ],
+      "statuses": ["待审核", "已通过", "已驳回"],
       "rulesTitle": "规则提示",
       "rules": [
         "仅允许提交一次预申请",
@@ -2370,6 +2366,10 @@
     "preApplicationSubmitEndTime": "结束时间",
     "preApplicationSubmitWindowInvalidFormat": "提交时间范围格式无效，请使用 HH:mm",
     "preApplicationSubmitWindowInvalid": "提交开始时间必须早于结束时间",
+    "registerQqNumberEmailOnlyTitle": "注册邮箱限制",
+    "registerQqNumberEmailOnlyDesc": "开启后，注册页仅允许输入 QQ 号，并自动拼接为 @qq.com",
+    "registerQqNumberEmailOnlyLabel": "注册邮箱仅允许 QQ号@qq.com",
+    "registerQqNumberEmailOnlyHelp": "该开关只影响注册流程，不影响预申请、找回密码或其他邮箱场景",
     "systemConfigEmailDomains": "允许的邮箱域名",
     "systemConfigEmailDomainsDesc": "只有使用这些域名的邮箱才能提交预申请",
     "systemConfigEmailDomainPlaceholder": "例如: gmail.com",
@@ -2599,25 +2599,15 @@
         "intro": "本项目采用 MIT 许可证。这意味着您可以自由使用、复制、修改、合并、发布、分发、再许可和/或销售该软件的副本。",
         "permissions": {
           "title": "权限",
-          "items": [
-            "商业使用",
-            "修改",
-            "分发",
-            "私人使用"
-          ]
+          "items": ["商业使用", "修改", "分发", "私人使用"]
         },
         "conditions": {
           "title": "条件",
-          "items": [
-            "必须包含许可证和版权声明"
-          ]
+          "items": ["必须包含许可证和版权声明"]
         },
         "limitations": {
           "title": "限制",
-          "items": [
-            "无责任",
-            "无保证"
-          ]
+          "items": ["无责任", "无保证"]
         },
         "fullText": {
           "title": "完整许可证文本",

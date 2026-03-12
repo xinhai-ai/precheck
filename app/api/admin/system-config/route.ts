@@ -64,6 +64,7 @@ const systemConfigSchema = z.object({
   newUserAnnouncementConfirmText: z.string().optional(),
   newUserAnnouncementDelaySeconds: z.number().int().min(0).max(300).optional(),
   newUserAnnouncementVersion: z.number().int().min(1).optional(),
+  registerQqNumberEmailOnly: z.boolean().optional(),
   allowedEmailDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).min(1),
   auditLogEnabled: z.boolean().optional(),
   reviewTemplatesApprove: z.array(z.string()).optional(),
@@ -126,6 +127,7 @@ export async function GET(request: NextRequest) {
         newUserAnnouncementConfirmText: true,
         newUserAnnouncementDelaySeconds: true,
         newUserAnnouncementVersion: true,
+        registerQqNumberEmailOnly: true,
         allowedEmailDomains: true,
         auditLogEnabled: true,
         reviewTemplatesApprove: true,
@@ -168,6 +170,7 @@ export async function GET(request: NextRequest) {
         newUserAnnouncementConfirmText: "",
         newUserAnnouncementDelaySeconds: 0,
         newUserAnnouncementVersion: 1,
+        registerQqNumberEmailOnly: false,
         allowedEmailDomains: defaultEmailDomains,
         auditLogEnabled: false,
         reviewTemplatesApprove: [],
@@ -228,6 +231,7 @@ export async function GET(request: NextRequest) {
       newUserAnnouncementConfirmText: settings.newUserAnnouncementConfirmText ?? "",
       newUserAnnouncementDelaySeconds: settings.newUserAnnouncementDelaySeconds ?? 0,
       newUserAnnouncementVersion: settings.newUserAnnouncementVersion ?? 1,
+      registerQqNumberEmailOnly: settings.registerQqNumberEmailOnly ?? false,
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
@@ -366,6 +370,8 @@ export async function PUT(request: NextRequest) {
       data.newUserAnnouncementDelaySeconds ?? before?.newUserAnnouncementDelaySeconds ?? 0
     const newUserAnnouncementVersion =
       data.newUserAnnouncementVersion ?? before?.newUserAnnouncementVersion ?? 1
+    const registerQqNumberEmailOnly =
+      data.registerQqNumberEmailOnly ?? before?.registerQqNumberEmailOnly ?? false
 
     if (newUserAnnouncementEnabled && !newUserAnnouncementContent) {
       return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
@@ -438,6 +444,7 @@ export async function PUT(request: NextRequest) {
         newUserAnnouncementConfirmText,
         newUserAnnouncementDelaySeconds,
         newUserAnnouncementVersion,
+        registerQqNumberEmailOnly,
         allowedEmailDomains: data.allowedEmailDomains,
         auditLogEnabled: data.auditLogEnabled ?? false,
         reviewTemplatesApprove: data.reviewTemplatesApprove ?? [],
@@ -504,6 +511,9 @@ export async function PUT(request: NextRequest) {
         ...(data.newUserAnnouncementVersion !== undefined && {
           newUserAnnouncementVersion,
         }),
+        ...(data.registerQqNumberEmailOnly !== undefined && {
+          registerQqNumberEmailOnly,
+        }),
         allowedEmailDomains: data.allowedEmailDomains,
         ...(data.auditLogEnabled !== undefined && { auditLogEnabled: data.auditLogEnabled }),
         ...(data.reviewTemplatesApprove !== undefined && {
@@ -569,6 +579,7 @@ export async function PUT(request: NextRequest) {
           "newUserAnnouncementConfirmText",
           "newUserAnnouncementDelaySeconds",
           "newUserAnnouncementVersion",
+          "registerQqNumberEmailOnly",
           "allowedEmailDomains",
           "auditLogEnabled",
           "reviewTemplatesApprove",
@@ -617,6 +628,7 @@ export async function PUT(request: NextRequest) {
       newUserAnnouncementConfirmText: updated.newUserAnnouncementConfirmText,
       newUserAnnouncementDelaySeconds: updated.newUserAnnouncementDelaySeconds,
       newUserAnnouncementVersion: updated.newUserAnnouncementVersion,
+      registerQqNumberEmailOnly: updated.registerQqNumberEmailOnly ?? false,
       allowedEmailDomains: updated.allowedEmailDomains,
       auditLogEnabled: updated.auditLogEnabled,
       reviewTemplatesApprove: updated.reviewTemplatesApprove,

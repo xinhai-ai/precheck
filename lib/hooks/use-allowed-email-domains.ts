@@ -5,12 +5,22 @@ import { useEffect, useState } from "react"
 
 const DEFAULT_DOMAINS = [...allowedEmailDomains]
 
-let cachedDomains: string[] | null = null
-let fetchingPromise: Promise<string[]> | null = null
+type RegistrationEmailPolicy = {
+  allowedDomains: string[]
+  registerQqNumberEmailOnly: boolean
+}
 
-async function loadDomains(): Promise<string[]> {
-  if (cachedDomains) {
-    return cachedDomains
+const DEFAULT_POLICY: RegistrationEmailPolicy = {
+  allowedDomains: DEFAULT_DOMAINS,
+  registerQqNumberEmailOnly: false,
+}
+
+let cachedPolicy: RegistrationEmailPolicy | null = null
+let fetchingPromise: Promise<RegistrationEmailPolicy> | null = null
+
+async function loadRegistrationEmailPolicy(): Promise<RegistrationEmailPolicy> {
+  if (cachedPolicy) {
+    return cachedPolicy
   }
 
   if (!fetchingPromise) {
@@ -21,17 +31,25 @@ async function loadDomains(): Promise<string[]> {
           throw new Error("Failed to fetch system config")
         }
 
-        const data = (await response.json()) as { allowedEmailDomains?: string[] }
-        const domains =
+        const data = (await response.json()) as {
+          allowedEmailDomains?: string[]
+          registerQqNumberEmailOnly?: boolean
+        }
+        const allowedDomains =
           Array.isArray(data.allowedEmailDomains) && data.allowedEmailDomains.length > 0
             ? [...data.allowedEmailDomains]
             : [...DEFAULT_DOMAINS]
-        cachedDomains = domains
-        return domains
+
+        cachedPolicy = {
+          allowedDomains,
+          registerQqNumberEmailOnly: data.registerQqNumberEmailOnly === true,
+        }
+
+        return cachedPolicy
       } catch (error) {
         console.error("Unable to load allowed email domains:", error)
-        cachedDomains = DEFAULT_DOMAINS
-        return DEFAULT_DOMAINS
+        cachedPolicy = DEFAULT_POLICY
+        return DEFAULT_POLICY
       } finally {
         fetchingPromise = null
       }
@@ -41,15 +59,15 @@ async function loadDomains(): Promise<string[]> {
   return fetchingPromise
 }
 
-export function useAllowedEmailDomains() {
-  const [domains, setDomains] = useState<string[]>(cachedDomains ?? DEFAULT_DOMAINS)
+export function useRegistrationEmailPolicy() {
+  const [policy, setPolicy] = useState<RegistrationEmailPolicy>(cachedPolicy ?? DEFAULT_POLICY)
 
   useEffect(() => {
     let mounted = true
 
-    loadDomains().then((result) => {
+    loadRegistrationEmailPolicy().then((result) => {
       if (mounted) {
-        setDomains(result)
+        setPolicy(result)
       }
     })
 
@@ -58,5 +76,9 @@ export function useAllowedEmailDomains() {
     }
   }, [])
 
-  return domains
+  return policy
+}
+
+export function useAllowedEmailDomains() {
+  return useRegistrationEmailPolicy().allowedDomains
 }
