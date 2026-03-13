@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { readFileSync } from "fs"
 import { join } from "path"
 import { db } from "@/lib/db"
 import { isRedisAvailable } from "@/lib/redis"
 import { isEmailConfigured } from "@/lib/email/mailer"
 import { features } from "@/lib/features"
-import { getSession } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { getCaptchaProvidersHealth } from "@/lib/captcha/config"
 
 export const runtime = "nodejs"
@@ -126,7 +126,7 @@ function computeOverallStatus(services: Record<string, ServiceInfo>): "ok" | "de
   return "ok"
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const buildInfo = getBuildInfo()
 
   // 检测所有服务
@@ -149,8 +149,8 @@ export async function GET() {
   // 检查是否是管理员（仅管理员可见服务详情）
   let isAdminUser = false
   try {
-    const session = await getSession()
-    isAdminUser = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN"
+    const user = await getCurrentUserFromRequest(request)
+    isAdminUser = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
   } catch {
     // 非管理员
   }

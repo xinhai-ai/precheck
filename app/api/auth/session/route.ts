@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return NextResponse.json({ user: null })

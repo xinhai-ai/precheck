@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client"
 import { NextResponse, type NextRequest } from "next/server"
 import { z } from "zod"
 import { createApiErrorResponse } from "@/lib/api/error-response"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { db } from "@/lib/db"
 
 const querySchema = z.object({
@@ -59,7 +59,7 @@ const toBucketKey = (value: Date) => {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, "apiErrors.general.notAuthenticated", { status: 401 })

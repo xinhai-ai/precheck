@@ -7,7 +7,7 @@ import {
 } from "@prisma/client"
 import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
@@ -47,7 +47,7 @@ function buildReviewRequestCreatedMessage(input: {
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })

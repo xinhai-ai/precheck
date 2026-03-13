@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isSuperAdmin } from "@/lib/auth/permissions"
 import { sendEmail } from "@/lib/email/mailer"
 import { createApiErrorResponse } from "@/lib/api/error-response"
@@ -13,7 +13,7 @@ const resendSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     // 邮件重发仅限超级管理员
     if (!user || !isSuperAdmin(user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })

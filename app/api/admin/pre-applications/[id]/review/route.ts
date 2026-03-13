@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
 import { buildPreApplicationReviewEmail } from "@/lib/email/templates"
@@ -27,7 +27,7 @@ const reviewSchema = z.object({
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })

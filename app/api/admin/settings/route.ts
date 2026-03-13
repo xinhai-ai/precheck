@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin, isSuperAdmin } from "@/lib/auth/permissions"
 import { getSiteSettings, updateSiteSettings } from "@/lib/site-settings"
 import { batchPromoteLinuxDoAdmins } from "@/lib/auth/oauth"
@@ -26,7 +26,7 @@ const settingsSchema = z
   .partial()
 
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(request)
   if (!user) {
     return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
   }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(request)
   if (!user) {
     return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
   }

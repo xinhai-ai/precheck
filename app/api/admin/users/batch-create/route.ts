@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isSuperAdmin } from "@/lib/auth/permissions"
 import { hashPassword } from "@/lib/auth/password"
 import { writeAuditLog } from "@/lib/audit"
@@ -16,7 +16,7 @@ const batchCreateSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin, isSuperAdmin } from "@/lib/auth/permissions"
 import { writeAuditLog } from "@/lib/audit"
 import {
@@ -92,7 +92,7 @@ const systemConfigSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     // 系统配置查看需要管理员权限
     if (!user || !isAdmin(user.role)) {
@@ -271,7 +271,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     // 系统配置修改仅限超级管理员
     if (!user || !isSuperAdmin(user.role)) {

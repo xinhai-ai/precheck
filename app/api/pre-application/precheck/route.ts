@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { getSubmitBanRemainingSeconds } from "@/lib/pre-application/submit-ban-utils"
@@ -10,7 +10,7 @@ import { getEnabledCaptchaRuntimeConfig } from "@/lib/captcha/config"
 import { issuePreApplicationCaptchaTicket } from "@/lib/pre-application/captcha-ticket"
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(request)
   if (!user) {
     return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
   }

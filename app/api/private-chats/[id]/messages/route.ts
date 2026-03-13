@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 
 const sendMessageSchema = z.object({
   content: z.string().min(1).max(2000),
@@ -10,7 +10,7 @@ const sendMessageSchema = z.object({
 // 获取会话消息
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user) {
       return NextResponse.json({ error: { message: "请先登录" } }, { status: 401 })
     }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 // 发送消息
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user) {
       return NextResponse.json({ error: { message: "请先登录" } }, { status: 401 })
     }

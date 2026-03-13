@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin } from "@/lib/auth/permissions"
 import { db } from "@/lib/db"
 import { z } from "zod"
@@ -12,8 +12,8 @@ const configSchema = z.object({
   pass: z.string().min(1, "密码不能为空"),
 })
 
-export async function GET() {
-  const user = await getCurrentUser()
+export async function GET(request: NextRequest) {
+  const user = await getCurrentUserFromRequest(request)
   if (!user || !isAdmin(user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -39,7 +39,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(request)
   if (!user || !isAdmin(user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

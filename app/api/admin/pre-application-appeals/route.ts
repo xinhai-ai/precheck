@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { Prisma, PreApplicationAppealStatus } from "@prisma/client"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
@@ -68,7 +68,7 @@ const appealRecordSelect = {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })

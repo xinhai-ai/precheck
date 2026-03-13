@@ -6,7 +6,7 @@ import {
 } from "@prisma/client"
 import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { db } from "@/lib/db"
@@ -195,7 +195,7 @@ function buildAutoRejectedMessage(input: {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })

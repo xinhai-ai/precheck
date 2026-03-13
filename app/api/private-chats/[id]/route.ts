@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 
 // 获取会话详情
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user) {
       return NextResponse.json({ error: { message: "请先登录" } }, { status: 401 })
     }

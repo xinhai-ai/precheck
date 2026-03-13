@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
@@ -14,7 +14,7 @@ const passwordSchema = z.object({
 })
 
 export async function PUT(request: NextRequest) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(request)
   if (!user) {
     return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
   }

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { sendEmail, isEmailConfigured } from "@/lib/email/mailer"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
@@ -14,7 +14,7 @@ const testEmailSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })

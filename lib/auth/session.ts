@@ -67,7 +67,7 @@ export async function getSession() {
 
   if (!session || session.expires < new Date() || session.user.status !== "ACTIVE") {
     if (session) {
-      await prisma.session.delete({ where: { id: session.id } })
+      await prisma.session.deleteMany({ where: { id: session.id } })
     }
     return null
   }

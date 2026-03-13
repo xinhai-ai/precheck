@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { ensureUserTicketsEnabled } from "@/lib/tickets/feature-guard"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }

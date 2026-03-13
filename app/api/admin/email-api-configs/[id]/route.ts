@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin } from "@/lib/auth/permissions"
 import { db } from "@/lib/db"
 import { z } from "zod"
@@ -15,7 +15,7 @@ const updateSchema = z.object({
 type RouteParams = { params: Promise<{ id: string }> }
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(_request)
   if (!user || !isAdmin(user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -47,7 +47,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(request)
   if (!user || !isAdmin(user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -86,7 +86,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
-  const user = await getCurrentUser()
+  const user = await getCurrentUserFromRequest(_request)
   if (!user || !isAdmin(user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

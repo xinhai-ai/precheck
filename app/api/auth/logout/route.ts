@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { clearSessionCookie, deleteSession, getCurrentUser, getSession } from "@/lib/auth/session"
+import { clearSessionCookie, deleteSession, getCurrentUserFromRequest, getSession } from "@/lib/auth/session"
 import { db } from "@/lib/db"
 import { defaultLocale, locales } from "@/lib/i18n/config"
 import { writeAuditLog } from "@/lib/audit"
@@ -9,7 +9,7 @@ import { buildRedirectUrl } from "@/lib/url"
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     const session = await getSession()
     await deleteSession()
 

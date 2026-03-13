@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { isAdmin } from "@/lib/auth/permissions"
@@ -12,7 +12,7 @@ const parsePositive = (value: string | null, fallback: number) => {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user || !isAdmin(user.role)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })
     }

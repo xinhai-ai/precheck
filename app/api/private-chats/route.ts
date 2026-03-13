@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin } from "@/lib/auth/permissions"
 
 const createChatSchema = z.object({
@@ -11,7 +11,7 @@ const createChatSchema = z.object({
 // 获取用户的私信列表
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user) {
       return NextResponse.json({ error: { message: "请先登录" } }, { status: 401 })
     }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 // 创建或获取与管理员的会话
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
     if (!user) {
       return NextResponse.json({ error: { message: "请先登录" } }, { status: 401 })
     }

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isAdmin } from "@/lib/auth/permissions"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
@@ -90,7 +90,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string; noteId: string }> },
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
@@ -249,7 +249,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string; noteId: string }> },
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { PreApplicationAppealStatus, PreApplicationStatus } from "@prisma/client"
 import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
-import { getCurrentUser } from "@/lib/auth/session"
+import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
@@ -100,7 +100,7 @@ function buildAppealReviewMessage(input: {
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUserFromRequest(request)
 
     if (!user) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
