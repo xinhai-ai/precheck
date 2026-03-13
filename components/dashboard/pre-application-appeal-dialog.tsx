@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react"
 import { AlertTriangle, Loader2, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,14 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
@@ -45,43 +45,47 @@ export function PreApplicationAppealDialog({
 }: PreApplicationAppealDialogProps) {
   const t = dict.preApplication
   const [reason, setReason] = useState("")
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [stage, setStage] = useState<"warning" | "editor">("warning")
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
       setReason("")
-      setConfirmOpen(false)
+      setStage("warning")
       setSubmitting(false)
     }
   }, [open])
 
-  const handleDialogOpenChange = (nextOpen: boolean) => {
+  const handleWarningOpenChange = (nextOpen: boolean) => {
     if (submitting) {
       return
     }
 
     if (!nextOpen) {
-      setConfirmOpen(false)
+      setStage("warning")
     }
 
     onOpenChange(nextOpen)
   }
 
-  const handleConfirmOpenChange = (nextOpen: boolean) => {
+  const handleEditorOpenChange = (nextOpen: boolean) => {
     if (submitting) {
       return
     }
 
-    setConfirmOpen(nextOpen)
+    if (!nextOpen) {
+      setStage("warning")
+    }
+
+    onOpenChange(nextOpen)
   }
 
-  const handleOpenConfirm = () => {
-    if (!reason.trim() || !preApplicationId || submitting) {
+  const handleOpenEditor = () => {
+    if (!preApplicationId || submitting) {
       return
     }
 
-    setConfirmOpen(true)
+    setStage("editor")
   }
 
   const handleSubmit = async () => {
@@ -127,7 +131,7 @@ export function PreApplicationAppealDialog({
           : (((t as Record<string, unknown>).appealSubmitSuccess as string) ||
               "Appeal submitted successfully"),
       )
-      setConfirmOpen(false)
+      setStage("warning")
       onOpenChange(false)
     } catch (error) {
       toast.error(
@@ -142,74 +146,8 @@ export function PreApplicationAppealDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent
-        className="sm:max-w-lg"
-        onEscapeKeyDown={(event) => {
-          if (submitting) {
-            event.preventDefault()
-          }
-        }}
-        onInteractOutside={(event) => {
-          if (submitting) {
-            event.preventDefault()
-          }
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-primary" />
-            {((t as Record<string, unknown>).appealDialogTitle as string) || "Submit Appeal"}
-          </DialogTitle>
-          <DialogDescription>
-            {((t as Record<string, unknown>).appealDialogDescription as string) ||
-              "Explain why you would like this rejected pre-application to be reviewed again."}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="pre-application-appeal-reason">
-              {((t as Record<string, unknown>).appealReasonLabel as string) || "Appeal Reason"}
-            </Label>
-            <Textarea
-              id="pre-application-appeal-reason"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder={
-                ((t as Record<string, unknown>).appealReasonPlaceholder as string) ||
-                "Please explain the specific reason for your appeal..."
-              }
-              rows={6}
-              maxLength={2000}
-              className="resize-none"
-            />
-          </div>
-
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={submitting}>
-            {t.cancel}
-          </Button>
-          <Button
-            onClick={handleOpenConfirm}
-            disabled={submitting || !reason.trim()}
-            className="gap-2"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {((t as Record<string, unknown>).appealSubmitting as string) || "Submitting..."}
-              </>
-            ) : (
-              ((t as Record<string, unknown>).appealSubmit as string) || "Submit Appeal"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-
-      <AlertDialog open={confirmOpen} onOpenChange={handleConfirmOpenChange}>
+    <>
+      <AlertDialog open={open && stage === "warning"} onOpenChange={handleWarningOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -245,23 +183,83 @@ export function PreApplicationAppealDialog({
           </div>
 
           <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>
+            <Button variant="outline" onClick={() => handleWarningOpenChange(false)} disabled={submitting}>
               {t.cancel}
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="gap-2">
+            <Button onClick={handleOpenEditor} disabled={submitting} className="gap-2">
+              {((t as Record<string, unknown>).appealWarningContinue as string) ||
+                "I understand, continue"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={open && stage === "editor"} onOpenChange={handleEditorOpenChange}>
+        <DialogContent
+          className="sm:max-w-lg"
+          onEscapeKeyDown={(event) => {
+            if (submitting) {
+              event.preventDefault()
+            }
+          }}
+          onInteractOutside={(event) => {
+            if (submitting) {
+              event.preventDefault()
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              {((t as Record<string, unknown>).appealDialogTitle as string) || "Submit Appeal"}
+            </DialogTitle>
+            <DialogDescription>
+              {((t as Record<string, unknown>).appealDialogDescription as string) ||
+                "Explain why you would like this rejected pre-application to be reviewed again."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="pre-application-appeal-reason">
+                {((t as Record<string, unknown>).appealReasonLabel as string) || "Appeal Reason"}
+              </Label>
+              <Textarea
+                id="pre-application-appeal-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder={
+                  ((t as Record<string, unknown>).appealReasonPlaceholder as string) ||
+                  "Please explain the specific reason for your appeal..."
+                }
+                rows={6}
+                maxLength={2000}
+                className="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleEditorOpenChange(false)} disabled={submitting}>
+              {t.cancel}
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting || !reason.trim()}
+              className="gap-2"
+            >
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   {((t as Record<string, unknown>).appealSubmitting as string) || "Submitting..."}
                 </>
               ) : (
-                ((t as Record<string, unknown>).appealConfirmSubmit as string) ||
-                "Confirm appeal submission"
+                ((t as Record<string, unknown>).appealSubmit as string) || "Submit Appeal"
               )}
             </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Dialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

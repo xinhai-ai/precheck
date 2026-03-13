@@ -1346,6 +1346,7 @@
     "appealWarningAiRejectedHint": "If this pre-application was rejected by AI review, submitting an appeal will cause it to be automatically rejected.",
     "appealConfirmDescription": "Please review these risk reminders once more before submitting.",
     "appealConfirmSubmit": "Confirm appeal submission",
+    "appealWarningContinue": "I understand, continue",
     "appealWarningAcknowledge": "I understand an appeal is not a resubmission and a rejected appeal may block future pre-application submissions",
     "appealLoadError": "Failed to refresh appeal status. Showing the last known appeal state.",
     "currentApplication": "Current Application",

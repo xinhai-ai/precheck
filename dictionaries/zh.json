@@ -1343,6 +1343,7 @@
     "appealWarningAiRejectedHint": "如果当前这条预申请是由 AI 审核驳回的，提交申诉后将会被系统自动驳回。",
     "appealConfirmDescription": "提交前请再次确认以下风险提示。",
     "appealConfirmSubmit": "确认提交申诉",
+    "appealWarningContinue": "我已知晓，继续填写",
     "appealWarningAcknowledge": "我已知晓申诉不是重新提交，且申诉被驳回后可能被限制再次提交预申请",
     "appealLoadError": "刷新申诉状态失败，当前显示的是最近一次已知状态。",
     "currentApplication": "当前申请",
