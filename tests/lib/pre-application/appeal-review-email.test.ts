@@ -26,8 +26,12 @@ test("appeal review route sends email and returns email result fields", () => {
 
 test("appeal review email templates exist in both dictionaries", () => {
   for (const source of [zhSource, enSource]) {
-    assert.match(source, /"appealEmailTemplate"\s*:/)
+    assert.match(source, /"forgotPassword"\s*:\s*\{[\s\S]*?"appealEmailTemplate"\s*:/)
     assert.match(source, /"approved"\s*:\s*\{[\s\S]*?"subject"\s*:/)
     assert.match(source, /"rejected"\s*:\s*\{[\s\S]*?"subject"\s*:/)
   }
+})
+
+test("appeal review email builder supports the current dictionary template path", () => {
+  assert.match(templateSource, /forgotPassword\?\.appealEmailTemplate|forgotPassword\.appealEmailTemplate/)
 })
