@@ -20,6 +20,10 @@ const { openApiSpec } = await import(new URL("../../../lib/openapi-spec.ts", imp
 const enDictionary = JSON.parse(
   readFileSync(new URL("../../../dictionaries/en.json", import.meta.url), "utf8"),
 ) as Record<string, any>
+const appealDialogSource = readFileSync(
+  new URL("../../../components/dashboard/pre-application-appeal-dialog.tsx", import.meta.url),
+  "utf8",
+)
 const zhDictionary = JSON.parse(
   readFileSync(new URL("../../../dictionaries/zh.json", import.meta.url), "utf8"),
 ) as Record<string, any>
@@ -535,13 +539,21 @@ test("appeal dialog dictionaries expose warning copy", () => {
     "If this pre-application was rejected by AI review, submitting an appeal will cause it to be automatically rejected.",
   )
   assert.equal(
-    zhDictionary.preApplication.appealConfirmSubmit,
-    "确认提交申诉",
+    zhDictionary.preApplication.appealWarningContinue,
+    "我已知晓，继续填写",
   )
   assert.equal(
-    enDictionary.preApplication.appealConfirmSubmit,
-    "Confirm appeal submission",
+    enDictionary.preApplication.appealWarningContinue,
+    "I understand, continue",
   )
+})
+
+test("appeal dialog warns before opening the reason editor", () => {
+  assert.match(appealDialogSource, /const \[stage, setStage\] = useState<"warning" \| "editor">\("warning"\)/)
+  assert.match(appealDialogSource, /<AlertDialog open=\{open && stage === "warning"\}/)
+  assert.match(appealDialogSource, /<Dialog open=\{open && stage === "editor"\}/)
+  assert.match(appealDialogSource, /setStage\("editor"\)/)
+  assert.doesNotMatch(appealDialogSource, /const \[confirmOpen, setConfirmOpen\]/)
 })
 
 test("openApiSpec documents richer pre-application appeal response fields", () => {
