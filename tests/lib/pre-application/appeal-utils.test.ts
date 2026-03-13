@@ -550,8 +550,12 @@ test("appeal dialog dictionaries expose warning copy", () => {
 
 test("appeal dialog warns before opening the reason editor", () => {
   assert.match(appealDialogSource, /const \[stage, setStage\] = useState<"warning" \| "editor">\("warning"\)/)
+  assert.match(appealDialogSource, /const \[warningAcknowledged, setWarningAcknowledged\] = useState\(false\)/)
   assert.match(appealDialogSource, /<AlertDialog open=\{open && stage === "warning"\}/)
   assert.match(appealDialogSource, /<Dialog open=\{open && stage === "editor"\}/)
+  assert.match(appealDialogSource, /<Checkbox/)
+  assert.match(appealDialogSource, /appealWarningAcknowledge/)
+  assert.match(appealDialogSource, /disabled=\{submitting \|\| !warningAcknowledged\}/)
   assert.match(appealDialogSource, /setStage\("editor"\)/)
   assert.doesNotMatch(appealDialogSource, /const \[confirmOpen, setConfirmOpen\]/)
 })

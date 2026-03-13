@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -46,12 +47,14 @@ export function PreApplicationAppealDialog({
   const t = dict.preApplication
   const [reason, setReason] = useState("")
   const [stage, setStage] = useState<"warning" | "editor">("warning")
+  const [warningAcknowledged, setWarningAcknowledged] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
       setReason("")
       setStage("warning")
+      setWarningAcknowledged(false)
       setSubmitting(false)
     }
   }, [open])
@@ -63,6 +66,7 @@ export function PreApplicationAppealDialog({
 
     if (!nextOpen) {
       setStage("warning")
+      setWarningAcknowledged(false)
     }
 
     onOpenChange(nextOpen)
@@ -75,13 +79,14 @@ export function PreApplicationAppealDialog({
 
     if (!nextOpen) {
       setStage("warning")
+      setWarningAcknowledged(false)
     }
 
     onOpenChange(nextOpen)
   }
 
   const handleOpenEditor = () => {
-    if (!preApplicationId || submitting) {
+    if (!preApplicationId || submitting || !warningAcknowledged) {
       return
     }
 
@@ -132,6 +137,7 @@ export function PreApplicationAppealDialog({
               "Appeal submitted successfully"),
       )
       setStage("warning")
+      setWarningAcknowledged(false)
       onOpenChange(false)
     } catch (error) {
       toast.error(
@@ -161,7 +167,7 @@ export function PreApplicationAppealDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4 text-sm dark:border-amber-900/60 dark:bg-amber-950/20">
+          <div className="space-y-4 rounded-lg border border-amber-200 bg-amber-50/80 p-4 text-sm dark:border-amber-900/60 dark:bg-amber-950/20">
             <div className="space-y-2 text-amber-900 dark:text-amber-100">
               <p>
                 {((t as Record<string, unknown>).appealWarningDescription as string) ||
@@ -180,13 +186,34 @@ export function PreApplicationAppealDialog({
                   "Some appeals may be automatically rejected when the current rejection guidance matches an auto-reject rule."}
               </p>
             </div>
+
+            <label
+              htmlFor="pre-application-appeal-warning-acknowledge"
+              className="flex items-start gap-3 rounded-md border border-amber-300/60 bg-white/60 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-50"
+            >
+              <Checkbox
+                id="pre-application-appeal-warning-acknowledge"
+                checked={warningAcknowledged}
+                onCheckedChange={(checked) => setWarningAcknowledged(checked === true)}
+                disabled={submitting}
+                className="mt-0.5"
+              />
+              <span>
+                {((t as Record<string, unknown>).appealWarningAcknowledge as string) ||
+                  "I understand an appeal is not a resubmission and a rejected appeal may block future pre-application submissions"}
+              </span>
+            </label>
           </div>
 
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => handleWarningOpenChange(false)} disabled={submitting}>
               {t.cancel}
             </Button>
-            <Button onClick={handleOpenEditor} disabled={submitting} className="gap-2">
+            <Button
+              onClick={handleOpenEditor}
+              disabled={submitting || !warningAcknowledged}
+              className="gap-2"
+            >
               {((t as Record<string, unknown>).appealWarningContinue as string) ||
                 "I understand, continue"}
             </Button>
