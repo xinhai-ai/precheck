@@ -1617,7 +1617,7 @@
         "rejectApplySubmitBanDesc": "开启后，会同时限制该用户继续提交新的预申请。",
         "rejectSubmitBanDays": "封禁天数",
         "overrideTitle": "通过申请",
-        "overrideDescription": "提交审核备注后将直接通过该预申请，不再回到待审核列表。",
+        "overrideDescription": "填写指导意见后将直接通过该预申请，不再回到待审核列表。",
         "overridePlaceholder": "说明为何通过该预申请...",
         "viewTitle": "申诉详情",
         "viewDescription": "查看本次申诉内容，以及该次驳回对应的申请书快照。",
@@ -1632,7 +1632,7 @@
       },
       "messages": {
         "loadError": "加载预申请申诉失败",
-        "commentRequired": "请填写审核备注",
+        "commentRequired": "请输入指导意见",
         "submitBanDaysInvalid": "请输入有效的封禁天数",
         "rejected": "已驳回申诉",
         "overridden": "已通过申请"

@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DataTable, type Column } from "@/components/ui/data-table"
 import {
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
+import { extractPureCode } from "@/lib/invite-code/utils"
 import { PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS } from "@/lib/pre-application/appeal-utils"
 import type { Locale } from "@/lib/i18n/config"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
@@ -92,6 +94,14 @@ type AppealRecord = {
     queryToken: string | null
     registerEmail: string
     guidance: string | null
+    inviteCode: {
+      id: string
+      code: string
+      expiresAt: string | null
+      usedAt: string | null
+    } | null
+    codeSent: boolean
+    codeSentAt: string | null
     reviewedAt: string | null
     createdAt: string
     updatedAt: string
@@ -184,6 +194,7 @@ export function AdminPreApplicationAppealsTable({
   dict,
 }: AdminPreApplicationAppealsTableProps) {
   const pageT = dict.admin.preApplicationAppealsPage
+  const adminT = dict.admin as unknown as Record<string, string>
   const [records, setRecords] = useState<AppealRecord[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -194,6 +205,14 @@ export function AdminPreApplicationAppealsTable({
   const [statusFilter, setStatusFilter] = useState<AppealFilter>("PENDING")
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState | null>(null)
   const [reviewComment, setReviewComment] = useState("")
+  const [guidance, setGuidance] = useState("")
+  const [inviteCode, setInviteCode] = useState("")
+  const [markCodeSent, setMarkCodeSent] = useState(false)
+  const [inviteCodeChecking, setInviteCodeChecking] = useState(false)
+  const [inviteCodeCheckResult, setInviteCodeCheckResult] = useState<{
+    valid: boolean | null
+    message: string
+  } | null>(null)
   const [applySubmitBan, setApplySubmitBan] = useState(true)
   const [submitBanDays, setSubmitBanDays] = useState(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
@@ -219,14 +238,13 @@ export function AdminPreApplicationAppealsTable({
     [pageT.filters.all, pageT.filters.overridden, pageT.filters.pending, pageT.filters.rejected],
   )
 
-
   const getSourceLabel = useCallback(
     (source: AppealSource) => {
       if (source === "ADMIN_REVIEW_REQUEST") {
-        return ((pageT.fields as Record<string, string>).adminReviewRequestSource || "管理员复审")
+        return (pageT.fields as Record<string, string>).adminReviewRequestSource || "管理员复审"
       }
 
-      return ((pageT.fields as Record<string, string>).userAppealSource || "用户申诉")
+      return (pageT.fields as Record<string, string>).userAppealSource || "用户申诉"
     },
     [pageT.fields],
   )
@@ -282,6 +300,11 @@ export function AdminPreApplicationAppealsTable({
   const closeReviewDialog = () => {
     setReviewDialog(null)
     setReviewComment("")
+    setGuidance("")
+    setInviteCode("")
+    setMarkCodeSent(false)
+    setInviteCodeChecking(false)
+    setInviteCodeCheckResult(null)
     setApplySubmitBan(true)
     setSubmitBanDays(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
     setReviewingId(null)
@@ -300,15 +323,75 @@ export function AdminPreApplicationAppealsTable({
   const openReviewDialog = (appeal: AppealRecord, mode: DialogMode) => {
     setReviewDialog({ appeal, mode })
     setReviewComment("")
+    setGuidance(mode === "APPROVE" ? (appeal.reviewComment ?? "") : "")
+    setInviteCode(mode === "APPROVE" ? (appeal.preApplication.inviteCode?.code ?? "") : "")
+    setMarkCodeSent(mode === "APPROVE" ? Boolean(appeal.preApplication.codeSent) : false)
+    setInviteCodeChecking(false)
+    setInviteCodeCheckResult(null)
     setApplySubmitBan(mode === "REJECT")
     setSubmitBanDays(PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
+  }
+
+  const checkInviteCodeValidity = async () => {
+    const trimmed = inviteCode.trim()
+    if (!trimmed) return
+
+    const pureCode = extractPureCode(trimmed)
+    if (!pureCode) {
+      setInviteCodeCheckResult({
+        valid: null,
+        message: adminT.inviteCodeInvalidFormat || "无法识别的邀请码格式",
+      })
+      return
+    }
+
+    setInviteCodeChecking(true)
+    setInviteCodeCheckResult(null)
+
+    try {
+      const response = await fetch("/api/public/check-invite-codes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ codes: [pureCode] }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.error || "检测失败")
+      }
+
+      const result = data.results?.[0]
+      setInviteCodeCheckResult(
+        result
+          ? { valid: result.valid, message: result.message }
+          : { valid: null, message: locale === "zh" ? "无检测结果" : "No check result" },
+      )
+    } catch (error) {
+      setInviteCodeCheckResult({
+        valid: null,
+        message:
+          error instanceof Error ? error.message : locale === "zh" ? "检测失败" : "Check failed",
+      })
+    } finally {
+      setInviteCodeChecking(false)
+    }
   }
 
   const submitReview = async () => {
     if (!reviewDialog || reviewDialog.mode === "VIEW") return
 
     const nextComment = reviewComment.trim()
-    if (!nextComment) {
+    const nextGuidance = guidance.trim()
+
+    if (reviewDialog.mode === "APPROVE") {
+      if (!nextGuidance) {
+        toast.error(pageT.messages.commentRequired)
+        return
+      }
+    } else if (!nextComment) {
       toast.error(pageT.messages.commentRequired)
       return
     }
@@ -335,10 +418,17 @@ export function AdminPreApplicationAppealsTable({
           },
           body: JSON.stringify({
             action: reviewDialog.mode,
-            reviewComment: nextComment,
-            applySubmitBan: reviewDialog.mode === "REJECT" ? applySubmitBan : undefined,
-            submitBanDays:
-              reviewDialog.mode === "REJECT" && applySubmitBan ? nextSubmitBanDays : undefined,
+            ...(reviewDialog.mode === "APPROVE"
+              ? {
+                  guidance,
+                  inviteCode: inviteCode.trim() || undefined,
+                  codeSent: !!inviteCode.trim() || markCodeSent,
+                }
+              : {
+                  reviewComment: nextComment,
+                  applySubmitBan,
+                  submitBanDays: applySubmitBan ? nextSubmitBanDays : undefined,
+                }),
             locale,
           }),
         },
@@ -433,7 +523,8 @@ export function AdminPreApplicationAppealsTable({
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{getSourceLabel(item.source)}</Badge>
               <Badge variant="secondary">
-                {((pageT.fields as Record<string, string>).initiatedBy || "发起人")}: {item.initiatedBy.name || item.initiatedBy.email}
+                {(pageT.fields as Record<string, string>).initiatedBy || "发起人"}:{" "}
+                {item.initiatedBy.name || item.initiatedBy.email}
               </Badge>
             </div>
             <p className="whitespace-pre-wrap break-words text-sm leading-6">
@@ -850,16 +941,118 @@ export function AdminPreApplicationAppealsTable({
                 </div>
 
                 {reviewDialog.mode === "VIEW" ? (
-                  reviewDialog.appeal.reviewComment ? (
-                    <>
-                      <div className="text-xs text-muted-foreground">
-                        {pageT.fields.reviewComment}
+                  <div className="space-y-3">
+                    {reviewDialog.appeal.status === "OVERRIDDEN" ? (
+                      <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {reviewDialog.appeal.preApplication.inviteCode ? (
+                            <div>
+                              <div className="text-xs text-muted-foreground">
+                                {adminT.inviteCode || "邀请码"}
+                              </div>
+                              <div className="mt-1 font-mono text-foreground">
+                                {reviewDialog.appeal.preApplication.inviteCode.code}
+                              </div>
+                            </div>
+                          ) : null}
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {adminT.inviteStatus || "发码状态"}
+                            </div>
+                            <div className="mt-1 text-foreground">
+                              {reviewDialog.appeal.preApplication.codeSent
+                                ? adminT.inviteStatusIssued || "已发码"
+                                : adminT.inviteStatusNone || "未发码"}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">
+                            {dict.preApplication.review.guidance}
+                          </div>
+                          <div className="mt-1 whitespace-pre-wrap break-words text-foreground">
+                            {reviewDialog.appeal.preApplication.guidance || pageT.states.none}
+                          </div>
+                        </div>
                       </div>
-                      <div className="whitespace-pre-wrap break-words text-foreground">
-                        {reviewDialog.appeal.reviewComment}
+                    ) : null}
+
+                    {reviewDialog.appeal.reviewComment ? (
+                      <>
+                        <div className="text-xs text-muted-foreground">
+                          {pageT.fields.reviewComment}
+                        </div>
+                        <div className="whitespace-pre-wrap break-words text-foreground">
+                          {reviewDialog.appeal.reviewComment}
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                ) : reviewDialog.mode === "APPROVE" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="appeal-invite-code">{adminT.inviteCode || "邀请码"}</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="appeal-invite-code"
+                          value={inviteCode}
+                          onChange={(event) => {
+                            setInviteCode(event.target.value)
+                            setInviteCodeCheckResult(null)
+                          }}
+                          placeholder={adminT.inviteCodePlaceholder || "粘贴邀请码或链接"}
+                          className="font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void checkInviteCodeValidity()}
+                          disabled={!inviteCode.trim() || inviteCodeChecking}
+                        >
+                          {inviteCodeChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          {locale === "zh" ? "检测" : "Check"}
+                        </Button>
                       </div>
-                    </>
-                  ) : null
+                      {inviteCodeCheckResult ? (
+                        <div
+                          className={`text-xs ${
+                            inviteCodeCheckResult.valid === true
+                              ? "text-emerald-600"
+                              : inviteCodeCheckResult.valid === false
+                                ? "text-rose-600"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {inviteCodeCheckResult.message}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="appeal-mark-code-sent"
+                        checked={markCodeSent || !!inviteCode.trim()}
+                        disabled={!!inviteCode.trim()}
+                        onCheckedChange={(checked) => setMarkCodeSent(checked === true)}
+                      />
+                      <Label htmlFor="appeal-mark-code-sent" className="cursor-pointer">
+                        {adminT.markCodeSent || "标记已发码"}
+                      </Label>
+                    </div>
+
+                    <Label htmlFor="appeal-guidance">{dict.preApplication.review.guidance}</Label>
+                    <Textarea
+                      id="appeal-guidance"
+                      value={guidance}
+                      onChange={(event) => setGuidance(event.target.value)}
+                      placeholder={reviewDialogText?.placeholder}
+                      maxLength={2000}
+                      rows={6}
+                    />
+                    <p className="text-right text-xs text-muted-foreground">
+                      {guidance.length}/2000
+                    </p>
+                  </>
                 ) : (
                   <>
                     <Label htmlFor="review-comment">{pageT.dialog.commentLabel}</Label>
@@ -875,41 +1068,39 @@ export function AdminPreApplicationAppealsTable({
                       {reviewComment.length}/2000
                     </p>
 
-                    {reviewDialog.mode === "REJECT" ? (
-                      <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="space-y-1">
-                            <div className="font-medium">
-                              {pageT.dialog.rejectApplySubmitBan || "驳回后封禁提交权限"}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {pageT.dialog.rejectApplySubmitBanDesc ||
-                                "开启后，会同时限制该用户继续提交新的预申请。"}
-                            </p>
+                    <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="font-medium">
+                            {pageT.dialog.rejectApplySubmitBan || "驳回后封禁提交权限"}
                           </div>
-                          <Switch checked={applySubmitBan} onCheckedChange={setApplySubmitBan} />
+                          <p className="text-sm text-muted-foreground">
+                            {pageT.dialog.rejectApplySubmitBanDesc ||
+                              "开启后，会同时限制该用户继续提交新的预申请。"}
+                          </p>
                         </div>
-
-                        {applySubmitBan ? (
-                          <div className="space-y-2">
-                            <Label htmlFor="reject-submit-ban-days">
-                              {pageT.dialog.rejectSubmitBanDays || "封禁天数"}
-                            </Label>
-                            <Input
-                              id="reject-submit-ban-days"
-                              type="number"
-                              min={1}
-                              max={3650}
-                              value={submitBanDays}
-                              onChange={(event) =>
-                                setSubmitBanDays(Math.max(0, Number(event.target.value) || 0))
-                              }
-                              className="w-32 text-center"
-                            />
-                          </div>
-                        ) : null}
+                        <Switch checked={applySubmitBan} onCheckedChange={setApplySubmitBan} />
                       </div>
-                    ) : null}
+
+                      {applySubmitBan ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="reject-submit-ban-days">
+                            {pageT.dialog.rejectSubmitBanDays || "封禁天数"}
+                          </Label>
+                          <Input
+                            id="reject-submit-ban-days"
+                            type="number"
+                            min={1}
+                            max={3650}
+                            value={submitBanDays}
+                            onChange={(event) =>
+                              setSubmitBanDays(Math.max(0, Number(event.target.value) || 0))
+                            }
+                            className="w-32 text-center"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                   </>
                 )}
               </div>

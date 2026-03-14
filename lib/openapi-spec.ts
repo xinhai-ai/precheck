@@ -1437,7 +1437,11 @@ const latestChatPaths = {
       summary: "获取公共聊天消息列表",
       parameters: [
         { name: "cursor", in: "query" as const, schema: { type: "string", format: "date-time" } },
-        { name: "limit", in: "query" as const, schema: { type: "integer", default: 50, maximum: 100 } },
+        {
+          name: "limit",
+          in: "query" as const,
+          schema: { type: "integer", default: 50, maximum: 100 },
+        },
       ],
       responses: {
         "200": jsonResponse("聊天消息列表", {
@@ -2565,10 +2569,13 @@ export const openApiSpec = {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["action", "reviewComment"],
+                required: ["action"],
                 properties: {
                   action: { type: "string", enum: ["REJECT", "APPROVE"] },
                   reviewComment: { type: "string", minLength: 1, maxLength: 2000 },
+                  guidance: { type: "string", minLength: 1, maxLength: 2000 },
+                  inviteCode: { type: "string" },
+                  codeSent: { type: "boolean" },
                   applySubmitBan: { type: "boolean" },
                   submitBanDays: { type: "integer", minimum: 1 },
                   locale: { type: "string", enum: ["en", "zh"] },

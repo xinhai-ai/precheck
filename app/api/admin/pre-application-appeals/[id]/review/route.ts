@@ -22,7 +22,10 @@ import { buildLockRejectedPreApplicationQuery } from "@/lib/pre-application/appe
 
 const reviewSchema = z.object({
   action: z.string().trim(),
-  reviewComment: z.string().trim().min(1).max(2000),
+  reviewComment: z.string().trim().min(1).max(2000).optional(),
+  guidance: z.string().trim().min(1).max(2000).optional(),
+  inviteCode: z.string().trim().optional(),
+  codeSent: z.boolean().optional(),
   locale: z.string().optional(),
   applySubmitBan: z.boolean().optional(),
   submitBanDays: z.number().int().min(1).optional(),
@@ -136,7 +139,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const action = parsed.data.action as ReviewAction
-    const reviewComment = parsed.data.reviewComment.trim()
+    const rawGuidance =
+      action === "APPROVE" ? parsed.data.guidance?.trim() : parsed.data.reviewComment?.trim()
+
+    if (!rawGuidance) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: action === "APPROVE" ? "指导意见不能为空" : "审核备注不能为空" },
+      })
+    }
+
+    const inviteCode =
+      action === "APPROVE" ? parsed.data.inviteCode?.trim() || undefined : undefined
+    const codeSent = action === "APPROVE" ? Boolean(parsed.data.codeSent || inviteCode) : false
     const applySubmitBan = action === "REJECT" ? (parsed.data.applySubmitBan ?? true) : false
     const submitBanDays = applySubmitBan
       ? normalizeSubmitBanDays(parsed.data.submitBanDays ?? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
@@ -154,6 +169,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       ? (localeParam as Locale)
       : defaultLocale
     const dict = await getDictionary(currentLocale)
+    const guidanceWithCode =
+      action === "APPROVE" && inviteCode
+        ? `${rawGuidance}\n\n${dict.preApplication.notifications.inviteCodeLabel ?? "邀请码："}${inviteCode}`
+        : rawGuidance
 
     const appeal = await db.preApplicationAppeal.findUnique({
       where: { id },
@@ -217,7 +236,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             action === "REJECT"
               ? PreApplicationAppealStatus.REJECTED
               : PreApplicationAppealStatus.OVERRIDDEN,
-          reviewComment,
+          reviewComment: rawGuidance,
           reviewedAt: now,
           reviewedById: user.id,
         },
@@ -328,7 +347,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         const messageContent = buildAppealReviewMessage({
           dict,
           action,
-          reviewComment,
+          reviewComment: rawGuidance,
           submitBanUntil,
           locale: currentLocale,
         })
@@ -356,7 +375,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           after: updatedAppeal,
           metadata: {
             preApplicationId: appeal.preApplicationId,
-            reviewComment,
+            reviewComment: rawGuidance,
             submitBanApplied: applySubmitBan,
             submitBanDays,
             submitBanUntil,
@@ -406,10 +425,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         },
         data: {
           status: PreApplicationStatus.APPROVED,
-          guidance: reviewComment,
+          guidance: guidanceWithCode,
           reviewedAt: now,
           reviewedById: user.id,
           version: nextVersion,
+          ...(codeSent ? { codeSent: true, codeSentAt: now } : {}),
         },
       })
 
@@ -427,7 +447,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           registerEmail: appeal.preApplication.registerEmail,
           group: appeal.preApplication.group,
           status: PreApplicationStatus.APPROVED,
-          guidance: reviewComment,
+          guidance: guidanceWithCode,
           reviewedAt: now,
           reviewedById: user.id,
         },
@@ -439,6 +459,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           id: true,
           status: true,
           guidance: true,
+          codeSent: true,
+          codeSentAt: true,
           reviewedAt: true,
           reviewedById: true,
           version: true,
@@ -453,7 +475,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const messageContent = buildAppealReviewMessage({
         dict,
         action,
-        reviewComment,
+        reviewComment: guidanceWithCode,
         locale: currentLocale,
       })
 
@@ -480,7 +502,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         after: updatedAppeal,
         metadata: {
           preApplicationId: appeal.preApplicationId,
-          reviewComment,
+          reviewComment: rawGuidance,
+          guidance: guidanceWithCode,
+          inviteCode: inviteCode ?? null,
+          codeSent,
         },
         request,
       })
@@ -494,7 +519,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         after: updatedPreApplication,
         metadata: {
           appealId: appeal.id,
-          reviewComment,
+          reviewComment: rawGuidance,
+          guidance: guidanceWithCode,
+          inviteCode: inviteCode ?? null,
+          codeSent,
         },
         request,
       })
@@ -529,7 +557,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         dictionary: dict,
         status: action === "REJECT" ? "REJECTED" : "APPROVED",
         reviewerName,
-        reviewComment,
+        reviewComment: action === "APPROVE" ? guidanceWithCode : rawGuidance,
       })
 
       try {

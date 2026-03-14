@@ -43,6 +43,16 @@ const appealRecordSelect = {
       registerEmail: true,
       essay: true,
       guidance: true,
+      inviteCode: {
+        select: {
+          id: true,
+          code: true,
+          expiresAt: true,
+          usedAt: true,
+        },
+      },
+      codeSent: true,
+      codeSentAt: true,
       reviewedAt: true,
       reviewedBy: {
         select: userSelect,

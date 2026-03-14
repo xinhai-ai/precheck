@@ -1621,7 +1621,7 @@
         "rejectApplySubmitBanDesc": "When enabled, the user will also be blocked from submitting new pre-applications.",
         "rejectSubmitBanDays": "Ban days",
         "overrideTitle": "Approve Pre-Application",
-        "overrideDescription": "Add approval guidance before approving this pre-application directly from the appeal queue.",
+        "overrideDescription": "Add guidance before approving this pre-application directly from the appeal queue.",
         "overridePlaceholder": "Explain why this pre-application is approved...",
         "viewTitle": "Appeal Details",
         "viewDescription": "Review the appeal content and the rejection snapshot captured for this submission.",
@@ -1636,7 +1636,7 @@
       },
       "messages": {
         "loadError": "Failed to load pre-application appeals",
-        "commentRequired": "Review comment is required",
+        "commentRequired": "Guidance is required",
         "submitBanDaysInvalid": "Please enter valid ban days",
         "rejected": "Appeal rejected",
         "overridden": "Pre-application approved"
