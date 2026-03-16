@@ -134,6 +134,7 @@ type AdminPreApplication = {
   inviteCode: { id: string; code: string; expiresAt: string | null; usedAt: string | null } | null
   codeSent: boolean
   codeSentAt: string | null
+  formalApplicationApprovedFeedbackAt: string | null
   fingerprintHash: string | null
   fingerprintStatus: "OK" | "COLLECTION_FAILED"
   fingerprintCollectedAt: string | null
@@ -353,6 +354,7 @@ export function AdminPreApplicationsTable({
   const [fingerprintHashInput, setFingerprintHashInput] = useState("")
   const [reviewRoundFilter, setReviewRoundFilter] = useState("ALL")
   const [inviteStatusFilter, setInviteStatusFilter] = useState("ALL")
+  const [formalFeedbackStatusFilter, setFormalFeedbackStatusFilter] = useState("ALL")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -489,6 +491,9 @@ export function AdminPreApplicationsTable({
         ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(reviewRoundFilter !== "ALL" && { reviewRound: reviewRoundFilter }),
         ...(inviteStatusFilter !== "ALL" && { inviteStatus: inviteStatusFilter }),
+        ...(formalFeedbackStatusFilter !== "ALL" && {
+          formalFeedbackStatus: formalFeedbackStatusFilter,
+        }),
       })
       const res = await fetch(`/api/admin/pre-applications?${params}`)
       if (!res.ok) {
@@ -515,6 +520,26 @@ export function AdminPreApplicationsTable({
     }
   }
 
+  const getFormalFeedbackStatus = (
+    record: Pick<AdminPreApplication, "status" | "formalApplicationApprovedFeedbackAt">,
+  ) => {
+    if (record.status !== "APPROVED") return "none"
+    return record.formalApplicationApprovedFeedbackAt ? "confirmed" : "unconfirmed"
+  }
+
+  const getFormalFeedbackLabel = (
+    record: Pick<AdminPreApplication, "status" | "formalApplicationApprovedFeedbackAt">,
+  ) => {
+    const status = getFormalFeedbackStatus(record)
+    if (status === "confirmed") {
+      return adminExt.formalFeedbackConfirmed || "已反馈"
+    }
+    if (status === "unconfirmed") {
+      return adminExt.formalFeedbackUnconfirmed || "未反馈"
+    }
+    return "—"
+  }
+
   useEffect(() => {
     fetchRecords()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -528,6 +553,7 @@ export function AdminPreApplicationsTable({
     fingerprintHashFilter,
     reviewRoundFilter,
     inviteStatusFilter,
+    formalFeedbackStatusFilter,
     sortBy,
     sortOrder,
   ])
@@ -910,6 +936,9 @@ export function AdminPreApplicationsTable({
         ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(reviewRoundFilter !== "ALL" && { reviewRound: reviewRoundFilter }),
         ...(inviteStatusFilter !== "ALL" && { inviteStatus: inviteStatusFilter }),
+        ...(formalFeedbackStatusFilter !== "ALL" && {
+          formalFeedbackStatus: formalFeedbackStatusFilter,
+        }),
       })
 
       const res = await fetch(`/api/admin/pre-applications/export?${params}`)
@@ -1301,6 +1330,31 @@ export function AdminPreApplicationsTable({
           ),
       },
       {
+        key: "formalFeedbackStatus",
+        label: adminExt.formalFeedbackStatus || "正式申请反馈",
+        width: "12%",
+        render: (record) => {
+          const status = getFormalFeedbackStatus(record)
+
+          if (status === "none") {
+            return <span className="text-xs text-muted-foreground">—</span>
+          }
+
+          return (
+            <Badge
+              className={cn(
+                "text-xs",
+                status === "confirmed"
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+              )}
+            >
+              {getFormalFeedbackLabel(record)}
+            </Badge>
+          )
+        },
+      },
+      {
         key: "createdAt",
         label: t.preApplicationCreatedAt,
         width: "20%",
@@ -1686,6 +1740,31 @@ export function AdminPreApplicationsTable({
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                {adminExt.formalFeedbackStatus || "正式申请反馈"}
+              </Label>
+              <Select
+                value={formalFeedbackStatusFilter}
+                onValueChange={(value) => {
+                  setFormalFeedbackStatusFilter(value)
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger className="h-9 w-32">
+                  <SelectValue placeholder={adminExt.formalFeedbackStatus || "正式申请反馈"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t.statusAll}</SelectItem>
+                  <SelectItem value="confirmed">
+                    {adminExt.formalFeedbackConfirmed || "已反馈"}
+                  </SelectItem>
+                  <SelectItem value="unconfirmed">
+                    {adminExt.formalFeedbackUnconfirmed || "未反馈"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <Button
               variant="ghost"
@@ -1832,6 +1911,20 @@ export function AdminPreApplicationsTable({
                           }}
                         >
                           {record.codeSent ? t.inviteStatusIssued : t.inviteStatusNone}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                      {record.status === "APPROVED" ? (
+                        <Badge
+                          className={cn(
+                            "text-xs",
+                            getFormalFeedbackStatus(record) === "confirmed"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30"
+                              : "bg-slate-100 text-slate-600 dark:bg-slate-800",
+                          )}
+                        >
+                          {getFormalFeedbackLabel(record)}
                         </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -2255,6 +2348,7 @@ export function AdminPreApplicationsTable({
                                               status:
                                                 record.status as AdminPreApplication["status"],
                                               guidance: null,
+                                              formalApplicationApprovedFeedbackAt: null,
                                               createdAt: record.createdAt,
                                               updatedAt: record.createdAt,
                                               user: {
@@ -2762,6 +2856,25 @@ export function AdminPreApplicationsTable({
                         </Button>
                       </div>
                     )}
+                    <div>
+                      <span className="text-xs text-muted-foreground">
+                        {adminExt.formalFeedbackStatus || "正式申请反馈"}
+                      </span>
+                      <div className="mt-1">
+                        <Badge
+                          className={cn(
+                            "text-xs",
+                            getFormalFeedbackStatus(selected) === "confirmed"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : getFormalFeedbackStatus(selected) === "unconfirmed"
+                                ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+                          )}
+                        >
+                          {getFormalFeedbackLabel(selected)}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
                   {selected.guidance && (
                     <div className="mt-3 text-sm">

@@ -792,6 +792,11 @@ const latestAdminPaths = {
         { name: "queryToken", in: "query" as const, schema: { type: "string" } },
         { name: "reviewRound", in: "query" as const, schema: { type: "integer" } },
         { name: "inviteStatus", in: "query" as const, schema: { type: "string" } },
+        {
+          name: "formalFeedbackStatus",
+          in: "query" as const,
+          schema: { type: "string", enum: ["confirmed", "unconfirmed"] },
+        },
         { name: "fingerprintHash", in: "query" as const, schema: { type: "string" } },
       ],
       responses: {
@@ -2351,6 +2356,11 @@ export const openApiSpec = {
             in: "query",
             schema: { type: "string", enum: ["issued", "none"] },
           },
+          {
+            name: "formalFeedbackStatus",
+            in: "query",
+            schema: { type: "string", enum: ["confirmed", "unconfirmed"] },
+          },
           { name: "page", in: "query", schema: { type: "integer", default: 1 } },
           { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
           {
@@ -2396,6 +2406,11 @@ export const openApiSpec = {
                           updatedAt: { type: "string", format: "date-time" },
                           latestVersionCreatedAt: { type: "string", format: "date-time" },
                           reviewRound: { type: "integer" },
+                          formalApplicationApprovedFeedbackAt: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
                         },
                       },
                     },
@@ -3486,6 +3501,11 @@ export const openApiSpec = {
                           resubmitCount: { type: "integer" },
                           version: { type: "integer" },
                           queryToken: { type: "string", nullable: true },
+                          formalApplicationApprovedFeedbackAt: {
+                            type: "string",
+                            format: "date-time",
+                            nullable: true,
+                          },
                           createdAt: { type: "string", format: "date-time" },
                           updatedAt: { type: "string", format: "date-time" },
                         },
@@ -3644,6 +3664,35 @@ export const openApiSpec = {
           "401": { description: "未认证" },
           "404": { description: "预申请记录不存在" },
           "409": { description: "当前状态不支持开始新申请" },
+        },
+      },
+    },
+    "/pre-application/formal-application-feedback": {
+      post: {
+        tags: ["PreApplication"],
+        summary: "反馈已通过正式申请",
+        responses: {
+          "200": {
+            description: "反馈成功",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ok: { type: "boolean" },
+                    formalApplicationApprovedFeedbackAt: {
+                      type: "string",
+                      format: "date-time",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "未认证" },
+          "404": { description: "预申请记录不存在" },
+          "409": { description: "当前状态不允许反馈" },
+          "500": { description: "服务器错误" },
         },
       },
     },

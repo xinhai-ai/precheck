@@ -273,6 +273,10 @@ export const ApiErrorKeys = {
     reapplyStartRequired: "apiErrors.preApplication.reapplyStartRequired",
     reapplyAlreadyStarted: "apiErrors.preApplication.reapplyAlreadyStarted",
     failedToStartReapply: "apiErrors.preApplication.failedToStartReapply",
+    formalApprovalFeedback: {
+      failedToSubmit: "apiErrors.preApplication.formalApprovalFeedback.failedToSubmit",
+      notAllowed: "apiErrors.preApplication.formalApprovalFeedback.notAllowed",
+    },
     appeal: {
       failedToFetch: "apiErrors.preApplication.appeal.failedToFetch",
       failedToCreate: "apiErrors.preApplication.appeal.failedToCreate",

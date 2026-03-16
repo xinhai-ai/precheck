@@ -103,6 +103,7 @@ type PreApplicationRecord = {
   createdAt: string
   version: number
   resubmitCount: number
+  formalApplicationApprovedFeedbackAt: string | null
   reviewedBy: { id: string; name: string | null; email: string } | null
   inviteCode: {
     id: string
@@ -298,6 +299,8 @@ export function PreApplicationForm({
   const [clearingDraft, setClearingDraft] = useState(false)
   const [startingNewApplication, setStartingNewApplication] = useState(false)
   const [prechecking, setPrechecking] = useState(false)
+  const [formalApprovalFeedbackConfirming, setFormalApprovalFeedbackConfirming] = useState(false)
+  const [formalApprovalFeedbackSubmitting, setFormalApprovalFeedbackSubmitting] = useState(false)
   const [captchaDialogOpen, setCaptchaDialogOpen] = useState(false)
   const [captchaProvider, setCaptchaProvider] = useState<CaptchaProvider | null>(null)
   const [captchaPublicConfig, setCaptchaPublicConfig] = useState<Record<string, unknown> | null>(
@@ -323,6 +326,7 @@ export function PreApplicationForm({
   }, [locale, allowedDomains])
 
   const latest = records[0] ?? null
+  const formalFeedbackT = t as unknown as Record<string, string>
   const pendingAppeal = appeals.find((appeal) => appeal.status === "PENDING") ?? null
   const canStartNewApplication = latest?.status === "ARCHIVED" && reapply.canStart
   const isNewRoundStarted = latest?.status === "ARCHIVED" && reapply.started
@@ -346,6 +350,39 @@ export function PreApplicationForm({
   const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
   const canDelete = isAdmin && latest
   const isSubmitBanned = submitBanStatus?.isSubmitBanned ?? false
+
+  const handleFormalApprovalFeedback = async () => {
+    if (!latest || latest.status !== "APPROVED" || latest.formalApplicationApprovedFeedbackAt) {
+      return
+    }
+
+    if (!formalApprovalFeedbackConfirming) {
+      setFormalApprovalFeedbackConfirming(true)
+      return
+    }
+
+    setFormalApprovalFeedbackSubmitting(true)
+    try {
+      const res = await fetch("/api/pre-application/formal-application-feedback", {
+        method: "POST",
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(resolveApiErrorMessage(data, dict) ?? t.submitFailed)
+      }
+
+      toast.success(
+        formalFeedbackT.formalApprovalFeedbackSuccess || "反馈已提交，感谢您的支持",
+      )
+      await loadRecord(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.submitFailed)
+    } finally {
+      setFormalApprovalFeedbackSubmitting(false)
+      setFormalApprovalFeedbackConfirming(false)
+    }
+  }
 
   // 删除申请记录
 
@@ -538,6 +575,10 @@ export function PreApplicationForm({
   }, [])
 
   // 加载 QQ 群配置
+  useEffect(() => {
+    setFormalApprovalFeedbackConfirming(false)
+  }, [latest?.id, latest?.formalApplicationApprovedFeedbackAt])
+
   useEffect(() => {
     const loadQQGroups = async () => {
       try {
@@ -1657,6 +1698,44 @@ export function PreApplicationForm({
                       {((t as Record<string, unknown>).manualIssueHint as string) ||
                         "邀请码改为人工发放，请联系管理员并在控制台记录人工发码。"}
                     </p>
+                  </div>
+                )}
+
+                {latest.status === "APPROVED" && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                    {latest.formalApplicationApprovedFeedbackAt ? (
+                      <p className="text-sm font-medium text-primary">
+                        {formalFeedbackT.formalApprovalFeedbackThanks ||
+                          "感谢您的反馈，这对我们改善审核机制非常重要。"}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        <Button
+                          type="button"
+                          onClick={handleFormalApprovalFeedback}
+                          disabled={formalApprovalFeedbackSubmitting}
+                        >
+                          {formalApprovalFeedbackSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {t.submitting}
+                            </>
+                          ) : formalApprovalFeedbackConfirming ? (
+                            formalFeedbackT.formalApprovalFeedbackConfirmButton ||
+                            "我确认我已经通过"
+                          ) : (
+                            formalFeedbackT.formalApprovalFeedbackButton ||
+                            "我已经通过L站正式申请"
+                          )}
+                        </Button>
+                        {formalApprovalFeedbackConfirming && (
+                          <p className="text-sm text-muted-foreground">
+                            {formalFeedbackT.formalApprovalFeedbackHint ||
+                              "再次点击后将提交反馈，提交后不可撤销"}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

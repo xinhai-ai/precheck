@@ -182,6 +182,7 @@ export interface PreApplication {
   inviteCodeId: string | null
   codeSent: boolean
   codeSentAt: Date | null
+  formalApplicationApprovedFeedbackAt: Date | null
   fingerprintHash: string | null
   fingerprintCollectedAt: Date | null
   fingerprintStatus: FingerprintStatus
@@ -401,6 +402,7 @@ export interface SiteSettings {
   preApplicationEssayMinLength: number
   preApplicationEssayMaxLength: number
   allowedEmailDomains: Prisma.JsonValue
+  registerQqNumberEmailOnly: boolean
   reviewTemplatesApprove: Prisma.JsonValue
   reviewTemplatesApproveNoCode: Prisma.JsonValue
   reviewTemplatesReject: Prisma.JsonValue

@@ -333,7 +333,22 @@ export async function GET(request: NextRequest) {
     const records = await db.preApplication.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        essay: true,
+        source: true,
+        sourceDetail: true,
+        registerEmail: true,
+        queryToken: true,
+        group: true,
+        status: true,
+        guidance: true,
+        reviewedAt: true,
+        updatedAt: true,
+        createdAt: true,
+        version: true,
+        resubmitCount: true,
+        formalApplicationApprovedFeedbackAt: true,
         reviewedBy: { select: { id: true, name: true, email: true } },
         inviteCode: {
           select: { id: true, code: true, expiresAt: true, usedAt: true, assignedAt: true },

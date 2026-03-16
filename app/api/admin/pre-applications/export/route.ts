@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     const queryToken = (searchParams.get("queryToken") || "").trim()
     const reviewRound = searchParams.get("reviewRound") || ""
     const inviteStatus = searchParams.get("inviteStatus") || ""
+    const formalFeedbackStatus = searchParams.get("formalFeedbackStatus") || ""
     const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
 
     const where: {
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
       queryToken?: { contains: string; mode: "insensitive" }
       resubmitCount?: number
       codeSent?: boolean
+      formalApplicationApprovedFeedbackAt?: null | { not: null }
       fingerprintHash?: { contains: string; mode: "insensitive" }
       OR?: Array<Record<string, unknown>>
     } = {}
@@ -99,6 +101,14 @@ export async function GET(request: NextRequest) {
       where.status = "APPROVED"
     }
 
+    if (formalFeedbackStatus === "confirmed") {
+      where.status = "APPROVED"
+      where.formalApplicationApprovedFeedbackAt = { not: null }
+    } else if (formalFeedbackStatus === "unconfirmed") {
+      where.status = "APPROVED"
+      where.formalApplicationApprovedFeedbackAt = null
+    }
+
     if (search) {
       where.OR = [
         { queryToken: { contains: search, mode: "insensitive" as const } },
@@ -122,6 +132,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         reviewedAt: true,
         codeSent: true,
+        formalApplicationApprovedFeedbackAt: true,
         fingerprintHash: true,
         fingerprintStatus: true,
         fingerprintCollectedAt: true,
@@ -144,6 +155,7 @@ export async function GET(request: NextRequest) {
       "createdAt",
       "reviewedAt",
       "codeSent",
+      "formalApplicationApprovedFeedbackAt",
       "fingerprintHash",
       "fingerprintStatus",
       "fingerprintCollectedAt",
@@ -161,6 +173,7 @@ export async function GET(request: NextRequest) {
         record.createdAt.toISOString(),
         record.reviewedAt?.toISOString() || "",
         record.codeSent ? "true" : "false",
+        record.formalApplicationApprovedFeedbackAt?.toISOString() || "",
         record.fingerprintHash || "",
         record.fingerprintStatus,
         record.fingerprintCollectedAt?.toISOString() || "",
@@ -183,4 +196,3 @@ export async function GET(request: NextRequest) {
     })
   }
 }
-

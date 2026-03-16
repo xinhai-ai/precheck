@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
     const reviewRound = searchParams.get("reviewRound") || ""
     const inviteStatus = searchParams.get("inviteStatus") || ""
+    const formalFeedbackStatus = searchParams.get("formalFeedbackStatus") || ""
     const sortByParam = searchParams.get("sortBy") || "createdAt"
     const sortOrderParam = searchParams.get("sortOrder")
     const page = Number.parseInt(searchParams.get("page") || "1")
@@ -108,6 +109,14 @@ export async function GET(request: NextRequest) {
       where.status = "APPROVED" as PreApplicationStatus
     }
 
+    if (formalFeedbackStatus === "confirmed") {
+      where.status = "APPROVED" as PreApplicationStatus
+      Object.assign(where, { formalApplicationApprovedFeedbackAt: { not: null } })
+    } else if (formalFeedbackStatus === "unconfirmed") {
+      where.status = "APPROVED" as PreApplicationStatus
+      Object.assign(where, { formalApplicationApprovedFeedbackAt: null })
+    }
+
     if (search) {
       where.OR = [
         { queryToken: { contains: search, mode: "insensitive" as const } },
@@ -136,6 +145,7 @@ export async function GET(request: NextRequest) {
       resubmitCount: true,
       codeSent: true,
       codeSentAt: true,
+      formalApplicationApprovedFeedbackAt: true,
       fingerprintHash: true,
       fingerprintCollectedAt: true,
       fingerprintStatus: true,
