@@ -1,5 +1,12 @@
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH"
 
+export type BrowserConfidence = "HIGH_CONFIDENCE" | "LOW_CONFIDENCE"
+
+export type FingerprintRiskEvidence =
+  | "recentConcentration"
+  | "networkOverlap"
+  | "crossEventContinuity"
+
 export type FingerprintRiskSortBy = "userCount" | "applicationCount" | "lastSeenAt"
 
 export type FingerprintRiskSortOrder = "asc" | "desc"
@@ -10,6 +17,9 @@ export type FingerprintRiskGroupItem = {
   applicationCount: number
   lastSeenAt: string
   riskLevel: RiskLevel
+  browserConfidence?: BrowserConfidence
+  evidenceFlags?: FingerprintRiskEvidence[]
+  riskExplanation?: string
 }
 
 export type FingerprintRiskGroupListResponse = {
@@ -51,6 +61,8 @@ export type FingerprintRiskDetailEvent = {
   failureReason: string | null
   ip: string | null
   userAgent: string | null
+  browserFamily?: string | null
+  networkKey?: string | null
   createdAt: string
   userId: string | null
   preApplicationId: string | null
@@ -63,6 +75,9 @@ export type FingerprintRiskGroupDetailResponse = {
     applicationCount: number
     lastSeenAt: string | null
     riskLevel: RiskLevel
+    browserConfidence?: BrowserConfidence
+    evidenceFlags?: FingerprintRiskEvidence[]
+    riskExplanation?: string
   }
   relatedUsers: FingerprintRiskDetailUser[]
   relatedApplications: FingerprintRiskDetailApplication[]
@@ -89,6 +104,60 @@ export function computeRiskLevel(userCount: number, applicationCount: number): R
   }
 
   return "LOW"
+}
+
+export function computeFingerprintRiskAssessment(input: {
+  primaryBrowserFamily: string | null
+  userCount: number
+  applicationCount: number
+  recentDistinctUsers: number
+  recentDistinctApplications: number
+  overlappingNetworkCount: number
+  crossEventUserCount: number
+}): {
+  browserConfidence: BrowserConfidence
+  evidenceFlags: FingerprintRiskEvidence[]
+  riskLevel: RiskLevel
+  riskExplanation: string
+} {
+  const evidenceFlags: FingerprintRiskEvidence[] = []
+
+  if (input.recentDistinctUsers >= 2 || input.recentDistinctApplications >= 2) {
+    evidenceFlags.push("recentConcentration")
+  }
+
+  if (input.overlappingNetworkCount >= 2) {
+    evidenceFlags.push("networkOverlap")
+  }
+
+  if (input.crossEventUserCount >= 1) {
+    evidenceFlags.push("crossEventContinuity")
+  }
+
+  const isSafari = input.primaryBrowserFamily === "SAFARI"
+  const browserConfidence: BrowserConfidence = isSafari ? "LOW_CONFIDENCE" : "HIGH_CONFIDENCE"
+
+  let riskLevel: RiskLevel = "LOW"
+  if (evidenceFlags.length >= 2) {
+    riskLevel = "HIGH"
+  } else if (evidenceFlags.length === 1) {
+    riskLevel = "MEDIUM"
+  }
+
+  const riskExplanation = isSafari
+    ? evidenceFlags.length > 0
+      ? "Safari fingerprint promoted only after matching extra evidence."
+      : "Safari fingerprint downgraded until extra evidence is present."
+    : evidenceFlags.length > 0
+      ? "Non-Safari fingerprint promoted by supporting evidence."
+      : "No supporting evidence matched."
+
+  return {
+    browserConfidence,
+    evidenceFlags,
+    riskLevel,
+    riskExplanation,
+  }
 }
 
 export function sanitizeRiskSort(

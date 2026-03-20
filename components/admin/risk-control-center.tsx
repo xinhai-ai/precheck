@@ -36,7 +36,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,6 +104,34 @@ const DEFAULT_LIMIT = 20
 function formatDateTime(value: string | null | undefined, locale: Locale): string {
   if (!value) return "-"
   return new Date(value).toLocaleString(locale)
+}
+
+function formatBrowserConfidence(
+  value: string | null | undefined,
+  riskT: Record<string, string>,
+): string {
+  if (value === "LOW_CONFIDENCE") {
+    return riskT.lowConfidence || "低可信"
+  }
+
+  if (value === "HIGH_CONFIDENCE") {
+    return riskT.highConfidence || "高可信"
+  }
+
+  return "-"
+}
+
+function formatEvidenceFlag(value: string, riskT: Record<string, string>): string {
+  switch (value) {
+    case "recentConcentration":
+      return riskT.signalRecentConcentration || "近期集中出现"
+    case "networkOverlap":
+      return riskT.signalNetworkOverlap || "网络重合"
+    case "crossEventContinuity":
+      return riskT.signalCrossEventContinuity || "跨事件连续性"
+    default:
+      return value
+  }
 }
 
 function StatCard({
@@ -168,7 +202,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
   const [searchInput, setSearchInput] = useState("")
   const [search, setSearch] = useState("")
   const [riskLevel, setRiskLevel] = useState<RiskLevelFilter>("ALL")
-  const [sortBy, setSortBy] = useState<"lastSeenAt" | "userCount" | "applicationCount">("lastSeenAt")
+  const [sortBy, setSortBy] = useState<"lastSeenAt" | "userCount" | "applicationCount">(
+    "lastSeenAt",
+  )
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
 
   const [selectedHash, setSelectedHash] = useState<string | null>(null)
@@ -181,7 +217,10 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
   const [ignoreReason, setIgnoreReason] = useState("")
   const [savingIgnore, setSavingIgnore] = useState(false)
 
-  const ignoredUserIdSet = useMemo(() => new Set(ignoredItems.map((item) => item.userId)), [ignoredItems])
+  const ignoredUserIdSet = useMemo(
+    () => new Set(ignoredItems.map((item) => item.userId)),
+    [ignoredItems],
+  )
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
 
@@ -280,7 +319,11 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
   }
 
   const handleRefresh = async () => {
-    await Promise.all([loadGroups(), loadIgnoredUsers(), selectedHash ? loadDetail(selectedHash) : null])
+    await Promise.all([
+      loadGroups(),
+      loadIgnoredUsers(),
+      selectedHash ? loadDetail(selectedHash) : null,
+    ])
   }
 
   const handleIgnoreSubmit = async () => {
@@ -309,7 +352,11 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
       toast.success(riskT.ignoredSaveSuccess || "已忽略该用户风险")
       setIgnoreTarget(null)
       setIgnoreReason("")
-      await Promise.all([loadGroups(), loadIgnoredUsers(), selectedHash ? loadDetail(selectedHash) : null])
+      await Promise.all([
+        loadGroups(),
+        loadIgnoredUsers(),
+        selectedHash ? loadDetail(selectedHash) : null,
+      ])
     } catch (error) {
       console.error("Ignore user save error:", error)
       toast.error(error instanceof Error ? error.message : riskT.ignoredSaveFailed || "操作失败")
@@ -322,16 +369,23 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
     if (!window.confirm(riskT.ignoredDeleteConfirm || "确认取消忽略该用户？")) return
 
     try {
-      const res = await fetch(`/api/admin/risk-control/ignored-users/${encodeURIComponent(userId)}`, {
-        method: "DELETE",
-      })
+      const res = await fetch(
+        `/api/admin/risk-control/ignored-users/${encodeURIComponent(userId)}`,
+        {
+          method: "DELETE",
+        },
+      )
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data?.error?.message || riskT.ignoredDeleteFailed || "取消忽略失败")
       }
 
       toast.success(riskT.ignoredDeleteSuccess || "已取消忽略")
-      await Promise.all([loadGroups(), loadIgnoredUsers(), selectedHash ? loadDetail(selectedHash) : null])
+      await Promise.all([
+        loadGroups(),
+        loadIgnoredUsers(),
+        selectedHash ? loadDetail(selectedHash) : null,
+      ])
     } catch (error) {
       console.error("Unignore user error:", error)
       toast.error(error instanceof Error ? error.message : riskT.ignoredDeleteFailed || "操作失败")
@@ -349,10 +403,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
         isCurrentlyBanned: isBanned,
         banReasonInput: isBanned
           ? ""
-          : window.prompt(
-              riskT.banReasonPrompt || "请输入封禁理由（可选）：",
-              "",
-            ),
+          : window.prompt(riskT.banReasonPrompt || "请输入封禁理由（可选）：", ""),
       })
 
       if (!payload) {
@@ -375,8 +426,14 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
         throw new Error(message)
       }
 
-      toast.success(isBanned ? riskT.unbanSuccess || "已解封用户" : riskT.banSuccess || "已封禁用户")
-      await Promise.all([loadGroups(), loadIgnoredUsers(), selectedHash ? loadDetail(selectedHash) : null])
+      toast.success(
+        isBanned ? riskT.unbanSuccess || "已解封用户" : riskT.banSuccess || "已封禁用户",
+      )
+      await Promise.all([
+        loadGroups(),
+        loadIgnoredUsers(),
+        selectedHash ? loadDetail(selectedHash) : null,
+      ])
     } catch (error) {
       console.error("Toggle user ban status error:", error)
       toast.error(error instanceof Error ? error.message : riskT.banFailed || "操作失败")
@@ -488,7 +545,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
               <SelectContent>
                 <SelectItem value="lastSeenAt">{riskT.sortLastSeen || "按最近出现"}</SelectItem>
                 <SelectItem value="userCount">{riskT.sortUsers || "按用户数"}</SelectItem>
-                <SelectItem value="applicationCount">{riskT.sortApplications || "按申请数"}</SelectItem>
+                <SelectItem value="applicationCount">
+                  {riskT.sortApplications || "按申请数"}
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -516,13 +575,19 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
             <table className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium">{riskT.fingerprintHash || "指纹哈希"}</th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {riskT.fingerprintHash || "指纹哈希"}
+                  </th>
                   <th className="px-3 py-2 text-left font-medium">{riskT.userCount || "用户数"}</th>
                   <th className="px-3 py-2 text-left font-medium">
                     {riskT.applicationCount || "申请数"}
                   </th>
-                  <th className="px-3 py-2 text-left font-medium">{riskT.lastSeenAt || "最近出现"}</th>
-                  <th className="px-3 py-2 text-left font-medium">{riskT.riskLevel || "风险等级"}</th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {riskT.lastSeenAt || "最近出现"}
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {riskT.riskLevel || "风险等级"}
+                  </th>
                   <th className="px-3 py-2 text-right font-medium">{t.actions as string}</th>
                 </tr>
               </thead>
@@ -563,22 +628,40 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                       <td className="px-3 py-2">{item.applicationCount}</td>
                       <td className="px-3 py-2">{formatDateTime(item.lastSeenAt, locale)}</td>
                       <td className="px-3 py-2">
-                        <Badge
-                          variant={item.riskLevel === "HIGH" ? "destructive" : "secondary"}
-                          className={
-                            item.riskLevel === "MEDIUM"
-                              ? "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                              : item.riskLevel === "LOW"
-                                ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400"
-                                : ""
-                          }
-                        >
-                          {item.riskLevel === "HIGH"
-                            ? riskT.levelHigh || "高风险"
-                            : item.riskLevel === "MEDIUM"
-                              ? riskT.levelMedium || "中风险"
-                              : riskT.levelLow || "低风险"}
-                        </Badge>
+                        <div className="space-y-2">
+                          <Badge
+                            variant={item.riskLevel === "HIGH" ? "destructive" : "secondary"}
+                            className={
+                              item.riskLevel === "MEDIUM"
+                                ? "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                                : item.riskLevel === "LOW"
+                                  ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                  : ""
+                            }
+                          >
+                            {item.riskLevel === "HIGH"
+                              ? riskT.levelHigh || "高风险"
+                              : item.riskLevel === "MEDIUM"
+                                ? riskT.levelMedium || "中风险"
+                                : riskT.levelLow || "低风险"}
+                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="outline" className="text-[10px]">
+                              {riskT.browserConfidence || "可信度"}:{" "}
+                              {formatBrowserConfidence(item.browserConfidence, riskT)}
+                            </Badge>
+                            {(item.evidenceFlags || []).map((flag) => (
+                              <Badge key={flag} variant="secondary" className="text-[10px]">
+                                {formatEvidenceFlag(flag, riskT)}
+                              </Badge>
+                            ))}
+                          </div>
+                          {item.riskExplanation && (
+                            <p className="max-w-xs text-[11px] leading-4 text-muted-foreground">
+                              {item.riskExplanation}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right">
                         <Button
@@ -696,6 +779,25 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                     <CardTitle className="text-base">{riskT.relatedUsers || "关联用户"}</CardTitle>
                   </CardHeader>
                   <CardContent>
+                    <div className="mb-4 space-y-2 rounded-md border bg-muted/20 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">
+                          {riskT.browserConfidence || "可信度"}:{" "}
+                          {formatBrowserConfidence(detail.summary.browserConfidence, riskT)}
+                        </Badge>
+                        {(detail.summary.evidenceFlags || []).map((flag) => (
+                          <Badge key={flag} variant="secondary">
+                            {formatEvidenceFlag(flag, riskT)}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {riskT.riskExplanation || "风险解释"}:
+                        </span>{" "}
+                        {detail.summary.riskExplanation || "-"}
+                      </div>
+                    </div>
                     {detail.relatedUsers.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         {riskT.emptyRelatedUsers || "暂无关联用户"}
@@ -712,8 +814,12 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                               className="flex items-start justify-between gap-3 rounded-md border p-2"
                             >
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-medium">{item.name || item.email}</p>
-                                <p className="truncate text-xs text-muted-foreground">{item.email}</p>
+                                <p className="truncate text-sm font-medium">
+                                  {item.name || item.email}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {item.email}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                   {riskT.relatedTime || "关联时间"}:{" "}
                                   {formatDateTime(item.firstSeenAt, locale)} →{" "}
@@ -815,7 +921,10 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                     ) : (
                       <div className="space-y-2">
                         {detail.relatedApplications.map((item) => (
-                          <div key={item.id} className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                          <div
+                            key={item.id}
+                            className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs"
+                          >
                             <div className="flex items-center justify-between gap-2">
                               <p className="truncate text-sm font-medium">
                                 {item.user?.name || item.user?.email || item.registerEmail}
@@ -846,7 +955,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   </CardHeader>
                   <CardContent>
                     {detail.recentEvents.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">{riskT.emptyEvents || "暂无事件"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {riskT.emptyEvents || "暂无事件"}
+                      </p>
                     ) : (
                       <div className="space-y-2">
                         {detail.recentEvents.map((item) => (
@@ -856,6 +967,10 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                             </p>
                             <p className="text-muted-foreground">
                               {formatDateTime(item.createdAt, locale)} · {item.ip || "-"}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {riskT.browserFamily || "浏览器"}: {item.browserFamily || "-"} ·{" "}
+                              {riskT.networkKey || "网络标识"}: {item.networkKey || "-"}
                             </p>
                           </div>
                         ))}
@@ -884,9 +999,14 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
           ) : (
             <div className="space-y-2">
               {ignoredItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-md border p-2">
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-md border p-2"
+                >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{item.user.name || item.user.email}</p>
+                    <p className="truncate text-sm font-medium">
+                      {item.user.name || item.user.email}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">{item.reason}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {riskT.by || "由"} {item.createdBy.name || item.createdBy.email} ·{" "}
@@ -929,7 +1049,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
               placeholder={riskT.reasonPlaceholder || "例如：测试账号、内部巡检账号"}
             />
             <p className="text-xs text-muted-foreground">
-              {(riskT.targetUser || "目标用户")}: {ignoreTarget?.label}
+              {riskT.targetUser || "目标用户"}: {ignoreTarget?.label}
             </p>
           </div>
           <DialogFooter>

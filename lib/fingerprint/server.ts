@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 import type { PrismaClient } from "@prisma/client"
 import { extractRequestMeta } from "@/lib/audit"
 import { getFingerprintPepper, hashFingerprintVisitorId } from "@/lib/fingerprint/hash"
+import { buildNetworkKey, normalizeBrowserFamily } from "@/lib/fingerprint/metadata"
 import type { FingerprintEventType, FingerprintPayload } from "@/lib/fingerprint/types"
 
 type RecordFingerprintEventInput = {
@@ -52,6 +53,8 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
   try {
     const normalized = normalizeFingerprintPayload(input.payload, input.pepper)
     const { ip, userAgent } = extractRequestMeta(input.request)
+    const browserFamily = normalizeBrowserFamily(userAgent)
+    const networkKey = buildNetworkKey(ip)
     const now = new Date()
 
     let fingerprintId: string | null = null
@@ -83,6 +86,8 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
         preApplicationId: input.preApplicationId ?? null,
         ip,
         userAgent,
+        browserFamily,
+        networkKey,
       },
     })
 

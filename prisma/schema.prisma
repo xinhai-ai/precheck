@@ -356,6 +356,8 @@ model FingerprintEvent {
   preApplicationId String?
   ip               String?
   userAgent        String?
+  browserFamily    String?
+  networkKey       String?
   createdAt        DateTime          @default(now())
 
   fingerprint    FingerprintProfile? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
@@ -367,6 +369,8 @@ model FingerprintEvent {
   @@index([userId, createdAt])
   @@index([preApplicationId, createdAt])
   @@index([eventType, createdAt])
+  @@index([browserFamily, createdAt])
+  @@index([networkKey, createdAt])
 }
 
 model RiskIgnoredUser {

@@ -2721,7 +2721,50 @@ export const openApiSpec = {
           { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"] } },
         ],
         responses: {
-          "200": { description: "风险分组列表" },
+          "200": {
+            description: "风险分组列表",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    items: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          fingerprintHash: { type: "string" },
+                          userCount: { type: "integer" },
+                          applicationCount: { type: "integer" },
+                          lastSeenAt: { type: "string", format: "date-time" },
+                          riskLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+                          browserConfidence: {
+                            type: "string",
+                            enum: ["HIGH_CONFIDENCE", "LOW_CONFIDENCE"],
+                          },
+                          evidenceFlags: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                              enum: [
+                                "recentConcentration",
+                                "networkOverlap",
+                                "crossEventContinuity",
+                              ],
+                            },
+                          },
+                          riskExplanation: { type: "string" },
+                        },
+                      },
+                    },
+                    total: { type: "integer" },
+                    page: { type: "integer" },
+                    limit: { type: "integer" },
+                  },
+                },
+              },
+            },
+          },
           "403": { description: "无权限" },
         },
       },
@@ -2734,7 +2777,50 @@ export const openApiSpec = {
           { name: "fingerprintHash", in: "path", required: true, schema: { type: "string" } },
         ],
         responses: {
-          "200": { description: "风险分组详情" },
+          "200": {
+            description: "风险分组详情",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    summary: {
+                      type: "object",
+                      properties: {
+                        fingerprintHash: { type: "string" },
+                        userCount: { type: "integer" },
+                        applicationCount: { type: "integer" },
+                        lastSeenAt: { type: "string", format: "date-time", nullable: true },
+                        riskLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+                        browserConfidence: {
+                          type: "string",
+                          enum: ["HIGH_CONFIDENCE", "LOW_CONFIDENCE"],
+                        },
+                        evidenceFlags: {
+                          type: "array",
+                          items: {
+                            type: "string",
+                            enum: ["recentConcentration", "networkOverlap", "crossEventContinuity"],
+                          },
+                        },
+                        riskExplanation: { type: "string" },
+                      },
+                    },
+                    recentEvents: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          browserFamily: { type: "string", nullable: true },
+                          networkKey: { type: "string", nullable: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           "404": { description: "未找到" },
         },
       },

@@ -6,7 +6,15 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
+export type PreApplicationStatus =
+  | "PENDING"
+  | "SHADOW_HIDDEN"
+  | "APPROVED"
+  | "REJECTED"
+  | "DISPUTED"
+  | "ARCHIVED"
+  | "PENDING_REVIEW"
+  | "ON_HOLD"
 
 export type PreApplicationAppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
 
@@ -301,6 +309,8 @@ export interface FingerprintEvent {
   preApplicationId: string | null
   ip: string | null
   userAgent: string | null
+  browserFamily: string | null
+  networkKey: string | null
   createdAt: Date
   fingerprint: FingerprintProfile | null
   user: User | null
