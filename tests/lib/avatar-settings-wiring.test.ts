@@ -16,6 +16,10 @@ const profileRouteSource = readFileSync(
   new URL("../../app/api/dashboard/profile/route.ts", import.meta.url),
   "utf8",
 )
+const dashboardSettingsPageSource = readFileSync(
+  new URL("../../app/[locale]/dashboard/settings/page.tsx", import.meta.url),
+  "utf8",
+)
 const dashboardSettingsFormSource = readFileSync(
   new URL("../../components/dashboard/settings-form.tsx", import.meta.url),
   "utf8",
@@ -62,6 +66,13 @@ test("profile update route validates avatar url against the allowlist", () => {
   assert.match(profileRouteSource, /isAllowedAvatarUrl|getSafeAvatarUrl/)
   assert.match(profileRouteSource, /头像仅支持白名单 HTTPS 域名|allowlisted HTTPS avatar domains/)
   assert.match(dashboardSettingsFormSource, /avatarHint/)
+})
+
+test("dashboard settings page passes avatar allowlist to the profile form and shows it to users", () => {
+  assert.match(dashboardSettingsPageSource, /getSiteSettings\(\)/)
+  assert.match(dashboardSettingsPageSource, /allowedAvatarDomains=\{settings\.allowedAvatarDomains\}/)
+  assert.match(dashboardSettingsFormSource, /allowedAvatarDomains:\s*string\[\]/)
+  assert.match(dashboardSettingsFormSource, /allowedAvatarDomains\.length > 0|allowedAvatarDomains\.map\(/)
 })
 
 test("dashboard and admin layouts pass avatar allowlist into client providers", () => {

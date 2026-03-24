@@ -36,9 +36,16 @@ interface SettingsFormProps {
   dict: Dictionary
   user: SettingsUser
   hasPassword: boolean
+  allowedAvatarDomains: string[]
 }
 
-export function SettingsForm({ locale, dict, user, hasPassword }: SettingsFormProps) {
+export function SettingsForm({
+  locale,
+  dict,
+  user,
+  hasPassword,
+  allowedAvatarDomains,
+}: SettingsFormProps) {
   const router = useRouter()
   const [profile, setProfile] = useState({
     name: user.name || "",
@@ -245,6 +252,20 @@ export function SettingsForm({ locale, dict, user, hasPassword }: SettingsFormPr
                   placeholder={t.avatarPlaceholder}
                 />
                 <p className="text-xs text-muted-foreground">{t.avatarHint}</p>
+                {allowedAvatarDomains.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {allowedAvatarDomains.map((domain) => (
+                      <span
+                        key={domain}
+                        className="rounded-full border border-primary/20 bg-primary/5 px-2 py-1 font-mono text-xs text-foreground"
+                      >
+                        {domain}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t.avatarAllowlistEmpty}</p>
+                )}
               </div>
             </div>
 
