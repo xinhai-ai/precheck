@@ -38,6 +38,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
       dict={dict}
       user={user}
       userTicketsEnabled={settings.userTicketsEnabled}
+      allowedAvatarDomains={settings.allowedAvatarDomains}
       announcement={{
         enabled: settings.newUserAnnouncementEnabled,
         content: settings.newUserAnnouncementContent,

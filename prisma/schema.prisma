@@ -556,6 +556,7 @@ model SiteSettings {
   preApplicationEssayMinLength                 Int      @default(50)
   preApplicationEssayMaxLength                 Int      @default(300)
   allowedEmailDomains                          Json     @default("[]")
+  allowedAvatarDomains                         Json     @default("[]")
   registerQqNumberEmailOnly                    Boolean  @default(false)
   reviewTemplatesApprove                       Json     @default("[]")
   reviewTemplatesApproveNoCode                 Json     @default("[]") // 审核通过但无邀请码时的模板

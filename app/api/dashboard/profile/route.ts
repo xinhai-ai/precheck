@@ -5,6 +5,8 @@ import { getCurrentUserFromRequest } from "@/lib/auth/session"
 import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
+import { getSiteSettings } from "@/lib/site-settings"
+import { isAllowedAvatarUrl } from "@/lib/avatar-url"
 
 const profileSchema = z.object({
   name: z.string().max(80, "Name is too long").optional(),
@@ -25,6 +27,14 @@ export async function PUT(request: NextRequest) {
     const { name, avatar } = profileSchema.parse(body)
     const trimmedName = name?.trim()
     const trimmedAvatar = avatar?.trim()
+    const settings = await getSiteSettings()
+
+    if (trimmedAvatar && !isAllowedAvatarUrl(trimmedAvatar, settings.allowedAvatarDomains)) {
+      return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
+        status: 400,
+        meta: { detail: "头像仅支持白名单 HTTPS 域名" },
+      })
+    }
 
     const before = await db.user.findUnique({ where: { id: user.id } })
 

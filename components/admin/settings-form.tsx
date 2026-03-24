@@ -80,6 +80,7 @@ type SystemConfig = {
   preApplicationEssayMinLength: number
   preApplicationEssayMaxLength: number
   allowedEmailDomains: string[]
+  allowedAvatarDomains: string[]
   registerQqNumberEmailOnly: boolean
   auditLogEnabled: boolean
   reviewTemplatesApprove: string[]
@@ -156,6 +157,7 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
   const [dangerLoading, setDangerLoading] = useState(false)
 
   const [newDomain, setNewDomain] = useState("")
+  const [newAvatarDomain, setNewAvatarDomain] = useState("")
   const [newTemplateApprove, setNewTemplateApprove] = useState("")
   const [newTemplateApproveNoCode, setNewTemplateApproveNoCode] = useState("")
   const [newTemplateReject, setNewTemplateReject] = useState("")
@@ -561,6 +563,33 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
     setSystemConfig({
       ...systemConfig,
       allowedEmailDomains: systemConfig.allowedEmailDomains.filter((d) => d !== domain),
+    })
+  }
+
+  const handleAddAvatarDomain = () => {
+    if (!systemConfig) return
+    const domain = newAvatarDomain.trim().toLowerCase()
+    if (!domain) return
+    if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) {
+      toast.error(t.systemConfigAvatarDomainInvalid)
+      return
+    }
+    if (systemConfig.allowedAvatarDomains.includes(domain)) {
+      toast.error(t.systemConfigAvatarDomainExists)
+      return
+    }
+    setSystemConfig({
+      ...systemConfig,
+      allowedAvatarDomains: [...systemConfig.allowedAvatarDomains, domain],
+    })
+    setNewAvatarDomain("")
+  }
+
+  const handleRemoveAvatarDomain = (domain: string) => {
+    if (!systemConfig) return
+    setSystemConfig({
+      ...systemConfig,
+      allowedAvatarDomains: systemConfig.allowedAvatarDomains.filter((d) => d !== domain),
     })
   }
 
@@ -2139,6 +2168,61 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                       {systemConfig.allowedEmailDomains.length === 0 && (
                         <p className="text-sm text-muted-foreground">
                           {t.systemConfigEmailDomainEmpty}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Globe className="h-5 w-5" />
+                        {t.systemConfigAvatarDomains}
+                      </CardTitle>
+                      <CardDescription>{t.systemConfigAvatarDomainsDesc}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newAvatarDomain}
+                          onChange={(e) => setNewAvatarDomain(e.target.value)}
+                          placeholder={t.systemConfigAvatarDomainPlaceholder}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              handleAddAvatarDomain()
+                            }
+                          }}
+                        />
+                        <Button onClick={handleAddAvatarDomain} type="button" className="shrink-0">
+                          <Plus className="h-4 w-4 mr-1" />
+                          {t.systemConfigAvatarDomainAdd}
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <AnimatePresence mode="popLayout">
+                          {systemConfig.allowedAvatarDomains.map((domain) => (
+                            <motion.div
+                              key={domain}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="group flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 pr-1.5"
+                            >
+                              <span className="text-sm">{domain}</span>
+                              <button
+                                onClick={() => handleRemoveAvatarDomain(domain)}
+                                className="rounded-full p-0.5 transition-colors hover:bg-primary/10"
+                              >
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                              </button>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                      {systemConfig.allowedAvatarDomains.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {t.systemConfigAvatarDomainEmpty}
                         </p>
                       )}
                     </CardContent>

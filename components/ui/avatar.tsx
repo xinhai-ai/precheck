@@ -3,6 +3,8 @@
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
+import { useAvatarAllowlist } from "@/components/ui/avatar-allowlist-provider"
+import { getSafeAvatarUrl } from "@/lib/avatar-url"
 import { cn } from "@/lib/utils"
 
 function Avatar({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Root>) {
@@ -15,12 +17,20 @@ function Avatar({ className, ...props }: React.ComponentProps<typeof AvatarPrimi
   )
 }
 
-function AvatarImage({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+function AvatarImage({
+  className,
+  src,
+  ...restProps
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  const allowedAvatarDomains = useAvatarAllowlist()
+  const safeSrc = typeof src === "string" ? getSafeAvatarUrl(src, allowedAvatarDomains) : undefined
+
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
       className={cn("aspect-square size-full", className)}
-      {...props}
+      src={safeSrc}
+      {...restProps}
     />
   )
 }

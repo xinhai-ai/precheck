@@ -30,6 +30,7 @@ import {
   PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
 } from "@/lib/pre-application/appeal-utils"
 import { normalizeSubmitBanDays } from "@/lib/pre-application/submit-ban-utils"
+import { normalizeAvatarDomains } from "@/lib/avatar-url"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 
@@ -66,6 +67,7 @@ const systemConfigSchema = z.object({
   newUserAnnouncementVersion: z.number().int().min(1).optional(),
   registerQqNumberEmailOnly: z.boolean().optional(),
   allowedEmailDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).min(1),
+  allowedAvatarDomains: z.array(z.string().regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)).optional(),
   auditLogEnabled: z.boolean().optional(),
   reviewTemplatesApprove: z.array(z.string()).optional(),
   reviewTemplatesApproveNoCode: z.array(z.string()).optional(),
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     const canViewSecrets = isSuperAdmin(user.role)
 
-    const settings = await db.siteSettings.findUnique({
+    const settings = (await (db.siteSettings as any).findUnique({
       where: { id: "global" },
       select: {
         preApplicationEssayHint: true,
@@ -129,6 +131,7 @@ export async function GET(request: NextRequest) {
         newUserAnnouncementVersion: true,
         registerQqNumberEmailOnly: true,
         allowedEmailDomains: true,
+        allowedAvatarDomains: true,
         auditLogEnabled: true,
         reviewTemplatesApprove: true,
         reviewTemplatesApproveNoCode: true,
@@ -147,7 +150,7 @@ export async function GET(request: NextRequest) {
         inviteCodeCheckApiKey: true,
         maxResubmitCount: true,
       },
-    })
+    })) as Record<string, any> | null
 
     if (!settings) {
       return NextResponse.json({
@@ -172,6 +175,7 @@ export async function GET(request: NextRequest) {
         newUserAnnouncementVersion: 1,
         registerQqNumberEmailOnly: false,
         allowedEmailDomains: defaultEmailDomains,
+        allowedAvatarDomains: [],
         auditLogEnabled: false,
         reviewTemplatesApprove: [],
         reviewTemplatesApproveNoCode: [],
@@ -235,6 +239,9 @@ export async function GET(request: NextRequest) {
       allowedEmailDomains: Array.isArray(settings.allowedEmailDomains)
         ? settings.allowedEmailDomains
         : defaultEmailDomains,
+      allowedAvatarDomains: Array.isArray(settings.allowedAvatarDomains)
+        ? normalizeAvatarDomains(settings.allowedAvatarDomains.map((value) => String(value)))
+        : [],
       auditLogEnabled: settings.auditLogEnabled ?? false,
       reviewTemplatesApprove: Array.isArray(settings.reviewTemplatesApprove)
         ? settings.reviewTemplatesApprove
@@ -372,6 +379,7 @@ export async function PUT(request: NextRequest) {
       data.newUserAnnouncementVersion ?? before?.newUserAnnouncementVersion ?? 1
     const registerQqNumberEmailOnly =
       data.registerQqNumberEmailOnly ?? before?.registerQqNumberEmailOnly ?? false
+    const allowedAvatarDomains = normalizeAvatarDomains(data.allowedAvatarDomains ?? [])
 
     if (newUserAnnouncementEnabled && !newUserAnnouncementContent) {
       return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
@@ -395,7 +403,9 @@ export async function PUT(request: NextRequest) {
         })
       }
 
-      const providerConfig = getCaptchaProviderConfig(captchaProvider)
+      const providerConfig = getCaptchaProviderConfig(
+        captchaProvider as "turnstile" | "hcaptcha" | "geetest",
+      )
       if (!providerConfig.enabled) {
         return createApiErrorResponse(request, ApiErrorKeys.general.invalid, {
           status: 400,
@@ -417,7 +427,7 @@ export async function PUT(request: NextRequest) {
       submitEndTime,
     })
 
-    const updated = await db.siteSettings.upsert({
+    const updated = (await (db.siteSettings as any).upsert({
       where: { id: "global" },
       create: {
         id: "global",
@@ -446,6 +456,7 @@ export async function PUT(request: NextRequest) {
         newUserAnnouncementVersion,
         registerQqNumberEmailOnly,
         allowedEmailDomains: data.allowedEmailDomains,
+        allowedAvatarDomains,
         auditLogEnabled: data.auditLogEnabled ?? false,
         reviewTemplatesApprove: data.reviewTemplatesApprove ?? [],
         reviewTemplatesApproveNoCode: data.reviewTemplatesApproveNoCode ?? [],
@@ -515,6 +526,9 @@ export async function PUT(request: NextRequest) {
           registerQqNumberEmailOnly,
         }),
         allowedEmailDomains: data.allowedEmailDomains,
+        ...(data.allowedAvatarDomains !== undefined && {
+          allowedAvatarDomains,
+        }),
         ...(data.auditLogEnabled !== undefined && { auditLogEnabled: data.auditLogEnabled }),
         ...(data.reviewTemplatesApprove !== undefined && {
           reviewTemplatesApprove: data.reviewTemplatesApprove,
@@ -549,7 +563,7 @@ export async function PUT(request: NextRequest) {
         }),
         ...(data.maxResubmitCount !== undefined && { maxResubmitCount: data.maxResubmitCount }),
       },
-    })
+    })) as Record<string, any>
 
     await writeAuditLog(db, {
       action: "SYSTEM_CONFIG_UPDATE",
@@ -581,6 +595,7 @@ export async function PUT(request: NextRequest) {
           "newUserAnnouncementVersion",
           "registerQqNumberEmailOnly",
           "allowedEmailDomains",
+          "allowedAvatarDomains",
           "auditLogEnabled",
           "reviewTemplatesApprove",
           "reviewTemplatesApproveNoCode",
@@ -630,6 +645,7 @@ export async function PUT(request: NextRequest) {
       newUserAnnouncementVersion: updated.newUserAnnouncementVersion,
       registerQqNumberEmailOnly: updated.registerQqNumberEmailOnly ?? false,
       allowedEmailDomains: updated.allowedEmailDomains,
+      allowedAvatarDomains: updated.allowedAvatarDomains,
       auditLogEnabled: updated.auditLogEnabled,
       reviewTemplatesApprove: updated.reviewTemplatesApprove,
       reviewTemplatesApproveNoCode: updated.reviewTemplatesApproveNoCode,

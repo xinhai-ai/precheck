@@ -23,6 +23,7 @@ export type SiteSettings = {
   newUserAnnouncementDelaySeconds: number
   newUserAnnouncementVersion: number
   registerQqNumberEmailOnly: boolean
+  allowedAvatarDomains: string[]
 }
 
 type SiteSettingsRecord = {
@@ -45,6 +46,7 @@ type SiteSettingsRecord = {
   newUserAnnouncementDelaySeconds: number
   newUserAnnouncementVersion: number
   registerQqNumberEmailOnly: boolean
+  allowedAvatarDomains: unknown
 }
 
 const defaultSettings: SiteSettings = {
@@ -67,6 +69,7 @@ const defaultSettings: SiteSettings = {
   newUserAnnouncementDelaySeconds: 0,
   newUserAnnouncementVersion: 1,
   registerQqNumberEmailOnly: false,
+  allowedAvatarDomains: [],
 }
 
 const SITE_SETTINGS_CACHE_KEY = "site-settings:global:v1"
@@ -96,6 +99,9 @@ function toSiteSettings(record: SiteSettingsRecord): SiteSettings {
     newUserAnnouncementDelaySeconds: record.newUserAnnouncementDelaySeconds,
     newUserAnnouncementVersion: record.newUserAnnouncementVersion,
     registerQqNumberEmailOnly: record.registerQqNumberEmailOnly ?? false,
+    allowedAvatarDomains: Array.isArray(record.allowedAvatarDomains)
+      ? record.allowedAvatarDomains.filter((value): value is string => typeof value === "string")
+      : [],
   }
 }
 
@@ -123,7 +129,9 @@ function parseCachedSiteSettings(raw: string): SiteSettings | null {
       typeof parsed.newUserAnnouncementConfirmText !== "string" ||
       typeof parsed.newUserAnnouncementDelaySeconds !== "number" ||
       typeof parsed.newUserAnnouncementVersion !== "number" ||
-      typeof parsed.registerQqNumberEmailOnly !== "boolean"
+      typeof parsed.registerQqNumberEmailOnly !== "boolean" ||
+      !Array.isArray(parsed.allowedAvatarDomains) ||
+      parsed.allowedAvatarDomains.some((value) => typeof value !== "string")
     ) {
       return null
     }
@@ -184,7 +192,7 @@ async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
     return defaultSettings
   }
 
-  const existing = await db.siteSettings.findUnique({
+  const existing = (await (db.siteSettings as any).findUnique({
     where: { id: "global" },
     select: {
       siteName: true,
@@ -206,19 +214,20 @@ async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
       newUserAnnouncementDelaySeconds: true,
       newUserAnnouncementVersion: true,
       registerQqNumberEmailOnly: true,
+      allowedAvatarDomains: true,
     },
-  })
+  })) as SiteSettingsRecord | null
 
   if (existing) {
     return toSiteSettings(existing)
   }
 
-  const created = await db.siteSettings.create({
+  const created = (await (db.siteSettings as any).create({
     data: {
       id: "global",
       ...defaultSettings,
     },
-  })
+  })) as SiteSettingsRecord & Record<string, unknown>
 
   await writeAuditLog(db, {
     action: "SETTINGS_INIT",
@@ -278,9 +287,10 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       updates.newUserAnnouncementVersion ?? current.newUserAnnouncementVersion,
     registerQqNumberEmailOnly:
       updates.registerQqNumberEmailOnly ?? current.registerQqNumberEmailOnly,
+    allowedAvatarDomains: updates.allowedAvatarDomains ?? current.allowedAvatarDomains,
   }
 
-  const saved = await db.siteSettings.upsert({
+  const saved = (await (db.siteSettings as any).upsert({
     where: { id: "global" },
     update: data,
     create: {
@@ -307,8 +317,9 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       newUserAnnouncementDelaySeconds: true,
       newUserAnnouncementVersion: true,
       registerQqNumberEmailOnly: true,
+      allowedAvatarDomains: true,
     },
-  })
+  })) as SiteSettingsRecord
 
   const normalized = toSiteSettings(saved)
   await setSiteSettingsCache(normalized)

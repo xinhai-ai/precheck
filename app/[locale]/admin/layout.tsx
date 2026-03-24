@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth/session"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client"
+import { getSiteSettings } from "@/lib/site-settings"
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
 
 export const dynamic = "force-dynamic"
@@ -26,8 +27,15 @@ export default async function AdminLayout({ children, params }: AdminLayoutProps
     redirect(`/${currentLocale}/error/403`)
   }
 
+  const settings = await getSiteSettings()
+
   return (
-    <AdminLayoutClient locale={currentLocale} dict={dict} user={user}>
+    <AdminLayoutClient
+      locale={currentLocale}
+      dict={dict}
+      user={user}
+      allowedAvatarDomains={settings.allowedAvatarDomains}
+    >
       {children}
     </AdminLayoutClient>
   )

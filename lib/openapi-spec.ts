@@ -3305,6 +3305,10 @@ export const openApiSpec = {
                     newUserAnnouncementConfirmText: { type: "string" },
                     newUserAnnouncementDelaySeconds: { type: "integer", minimum: 0 },
                     newUserAnnouncementVersion: { type: "integer", minimum: 1 },
+                    allowedAvatarDomains: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
                     maxResubmitCount: { type: "integer" },
                   },
                 },
@@ -3353,6 +3357,10 @@ export const openApiSpec = {
                   newUserAnnouncementConfirmText: { type: "string" },
                   newUserAnnouncementDelaySeconds: { type: "integer", minimum: 0 },
                   newUserAnnouncementVersion: { type: "integer", minimum: 1 },
+                  allowedAvatarDomains: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
                   maxResubmitCount: { type: "integer", minimum: 0 },
                 },
               },
