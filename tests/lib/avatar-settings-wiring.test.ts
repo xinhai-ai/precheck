@@ -46,6 +46,15 @@ test("avatar domain allowlist is wired through schema, cache, api, and admin ui"
   assert.match(siteSettingsSource, /allowedAvatarDomains:\s*string\[\]/)
   assert.match(systemConfigRouteSource, /allowedAvatarDomains:\s*z\.array/)
   assert.match(adminSettingsFormSource, /systemConfigAvatarDomains/)
+
+  const generalTabIndex = adminSettingsFormSource.indexOf('{activeTab === "general" && (')
+  const securityTabIndex = adminSettingsFormSource.indexOf('{activeTab === "security" && (')
+  const avatarDomainsIndex = adminSettingsFormSource.indexOf("systemConfigAvatarDomains")
+
+  assert.notEqual(generalTabIndex, -1)
+  assert.notEqual(securityTabIndex, -1)
+  assert.notEqual(avatarDomainsIndex, -1)
+  assert.ok(avatarDomainsIndex > generalTabIndex && avatarDomainsIndex < securityTabIndex)
 })
 
 test("profile update route validates avatar url against the allowlist", () => {
