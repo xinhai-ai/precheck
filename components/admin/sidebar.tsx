@@ -103,6 +103,12 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       superAdminOnly: true, // 仅超管
     },
     {
+      name: dict.admin.manualOutbound,
+      href: `/${locale}/admin/manual-outbound`,
+      icon: Send,
+      superAdminOnly: true,
+    },
+    {
       name: dict.admin.auditLogs,
       href: `/${locale}/admin/audit-logs`,
       icon: ScrollText,

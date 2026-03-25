@@ -3203,6 +3203,47 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/manual-outbound": {
+      post: {
+        tags: ["Admin"],
+        summary: "超级管理员手动发信",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["channel", "recipientType", "template", "subject"],
+                properties: {
+                  channel: { type: "string", enum: ["email", "message", "both"] },
+                  recipientType: { type: "string", enum: ["system-user", "external-email"] },
+                  userId: { type: "string" },
+                  email: { type: "string", format: "email" },
+                  template: {
+                    type: "string",
+                    enum: ["custom", "invite-code-resend", "manual-notice"],
+                  },
+                  subject: { type: "string" },
+                  messageContent: { type: "string" },
+                  emailText: { type: "string" },
+                  emailHtml: { type: "string" },
+                  inviteCode: { type: "string" },
+                  note: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "发送结果" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限" },
+          "503": { description: "数据库未配置" },
+          "500": { description: "服务器错误" },
+        },
+      },
+    },
     "/admin/messages/{id}": {
       put: {
         tags: ["Admin"],

@@ -48,6 +48,14 @@ type VerificationCodeEmailOptions = {
   locale?: string
 }
 
+type ManualNoticeEmailOptions = {
+  appName: string
+  subject: string
+  note: string
+  issuerName?: string
+  locale?: string
+}
+
 const replaceTokens = (value: string, tokens: Record<string, string>) => {
   return Object.entries(tokens).reduce(
     (result, [key, replacement]) => result.replaceAll(key, replacement),
@@ -652,4 +660,46 @@ ${warningText}
 ${footer}`)
 
   return { subject, html, text }
+}
+
+export function buildManualNoticeEmail({
+  appName,
+  subject,
+  note,
+  issuerName,
+  locale = "en",
+}: ManualNoticeEmailOptions) {
+  const title = subject.trim() || (locale === "zh" ? "人工通知" : "Manual Notice")
+  const intro =
+    locale === "zh"
+      ? "管理员向你发送了一条人工通知，请查看以下内容。"
+      : "An administrator sent you a manual notice. Please review the details below."
+  const issuerLine = issuerName
+    ? locale === "zh"
+      ? `发送人：${issuerName}`
+      : `Sender: ${issuerName}`
+    : ""
+  const footer =
+    locale === "zh" ? "如有疑问，请联系管理员。" : "If you have questions, please contact an admin."
+
+  const content = `
+    <h1 style="${baseStyles.title}">${title}</h1>
+    <p style="${baseStyles.text}">${intro}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;">
+      <tr>
+        <td style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;">
+          <p style="margin:0;font-size:15px;line-height:1.7;color:#111827;white-space:pre-wrap;">${note}</p>
+        </td>
+      </tr>
+    </table>
+    ${issuerLine ? `<p style="${baseStyles.text}">${issuerLine}</p>` : ""}
+    <p style="${baseStyles.footer}">${footer}</p>`
+
+  const textLines = [title, "", intro, "", note, ...(issuerLine ? ["", issuerLine] : []), "", footer]
+
+  return {
+    subject: title,
+    html: wrapEmailHtml(title, appName, "#2563eb", content),
+    text: appendNoReplyNote(textLines.join("\n")),
+  }
 }

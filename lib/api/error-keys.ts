@@ -170,6 +170,11 @@ export const ApiErrorKeys = {
     emailLogs: {
       failed: "apiErrors.admin.emailLogs.failed",
     },
+    manualOutbound: {
+      failed: "apiErrors.admin.manualOutbound.failed",
+      userNotFound: "apiErrors.admin.manualOutbound.userNotFound",
+      recipientEmailRequired: "apiErrors.admin.manualOutbound.recipientEmailRequired",
+    },
     apiTokens: {
       failedToFetch: "apiErrors.admin.apiTokens.failedToFetch",
       failedToCreate: "apiErrors.admin.apiTokens.failedToCreate",
