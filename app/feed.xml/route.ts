@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { getBaseUrl, siteConfig } from "@/lib/seo"
 import { defaultLocale, locales } from "@/lib/i18n/config"
+import { normalizeSafeRichTextHtml } from "@/lib/safe-rich-text"
 import { readFile } from "fs/promises"
 import { join } from "path"
 
@@ -216,9 +217,7 @@ function getExcerpt(content: string | null, maxLength = 200): string {
 }
 
 function formatContent(content: string | null): string {
-  if (!content) return ""
-  // 保留基本 HTML 格式，转换 Markdown 链接
-  return content.replace(/\n/g, "<br/>").replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+  return normalizeSafeRichTextHtml(content)
 }
 
 function escapeXml(str: string): string {

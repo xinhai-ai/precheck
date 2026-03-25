@@ -28,6 +28,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { toast } from "sonner"
+import { getSafeChatImageUrl, getSafeChatLinkUrl } from "@/lib/chat-message-url"
 import { cn } from "@/lib/utils"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
@@ -35,7 +36,13 @@ import type { Locale } from "@/lib/i18n/config"
 const MD_PATTERN =
   /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]*)\]\(([^)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_/g
 
-function renderInline(text: string, onImageClick?: (src: string) => void): React.ReactNode {
+type RenderMarkdownOptions = {
+  blockedImageLabel: string
+  onImageClick?: (src: string) => void
+  openExternalImageLabel: string
+}
+
+function renderInline(text: string, options: RenderMarkdownOptions): React.ReactNode {
   const nodes: React.ReactNode[] = []
   let lastIndex = 0
   let i = 0
@@ -43,28 +50,66 @@ function renderInline(text: string, onImageClick?: (src: string) => void): React
     if ((match.index ?? 0) > lastIndex) nodes.push(text.slice(lastIndex, match.index))
     const [full, imgAlt, imgSrc, linkText, linkHref, code, bold, italicStar, italicUnd] = match
     if (imgSrc) {
-      nodes.push(
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={i}
-          src={imgSrc}
-          alt={imgAlt}
-          className="max-w-full rounded-lg mt-1 block cursor-zoom-in"
-          style={{ maxHeight: 300 }}
-          onClick={() => onImageClick?.(imgSrc)}
-        />,
-      )
+      const safeImageUrl = getSafeChatImageUrl(imgSrc)
+      if (safeImageUrl) {
+        nodes.push(
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={safeImageUrl}
+            alt={imgAlt}
+            className="max-w-full rounded-lg mt-1 block cursor-zoom-in"
+            style={{ maxHeight: 300 }}
+            onClick={() => options.onImageClick?.(safeImageUrl)}
+          />,
+        )
+      } else {
+        const safeImageLink = getSafeChatLinkUrl(imgSrc)
+        nodes.push(
+          <span
+            key={i}
+            className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            {safeImageLink ? (
+              <a
+                href={safeImageLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {options.openExternalImageLabel}
+              </a>
+            ) : (
+              options.blockedImageLabel
+            )}
+          </span>,
+        )
+      }
     } else if (linkHref) {
+      const safeLinkUrl = getSafeChatLinkUrl(linkHref)
       nodes.push(
-        <a
-          key={i}
-          href={linkHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline opacity-80 hover:opacity-100"
-        >
-          {linkText}
-        </a>,
+        safeLinkUrl ? (
+          <a
+            key={i}
+            href={safeLinkUrl}
+            target={
+              safeLinkUrl.startsWith("/") || safeLinkUrl.startsWith("#") ? undefined : "_blank"
+            }
+            rel={
+              safeLinkUrl.startsWith("/") || safeLinkUrl.startsWith("#")
+                ? undefined
+                : "noopener noreferrer"
+            }
+            className="underline opacity-80 hover:opacity-100"
+          >
+            {linkText}
+          </a>
+        ) : (
+          <span key={i} className="opacity-70">
+            {linkText || linkHref}
+          </span>
+        ),
       )
     } else if (code) {
       nodes.push(
@@ -92,7 +137,7 @@ function renderInline(text: string, onImageClick?: (src: string) => void): React
   return nodes.length === 0 ? null : nodes.length === 1 ? nodes[0] : nodes
 }
 
-function renderMd(text: string, onImageClick?: (src: string) => void): React.ReactNode {
+function renderMd(text: string, options: RenderMarkdownOptions): React.ReactNode {
   const segments: Array<{ type: "code" | "text"; content: string }> = []
   let lastIndex = 0
   for (const match of text.matchAll(/```([\s\S]*?)```/g)) {
@@ -111,7 +156,7 @@ function renderMd(text: string, onImageClick?: (src: string) => void): React.Rea
       seg.content.split("\n").map((line, li) => (
         <Fragment key={`${si}-${li}`}>
           {li > 0 && <br />}
-          {renderInline(line, onImageClick)}
+          {renderInline(line, options)}
         </Fragment>
       ))
     ),
@@ -164,7 +209,10 @@ export function ChatRoom({ locale, dict, currentUser }: ChatRoomProps) {
     const imgs: string[] = []
     for (const msg of messages) {
       for (const match of msg.content.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
-        imgs.push(match[1])
+        const safeImageUrl = getSafeChatImageUrl(match[1])
+        if (safeImageUrl) {
+          imgs.push(safeImageUrl)
+        }
       }
     }
     return imgs
@@ -224,7 +272,7 @@ export function ChatRoom({ locale, dict, currentUser }: ChatRoomProps) {
 
   const getDisplayContent = (content: string) => {
     const label = (t.chatImage as string) || "[图片]"
-    return content.replace(/!\[\]\(data:image\/[^)]+\)/g, label).trim()
+    return content.replace(/!\[[^\]]*\]\([^)]+\)/g, label).trim()
   }
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -415,6 +463,16 @@ export function ChatRoom({ locale, dict, currentUser }: ChatRoomProps) {
     return sender.name || sender.email.split("@")[0]
   }
 
+  const markdownRenderOptions: RenderMarkdownOptions = {
+    blockedImageLabel:
+      (t.chatBlockedImage as string) ||
+      (locale === "zh" ? "外部图片已拦截" : "External image blocked"),
+    onImageClick: setLightbox,
+    openExternalImageLabel:
+      (t.chatOpenExternalImage as string) ||
+      (locale === "zh" ? "打开外部图片" : "Open external image"),
+  }
+
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-200px)] items-center justify-center">
@@ -560,7 +618,7 @@ export function ChatRoom({ locale, dict, currentUser }: ChatRoomProps) {
                                   </p>
                                 </div>
                               )}
-                              {renderMd(msg.content, setLightbox)}
+                              {renderMd(msg.content, markdownRenderOptions)}
                             </div>
                           </div>
                         </motion.div>
@@ -651,7 +709,9 @@ export function ChatRoom({ locale, dict, currentUser }: ChatRoomProps) {
             <p className="text-xs font-medium text-muted-foreground">
               {(t.chatReply as string) || "Reply"} {getSenderName(replyTo.sender)}
             </p>
-            <p className="text-xs text-muted-foreground/70 truncate">{getDisplayContent(replyTo.content)}</p>
+            <p className="text-xs text-muted-foreground/70 truncate">
+              {getDisplayContent(replyTo.content)}
+            </p>
           </div>
           <Button
             variant="ghost"

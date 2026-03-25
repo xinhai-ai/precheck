@@ -1155,6 +1155,8 @@
     "chatRecallFailed": "Failed to recall",
     "chatRecallSuccess": "Message recalled",
     "chatCopySuccess": "Copied",
+    "chatBlockedImage": "External image blocked",
+    "chatOpenExternalImage": "Open external image",
     "chatOnlyAdminPrivate": "You can only message admins",
     "chatCreateChatFailed": "Failed to create chat",
     "chatFetchFailed": "Failed to fetch data",

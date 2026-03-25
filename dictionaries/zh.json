@@ -1151,6 +1151,8 @@
     "chatRecallFailed": "撤回失败",
     "chatRecallSuccess": "消息已撤回",
     "chatCopySuccess": "已复制",
+    "chatBlockedImage": "外部图片已拦截",
+    "chatOpenExternalImage": "打开外部图片",
     "chatOnlyAdminPrivate": "只能私信管理员",
     "chatCreateChatFailed": "创建会话失败",
     "chatFetchFailed": "获取数据失败",

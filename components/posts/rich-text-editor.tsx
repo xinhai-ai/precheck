@@ -7,6 +7,7 @@ import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Bold, Italic, Strikethrough, List, ListOrdered, Quote, Code, Heading2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { normalizeSafeRichTextHtml } from "@/lib/safe-rich-text"
 import { cn } from "@/lib/utils"
 
 interface RichTextEditorProps {
@@ -24,17 +25,8 @@ interface ToolbarButtonProps {
   children: ReactNode
 }
 
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-
 const normalizeEditorContent = (value: string) => {
-  const raw = value?.trim() ?? ""
-  if (!raw) return ""
-  if (/<[^>]+>/.test(raw)) return raw
-  const paragraphs = escapeHtml(raw)
-    .split(/\n{2,}/)
-    .map((block) => block.replace(/\n/g, "<br />"))
-  return paragraphs.map((block) => `<p>${block}</p>`).join("")
+  return normalizeSafeRichTextHtml(value)
 }
 
 function ToolbarButton({ onClick, active, disabled, label, children }: ToolbarButtonProps) {

@@ -3,6 +3,7 @@ import { locales } from "@/lib/i18n/config"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { getBaseUrl, siteConfig } from "@/lib/seo"
 import { db } from "@/lib/db"
+import { normalizeSafeRichTextHtml } from "@/lib/safe-rich-text"
 
 export const dynamic = "force-dynamic"
 
@@ -172,7 +173,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ loc
         atomEntries.push({
           title: post.title,
           summary: post.content?.slice(0, 200) || "",
-          content: post.content || undefined,
+          content: post.content ? normalizeSafeRichTextHtml(post.content) : undefined,
           link: `${baseUrl}/${currentLocale}/posts/${post.id}`,
           updated: post.updatedAt,
           published: post.createdAt,

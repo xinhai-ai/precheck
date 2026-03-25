@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeSafeRichTextHtml } from "@/lib/safe-rich-text"
 import { cn } from "@/lib/utils"
 
 interface PostContentProps {
@@ -8,21 +9,8 @@ interface PostContentProps {
   emptyMessage?: string
 }
 
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-
-const normalizeContent = (value?: string | null) => {
-  const raw = value?.trim() ?? ""
-  if (!raw) return ""
-  if (/<[^>]+>/.test(raw)) return raw
-  const paragraphs = escapeHtml(raw)
-    .split(/\n{2,}/)
-    .map((block) => block.replace(/\n/g, "<br />"))
-  return paragraphs.map((block) => `<p>${block}</p>`).join("")
-}
-
 export function PostContent({ content, className, emptyMessage }: PostContentProps) {
-  const html = normalizeContent(content)
+  const html = normalizeSafeRichTextHtml(content)
 
   if (!html) {
     if (!emptyMessage) return null

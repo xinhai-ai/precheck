@@ -69,3 +69,7 @@ npm run fix:check
 
 - 英文文档：`README.md`
 - 中文文档：`README.zh-CN.md`
+
+plan文件不得提交git
+未经许可不得使用subagent
+搜索代码尽可能使用augment-context-engine

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { getBaseUrl, siteConfig } from "@/lib/seo"
 import { defaultLocale } from "@/lib/i18n/config"
+import { normalizeSafeRichTextHtml } from "@/lib/safe-rich-text"
 import { readFile } from "fs/promises"
 import { join } from "path"
 
@@ -293,8 +294,7 @@ function getExcerpt(content: string | null, maxLength = 200): string {
 }
 
 function formatContent(content: string | null): string {
-  if (!content) return ""
-  return content.replace(/\n/g, "<br/>").replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+  return normalizeSafeRichTextHtml(content)
 }
 
 function escapeXml(str: string): string {
