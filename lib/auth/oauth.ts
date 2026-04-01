@@ -5,12 +5,30 @@ import { getSiteSettings } from "@/lib/site-settings"
 import { writeAuditLog } from "@/lib/audit"
 import type { OAuthProvider } from "./config"
 
+interface LinuxDoProfileSnapshot {
+  id: string
+  email: string | null
+  name: string | null
+  username: string | null
+  avatar_url: string | null
+  trust_level: number | null
+}
+
 interface OAuthProfile {
   id: string
   email: string
   name?: string
+  username?: string
   avatar?: string
   trustLevel?: number
+  linuxdoProfile?: {
+    id: string
+    email: string | null
+    name: string | null
+    username: string | null
+    avatar_url: string | null
+    trust_level: number | null
+  }
 }
 
 // GitHub OAuth
@@ -125,13 +143,30 @@ export async function getLinuxDoProfile(code: string): Promise<OAuthProfile | nu
       },
     })
     const userData = await userRes.json()
+    const linuxdoProfile: LinuxDoProfileSnapshot = {
+      id: String(userData.id),
+      email: typeof userData.email === "string" ? userData.email : null,
+      name: typeof userData.name === "string" ? userData.name : null,
+      username: typeof userData.username === "string" ? userData.username : null,
+      avatar_url: typeof userData.avatar_url === "string" ? userData.avatar_url : null,
+      trust_level: typeof userData.trust_level === "number" ? userData.trust_level : null,
+    }
 
     return {
-      id: String(userData.id),
-      email: userData.email,
-      name: userData.name || userData.username,
-      avatar: userData.avatar_url,
-      trustLevel: typeof userData.trust_level === "number" ? userData.trust_level : undefined,
+      id: linuxdoProfile.id,
+      email: linuxdoProfile.email ?? "",
+      name: linuxdoProfile.name ?? undefined,
+      username: userData.username,
+      avatar: linuxdoProfile.avatar_url ?? undefined,
+      trustLevel: linuxdoProfile.trust_level ?? undefined,
+      linuxdoProfile: {
+        id: linuxdoProfile.id,
+        email: linuxdoProfile.email,
+        name: linuxdoProfile.name,
+        username: linuxdoProfile.username,
+        avatar_url: linuxdoProfile.avatar_url,
+        trust_level: linuxdoProfile.trust_level,
+      },
     }
   } catch {
     return null
@@ -227,10 +262,13 @@ export async function handleOAuthSignIn(
       throw new Error("User is not active")
     }
 
-    if (provider === "linuxdo" && typeof profile.trustLevel === "number") {
+    if (provider === "linuxdo") {
       await db.account.update({
         where: { id: existingAccount.id },
-        data: { trustLevel: profile.trustLevel },
+        data: {
+          trustLevel: profile.trustLevel,
+          providerProfile: profile.linuxdoProfile,
+        },
       })
     }
     await maybePromoteLinuxDoAdmin(
@@ -262,6 +300,7 @@ export async function handleOAuthSignIn(
         provider,
         providerAccountId: profile.id,
         trustLevel: provider === "linuxdo" ? profile.trustLevel : undefined,
+        providerProfile: provider === "linuxdo" ? profile.linuxdoProfile : undefined,
       },
     })
     await writeAuditLog(db, {
@@ -291,7 +330,7 @@ export async function handleOAuthSignIn(
   const newUser = await db.user.create({
     data: {
       email: profile.email,
-      name: profile.name,
+      name: provider === "linuxdo" ? (profile.username ?? profile.name) : profile.name,
       avatar: profile.avatar,
       emailVerified: new Date(),
       role: shouldPromote ? "ADMIN" : undefined,
@@ -301,6 +340,7 @@ export async function handleOAuthSignIn(
           provider,
           providerAccountId: profile.id,
           trustLevel: provider === "linuxdo" ? profile.trustLevel : undefined,
+          providerProfile: provider === "linuxdo" ? profile.linuxdoProfile : undefined,
         },
       },
     },
@@ -377,6 +417,7 @@ export async function handleOAuthBind(
       provider,
       providerAccountId: profile.id,
       trustLevel: provider === "linuxdo" ? profile.trustLevel : undefined,
+      providerProfile: provider === "linuxdo" ? profile.linuxdoProfile : undefined,
     },
   })
 

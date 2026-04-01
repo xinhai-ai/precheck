@@ -6,15 +6,7 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus =
-  | "PENDING"
-  | "SHADOW_HIDDEN"
-  | "APPROVED"
-  | "REJECTED"
-  | "DISPUTED"
-  | "ARCHIVED"
-  | "PENDING_REVIEW"
-  | "ON_HOLD"
+export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
 
 export type PreApplicationAppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
 
@@ -103,6 +95,7 @@ export interface Account {
   id_token: string | null
   session_state: string | null
   trustLevel: number | null
+  providerProfile: Prisma.JsonValue | null
   user: User
 }
 
@@ -412,6 +405,7 @@ export interface SiteSettings {
   preApplicationEssayMinLength: number
   preApplicationEssayMaxLength: number
   allowedEmailDomains: Prisma.JsonValue
+  allowedAvatarDomains: Prisma.JsonValue
   registerQqNumberEmailOnly: boolean
   reviewTemplatesApprove: Prisma.JsonValue
   reviewTemplatesApproveNoCode: Prisma.JsonValue

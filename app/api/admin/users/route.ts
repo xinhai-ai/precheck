@@ -123,6 +123,11 @@ export async function GET(request: NextRequest) {
               updatedAt: true,
             },
           },
+          accounts: {
+            where: { provider: "linuxdo" },
+            select: { id: true },
+            take: 1,
+          },
         },
       }),
       db.user.count({ where }),
@@ -149,16 +154,19 @@ export async function GET(request: NextRequest) {
       })),
     ])
 
-    const users = usersRaw.map(({ _count, shadowBannedEntry, preApplications, ...rest }) => ({
-      ...rest,
-      latestPreApplicationStatus: preApplications[0]?.status ?? null,
-      latestPreApplicationId: preApplications[0]?.id ?? null,
-      applicationCount: _count.preApplications,
-      reviewCount: _count.preApplicationsReviewed,
-      shadowBanned: Boolean(shadowBannedEntry),
-      shadowBanReason: shadowBannedEntry?.reason ?? null,
-      shadowBannedAt: shadowBannedEntry?.createdAt ?? null,
-    }))
+    const users = usersRaw.map(
+      ({ _count, shadowBannedEntry, preApplications, accounts, ...rest }) => ({
+        ...rest,
+        latestPreApplicationStatus: preApplications[0]?.status ?? null,
+        latestPreApplicationId: preApplications[0]?.id ?? null,
+        applicationCount: _count.preApplications,
+        reviewCount: _count.preApplicationsReviewed,
+        shadowBanned: Boolean(shadowBannedEntry),
+        shadowBanReason: shadowBannedEntry?.reason ?? null,
+        shadowBannedAt: shadowBannedEntry?.createdAt ?? null,
+        hasLinuxdoAccount: Boolean(accounts[0]),
+      }),
+    )
 
     return NextResponse.json({ users, total, page, limit, stats })
   } catch (error) {

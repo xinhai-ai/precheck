@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import {
   Search,
@@ -119,6 +119,25 @@ interface AdminUser {
   shadowBanned?: boolean
   shadowBanReason?: string | null
   shadowBannedAt?: string | null
+  hasLinuxdoAccount?: boolean
+}
+
+interface LinuxdoAccountProfile {
+  id: string
+  email: string | null
+  name: string | null
+  username: string | null
+  avatar_url: string | null
+  trust_level: number | null
+}
+
+interface AdminUserDetail extends AdminUser {
+  updatedAt?: string
+  linuxdoAccount?: {
+    providerAccountId: string
+    trustLevel: number | null
+    providerProfile: LinuxdoAccountProfile | null
+  } | null
 }
 
 interface AdminUsersTableProps {
@@ -167,6 +186,9 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [linuxdoDetailOpen, setLinuxdoDetailOpen] = useState(false)
+  const [linuxdoDetailLoading, setLinuxdoDetailLoading] = useState(false)
+  const [selectedLinuxdoUser, setSelectedLinuxdoUser] = useState<AdminUserDetail | null>(null)
   const [emailsInput, setEmailsInput] = useState("")
   const [creating, setCreating] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -184,7 +206,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     }
   }
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true)
     setError("")
     setSelectedIds(new Set())
@@ -217,26 +239,27 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [
+    fingerprintHashFilter,
+    linuxdoTL3Filter,
+    page,
+    pageSize,
+    providerFilter,
+    roleFilter,
+    search,
+    sortBy,
+    sortOrder,
+    statusFilter,
+    t.fetchFailed,
+  ])
 
   useEffect(() => {
     fetchCurrentUser()
   }, [])
 
   useEffect(() => {
-    fetchUsers()
-  }, [
-    page,
-    pageSize,
-    search,
-    fingerprintHashFilter,
-    sortBy,
-    sortOrder,
-    roleFilter,
-    statusFilter,
-    providerFilter,
-    linuxdoTL3Filter,
-  ])
+    void fetchUsers()
+  }, [fetchUsers])
 
   const handleSearch = () => {
     setSearch(searchInput)
@@ -370,9 +393,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
         const message = resolveApiErrorMessage(data, dict) ?? t.actionFailed
         throw new Error(message)
       }
-      toast.success(
-        adminExt.preApplicationReapplyResetSuccess || "已允许该用户重新发起新一轮申请",
-      )
+      toast.success(adminExt.preApplicationReapplyResetSuccess || "已允许该用户重新发起新一轮申请")
       await fetchUsers()
     } catch (resetError) {
       console.error("Admin reset pre-application reapply error:", resetError)
@@ -467,6 +488,25 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     }
   }
 
+  const fetchLinuxdoUserDetail = async (id: string) => {
+    setLinuxdoDetailLoading(true)
+    try {
+      const res = await fetch(`/api/admin/users/${id}`)
+      if (!res.ok) {
+        throw new Error("Fetch detail failed")
+      }
+
+      const data = (await res.json()) as AdminUserDetail
+      setSelectedLinuxdoUser(data)
+      setLinuxdoDetailOpen(true)
+    } catch (detailError) {
+      console.error("Admin linuxdo detail fetch error:", detailError)
+      toast.error(adminExt.linuxdoInfoLoadFailed || t.actionFailed)
+    } finally {
+      setLinuxdoDetailLoading(false)
+    }
+  }
+
   const renderRoleBadge = (role: string) => {
     const roleStyles: Record<string, string> = {
       SUPER_ADMIN: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
@@ -533,6 +573,17 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {isSuperAdmin && user.hasLinuxdoAccount && (
+            <DropdownMenuItem
+              disabled={isBusy || linuxdoDetailLoading}
+              onClick={() => {
+                void fetchLinuxdoUserDetail(user.id)
+              }}
+            >
+              <Globe className="mr-2 h-4 w-4" />
+              {adminExt.viewLinuxdoInfo || "查看 Linux.do 信息"}
+            </DropdownMenuItem>
+          )}
           {isSuperAdmin && user.id !== currentUserId && user.role !== "SUPER_ADMIN" && (
             <DropdownMenuItem
               disabled={isBusy}
@@ -590,8 +641,7 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
                       description:
                         adminExt.preApplicationReapplyResetDescription ||
                         "此操作会将该用户最新一条已通过申请归档为历史记录，并允许其手动开始新一轮申请。",
-                      confirmLabel:
-                        adminExt.preApplicationReapplyResetAction || "允许重新申请",
+                      confirmLabel: adminExt.preApplicationReapplyResetAction || "允许重新申请",
                       onConfirm: async () => {
                         await resetUserPreApplicationReapply(user.id)
                       },
@@ -1201,6 +1251,88 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           }}
         />
       )}
+
+      <Dialog
+        open={linuxdoDetailOpen}
+        onOpenChange={(open) => {
+          setLinuxdoDetailOpen(open)
+          if (!open) {
+            setSelectedLinuxdoUser(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{adminExt.linuxdoInfoTitle || "Linux.do 元信息"}</DialogTitle>
+            <DialogDescription>
+              {adminExt.linuxdoInfoDesc || "查看当前账号保存的 Linux.do 资料快照。"}
+            </DialogDescription>
+          </DialogHeader>
+          {linuxdoDetailLoading ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {adminExt.linuxdoInfoLoading || "正在加载 Linux.do 信息..."}
+            </div>
+          ) : selectedLinuxdoUser?.linuxdoAccount?.providerProfile ? (
+            <div className="grid gap-3 py-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">{adminExt.linuxdoProfileId || "id"}</p>
+                <p className="break-all font-mono text-sm">
+                  {selectedLinuxdoUser.linuxdoAccount.providerProfile.id}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  {adminExt.linuxdoProfileEmail || "email"}
+                </p>
+                <p className="break-all font-mono text-sm">
+                  {selectedLinuxdoUser.linuxdoAccount.providerProfile.email || "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  {adminExt.linuxdoProfileName || "name"}
+                </p>
+                <p className="break-all font-mono text-sm">
+                  {selectedLinuxdoUser.linuxdoAccount.providerProfile.name || "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  {adminExt.linuxdoProfileUsername || "username"}
+                </p>
+                <p className="break-all font-mono text-sm">
+                  {selectedLinuxdoUser.linuxdoAccount.providerProfile.username || "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  {adminExt.linuxdoProfileAvatarUrl || "avatar_url"}
+                </p>
+                <p className="break-all font-mono text-sm">
+                  {selectedLinuxdoUser.linuxdoAccount.providerProfile.avatar_url || "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  {adminExt.linuxdoProfileTrustLevel || "trust_level"}
+                </p>
+                <p className="break-all font-mono text-sm">
+                  {selectedLinuxdoUser.linuxdoAccount.providerProfile.trust_level ?? "-"}
+                </p>
+              </div>
+            </div>
+          ) : selectedLinuxdoUser?.linuxdoAccount ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {adminExt.linuxdoInfoEmpty ||
+                "尚未记录 Linux.do 元信息，待下次 Linux.do 登录后更新。"}
+            </div>
+          ) : (
+            <div className="py-6 text-sm text-muted-foreground">
+              {adminExt.linuxdoInfoUnavailable || "当前账号未绑定 Linux.do。"}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 创建用户对话框 */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

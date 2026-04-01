@@ -56,6 +56,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         preApplicationSubmitBannedUntil: true,
         createdAt: true,
         updatedAt: true,
+        accounts: {
+          where: { provider: "linuxdo" },
+          select: {
+            providerAccountId: true,
+            trustLevel: true,
+            providerProfile: true,
+          },
+          take: 1,
+        },
       },
     })
 
@@ -63,7 +72,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       return createApiErrorResponse(request, ApiErrorKeys.admin.users.userNotFound, { status: 404 })
     }
 
-    return NextResponse.json(targetUser)
+    const { accounts, ...rest } = targetUser
+
+    return NextResponse.json({
+      ...rest,
+      linuxdoAccount: accounts[0] ?? null,
+    })
   } catch (error) {
     console.error("Get user API error:", error)
     return createApiErrorResponse(request, ApiErrorKeys.admin.users.failedToFetch, { status: 500 })
