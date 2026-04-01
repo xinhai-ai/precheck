@@ -1,5 +1,4 @@
-import type { Locale } from "@/lib/i18n/config"
-import { locales } from "@/lib/i18n/config"
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { getBaseUrl, siteConfig } from "@/lib/seo"
 import { db } from "@/lib/db"
@@ -82,7 +81,7 @@ export async function generateStaticParams() {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params
-  const currentLocale = locales.includes(locale as Locale) ? (locale as Locale) : "en"
+  const currentLocale = locales.includes(locale as Locale) ? (locale as Locale) : defaultLocale
   const baseUrl = getBaseUrl()
   const dict = await getDictionary(currentLocale)
 
@@ -108,7 +107,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ loc
     },
     {
       title: dict.footer?.apiReference || "API Reference",
-      description: locale === "zh" ? "API 文档和参考" : "API documentation and reference",
+      description: currentLocale === "zh" ? "API 文档和参考" : "API documentation and reference",
       link: `${baseUrl}/${currentLocale}/docs/api`,
       pubDate: new Date(),
       guid: `${baseUrl}/${currentLocale}/docs/api`,
@@ -116,7 +115,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ loc
     },
     {
       title: dict.footer?.examples || "Examples",
-      description: locale === "zh" ? "代码示例和使用案例" : "Code examples and use cases",
+      description: currentLocale === "zh" ? "代码示例和使用案例" : "Code examples and use cases",
       link: `${baseUrl}/${currentLocale}/docs/examples`,
       pubDate: new Date(),
       guid: `${baseUrl}/${currentLocale}/docs/examples`,

@@ -49,7 +49,7 @@ const item = {
 }
 
 export default function DashboardPage({ params }: DashboardPageProps) {
-  const [locale, setLocale] = useState<Locale>("en")
+  const [locale, setLocale] = useState<Locale>(defaultLocale)
   const [dict, setDict] = useState<Dictionary | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)

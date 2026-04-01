@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { getDictionary, type Dictionary } from "@/lib/i18n/get-dictionary"
-import type { Locale } from "@/lib/i18n/config"
+import { defaultLocale, type Locale } from "@/lib/i18n/config"
 import { MessagesTable } from "@/components/dashboard/messages-table"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -31,7 +31,7 @@ interface MessageDetail {
 }
 
 export default function MessagesPage({ params }: MessagesPageProps) {
-  const [locale, setLocale] = useState<Locale>("en")
+  const [locale, setLocale] = useState<Locale>(defaultLocale)
   const [dict, setDict] = useState<Dictionary | null>(null)
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null)

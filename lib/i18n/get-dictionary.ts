@@ -1,4 +1,4 @@
-import type { Locale } from "./config"
+import { defaultLocale, type Locale } from "./config"
 
 const dictionaries = {
   en: () => import("@/dictionaries/en.json").then((module) => module.default),
@@ -6,7 +6,7 @@ const dictionaries = {
 }
 
 export const getDictionary = async (locale: Locale) => {
-  return dictionaries[locale]?.() ?? dictionaries.en()
+  return dictionaries[locale]?.() ?? dictionaries[defaultLocale]()
 }
 
 type DictionaryBase = Awaited<ReturnType<typeof getDictionary>>

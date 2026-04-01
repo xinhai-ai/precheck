@@ -6,7 +6,7 @@ import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { getCurrentUser } from "@/lib/auth/session"
 import { features } from "@/lib/features"
 import { getSiteSettings } from "@/lib/site-settings"
-import { locales, type Locale } from "@/lib/i18n/config"
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
 
 export const dynamic = "force-dynamic"
 
@@ -18,7 +18,7 @@ export default async function PublicLayout({
   params: Promise<{ locale: string }>
 }) {
   const { locale } = await params
-  const currentLocale = locales.includes(locale as Locale) ? (locale as Locale) : "en"
+  const currentLocale = locales.includes(locale as Locale) ? (locale as Locale) : defaultLocale
   const dict = await getDictionary(currentLocale)
   const user = await getCurrentUser()
 
