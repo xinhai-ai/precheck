@@ -7,25 +7,30 @@ import { db } from "@/lib/db"
 import { buildRedirectUrl } from "@/lib/url"
 import { consumeOAuthFingerprintContext } from "@/lib/fingerprint/oauth-context"
 import { recordFingerprintEvent } from "@/lib/fingerprint/server"
+import { parseOAuthState } from "@/lib/auth/oauth-state"
 
 export async function GET(request: NextRequest) {
-  if (!features.oauth.github) {
-    return NextResponse.redirect(buildRedirectUrl("/login?error=oauth_not_configured", request.url))
-  }
-
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get("code")
   const state = searchParams.get("state")
-  const fingerprintContextToken = state?.startsWith("fp:") ? state.slice(3) : null
+  const { fingerprintContextToken, locale } = parseOAuthState(state)
+
+  if (!features.oauth.github) {
+    return NextResponse.redirect(
+      buildRedirectUrl(`/${locale}/login?error=oauth_not_configured`, request.url),
+    )
+  }
 
   if (!code) {
-    return NextResponse.redirect(buildRedirectUrl("/login?error=no_code", request.url))
+    return NextResponse.redirect(buildRedirectUrl(`/${locale}/login?error=no_code`, request.url))
   }
 
   try {
     const profile = await getGitHubProfile(code)
     if (!profile) {
-      return NextResponse.redirect(buildRedirectUrl("/login?error=oauth_failed", request.url))
+      return NextResponse.redirect(
+        buildRedirectUrl(`/${locale}/login?error=oauth_failed`, request.url),
+      )
     }
 
     const user = await handleOAuthSignIn("github", profile, request)
@@ -33,18 +38,17 @@ export async function GET(request: NextRequest) {
     const sessionRecord = await db?.session.findUnique({
       where: { sessionToken: token },
     })
-    const response = NextResponse.redirect(buildRedirectUrl("/dashboard", request.url))
+    const response = NextResponse.redirect(buildRedirectUrl(`/${locale}/dashboard`, request.url))
     setSessionCookie(response, token, expires)
     if (db) {
-      const fingerprintPayload =
-        (fingerprintContextToken
-          ? await consumeOAuthFingerprintContext(fingerprintContextToken)
-          : null) ?? {
-          fingerprintStatus: "COLLECTION_FAILED" as const,
-          fingerprintFailureReason: fingerprintContextToken
-            ? "oauth_context_not_found"
-            : "oauth_context_missing",
-        }
+      const fingerprintPayload = (fingerprintContextToken
+        ? await consumeOAuthFingerprintContext(fingerprintContextToken)
+        : null) ?? {
+        fingerprintStatus: "COLLECTION_FAILED" as const,
+        fingerprintFailureReason: fingerprintContextToken
+          ? "oauth_context_not_found"
+          : "oauth_context_missing",
+      }
 
       await recordFingerprintEvent({
         db,
@@ -75,6 +79,8 @@ export async function GET(request: NextRequest) {
     }
     return response
   } catch {
-    return NextResponse.redirect(buildRedirectUrl("/login?error=oauth_failed", request.url))
+    return NextResponse.redirect(
+      buildRedirectUrl(`/${locale}/login?error=oauth_failed`, request.url),
+    )
   }
 }
