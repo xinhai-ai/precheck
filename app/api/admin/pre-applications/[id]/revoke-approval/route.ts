@@ -110,14 +110,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       )
     }
 
-    if (record.formalApplicationApprovedFeedbackAt) {
-      return createApiErrorResponse(
-        request,
-        ApiErrorKeys.admin.preApplications.approvalRevokeFormalFeedbackExists,
-        { status: 409 },
-      )
-    }
-
     const newVersion = record.version + 1
 
     await db.$transaction(async (tx) => {

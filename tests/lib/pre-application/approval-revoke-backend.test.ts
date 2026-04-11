@@ -26,13 +26,17 @@ test("approval revoke route exists", () => {
 test("approval revoke route enforces super-admin checks and protected state guards", () => {
   assert.match(routeSource, /isSuperAdmin/)
   assert.match(routeSource, /PreApplicationStatus\.APPROVED/)
-  assert.match(routeSource, /formalApplicationApprovedFeedbackAt/)
   assert.match(routeSource, /usedAt/)
   assert.match(routeSource, /inviteCode:\s*\{\s*disconnect:\s*true\s*\}/)
   assert.match(routeSource, /codeSent:\s*false/)
   assert.match(routeSource, /codeSentAt:\s*null/)
   assert.match(routeSource, /PRE_APPLICATION_REVIEW_REVOKE_APPROVAL/)
   assert.match(routeSource, /INVITE_CODE_UNASSIGN/)
+})
+
+test("approval revoke route allows revoking after formal approval feedback exists", () => {
+  assert.doesNotMatch(routeSource, /if\s*\(\s*record\.formalApplicationApprovedFeedbackAt\s*\)/)
+  assert.doesNotMatch(routeSource, /approvalRevokeFormalFeedbackExists/)
 })
 
 test("approval revoke route sends revoke email and returns email result fields", () => {
