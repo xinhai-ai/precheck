@@ -28,6 +28,14 @@ type PreApplicationReviewEmailOptions = {
   locale: string
 }
 
+type PreApplicationApprovalRevokedEmailOptions = {
+  appName: string
+  dictionary: Dictionary
+  reviewerName: string
+  reason: string
+  locale: string
+}
+
 type InviteCodeIssueEmailOptions = {
   appName: string
   dictionary: Dictionary
@@ -351,6 +359,71 @@ export function buildPreApplicationReviewEmail({
   return { subject, html, text: appendNoReplyNote(textLines.join("\n")) }
 }
 
+export function buildPreApplicationApprovalRevokedEmail({
+  appName,
+  dictionary,
+  reviewerName,
+  reason,
+  locale,
+}: PreApplicationApprovalRevokedEmailOptions) {
+  const t = (
+    dictionary.preApplication as typeof dictionary.preApplication & {
+      approvalRevokedEmailTemplate: {
+        subject: string
+        title: string
+        intro: string
+        reviewer: string
+        reason: string
+        statusHint: string
+        footer: string
+      }
+    }
+  ).approvalRevokedEmailTemplate
+
+  const tokens = {
+    "{appName}": appName,
+    "{reviewer}": reviewerName,
+    "{reason}": reason,
+  }
+
+  const subject = replaceTokens(t.subject, tokens)
+  const title = replaceTokens(t.title, tokens)
+  const intro = replaceTokens(t.intro, tokens)
+  const reviewerLine = replaceTokens(t.reviewer, tokens)
+  const reasonLine = replaceTokens(t.reason, tokens)
+  const statusHint = replaceTokens(t.statusHint, tokens)
+  const footer = replaceTokens(t.footer, tokens)
+
+  const accentColor = "#f59e0b"
+  const accentBg = "#fffbeb"
+  const accentBorder = "#fcd34d"
+  const badgeText = locale === "zh" ? "审核结果已撤回" : "Approval Revoked"
+
+  const content = `
+    <div style="display:inline-block;margin:0 0 16px;padding:6px 12px;border-radius:999px;background:${accentBg};border:1px solid ${accentBorder};font-size:12px;font-weight:600;color:${accentColor};">
+      ${badgeText}
+    </div>
+    <h1 style="${baseStyles.title}">${title}</h1>
+    <p style="${baseStyles.text}">${intro}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;background:${accentBg};border:1px solid ${accentBorder};border-radius:12px;padding:20px;">
+      <tr>
+        <td>
+          <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#374151;">${reviewerLine}</p>
+          <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#374151;white-space:pre-wrap;">${reasonLine}</p>
+          <p style="margin:0;font-size:14px;line-height:1.7;color:#92400e;">${statusHint}</p>
+        </td>
+      </tr>
+    </table>
+    <p style="${baseStyles.footer}">${footer}</p>`
+
+  const html = wrapEmailHtml(subject, appName, accentColor, content)
+  const text = appendNoReplyNote(
+    `${title}\n\n${intro}\n\n${reviewerLine}\n${reasonLine}\n${statusHint}\n\n${footer}`,
+  )
+
+  return { subject, html, text }
+}
+
 export function buildPreApplicationAppealReviewEmail({
   appName,
   dictionary,
@@ -410,7 +483,10 @@ export function buildPreApplicationAppealReviewEmail({
     const title = replaceTokens(fallbackTitle, tokens)
     const intro = replaceTokens(fallbackIntro, tokens)
     const reviewerLine = replaceTokens(`${appealReview.reviewCommentLabel}${reviewerName}`, tokens)
-    const reviewCommentLine = replaceTokens(`${appealReview.reviewCommentLabel}${reviewComment}`, tokens)
+    const reviewCommentLine = replaceTokens(
+      `${appealReview.reviewCommentLabel}${reviewComment}`,
+      tokens,
+    )
     const footer = replaceTokens(notifications.footer, tokens)
 
     const accentColor = isApproved ? "#10b981" : "#ef4444"
@@ -695,7 +771,16 @@ export function buildManualNoticeEmail({
     ${issuerLine ? `<p style="${baseStyles.text}">${issuerLine}</p>` : ""}
     <p style="${baseStyles.footer}">${footer}</p>`
 
-  const textLines = [title, "", intro, "", note, ...(issuerLine ? ["", issuerLine] : []), "", footer]
+  const textLines = [
+    title,
+    "",
+    intro,
+    "",
+    note,
+    ...(issuerLine ? ["", issuerLine] : []),
+    "",
+    footer,
+  ]
 
   return {
     subject: title,

@@ -2477,6 +2477,37 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/pre-applications/{id}/revoke-approval": {
+      post: {
+        tags: ["Admin"],
+        summary: "撤回已通过预申请",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["reason"],
+                properties: {
+                  reason: { type: "string", minLength: 1, maxLength: 2000 },
+                  locale: { type: "string", enum: ["en", "zh"] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "撤回完成（可能包含 emailSent/emailError）" },
+          "400": { description: "参数错误" },
+          "401": { description: "未认证" },
+          "403": { description: "无权限（仅 SUPER_ADMIN 可撤回）" },
+          "404": { description: "申请不存在" },
+          "409": { description: "申请状态不允许撤回，或已存在后续不可逆结果" },
+          "503": { description: "数据库未配置" },
+        },
+      },
+    },
     "/admin/pre-applications/{id}/review-request": {
       post: {
         tags: ["Admin"],

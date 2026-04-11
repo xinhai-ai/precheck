@@ -103,6 +103,12 @@ export const ApiErrorKeys = {
       failedToFetch: "apiErrors.admin.preApplications.failedToFetch",
       historyFetchFailed: "apiErrors.admin.preApplications.historyFetchFailed",
       failedToReview: "apiErrors.admin.preApplications.failedToReview",
+      approvalRevokeFailed: "apiErrors.admin.preApplications.approvalRevokeFailed",
+      approvalNotRevocable: "apiErrors.admin.preApplications.approvalNotRevocable",
+      approvalRevokeInviteAlreadyUsed:
+        "apiErrors.admin.preApplications.approvalRevokeInviteAlreadyUsed",
+      approvalRevokeFormalFeedbackExists:
+        "apiErrors.admin.preApplications.approvalRevokeFormalFeedbackExists",
       inviteCodeRequired: "apiErrors.admin.preApplications.inviteCodeRequired",
       invalidInviteExpiry: "apiErrors.admin.preApplications.invalidInviteExpiry",
       expiryMustBeInFuture: "apiErrors.admin.preApplications.expiryMustBeInFuture",

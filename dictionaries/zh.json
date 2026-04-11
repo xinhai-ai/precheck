@@ -190,6 +190,10 @@
         "failedToFetch": "获取预申请失败",
         "historyFetchFailed": "获取历史记录失败",
         "failedToReview": "审核预申请失败",
+        "approvalRevokeFailed": "撤回已通过审核失败",
+        "approvalNotRevocable": "当前状态不允许撤回通过",
+        "approvalRevokeInviteAlreadyUsed": "该申请关联的邀请码已被使用，无法撤回",
+        "approvalRevokeFormalFeedbackExists": "该申请已记录正式申请通过反馈，无法撤回",
         "inviteCodeRequired": "邀请码为必填项",
         "invalidInviteExpiry": "邀请码过期时间无效",
         "expiryMustBeInFuture": "邀请码过期时间必须晚于当前时间",
@@ -1473,6 +1477,15 @@
         "inviteExpires": "有效期至：{expiresAt}",
         "footer": "如有疑问，请联系管理员。"
       }
+    },
+    "approvalRevokedEmailTemplate": {
+      "subject": "{appName} 预申请审核结果已撤回",
+      "title": "预申请已恢复为待审核",
+      "intro": "此前的通过结果已由超级管理员撤回，申请现已恢复为待审核状态。",
+      "reviewer": "处理管理员：{reviewer}",
+      "reason": "撤回原因：{reason}",
+      "statusHint": "当前状态：待审核",
+      "footer": "如有疑问，请联系管理员。"
     }
   },
   "inviteCode": {
@@ -1928,6 +1941,15 @@
     "inviteCode": "邀请码",
     "inviteExpiresAt": "有效期",
     "reviewSubmit": "提交审核",
+    "preApplicationRevokeApprovalAction": "撤回通过",
+    "preApplicationRevokeApprovalTitle": "撤回已通过审核",
+    "preApplicationRevokeApprovalDescription": "撤回后状态将恢复为待审核，并向申请邮箱发送撤回原因邮件。",
+    "preApplicationRevokeApprovalReasonLabel": "撤回原因",
+    "preApplicationRevokeApprovalReasonPlaceholder": "请输入撤回通过审核的原因...",
+    "preApplicationRevokeApprovalReasonRequired": "请输入撤回原因",
+    "preApplicationRevokeApprovalSubmitting": "撤回中...",
+    "preApplicationRevokeApprovalSuccess": "已撤回通过审核",
+    "preApplicationRevokeApprovalFailed": "撤回已通过审核失败",
     "emailSendFailed": "但邮件发送失败",
     "reviewCancel": "取消",
     "statusAll": "全部状态",

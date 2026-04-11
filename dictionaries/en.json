@@ -192,6 +192,10 @@
         "failedToFetch": "Failed to fetch pre-applications",
         "historyFetchFailed": "Failed to fetch history",
         "failedToReview": "Failed to review pre-application",
+        "approvalRevokeFailed": "Failed to revoke approved pre-application",
+        "approvalNotRevocable": "This pre-application cannot be reverted from its current status",
+        "approvalRevokeInviteAlreadyUsed": "The linked invite code has already been used and cannot be revoked",
+        "approvalRevokeFormalFeedbackExists": "Formal approval feedback already exists, so this record cannot be revoked",
         "inviteCodeRequired": "Invite code required",
         "invalidInviteExpiry": "Invalid invite expiry",
         "expiryMustBeInFuture": "Invite expiry must be in the future",
@@ -1476,6 +1480,15 @@
         "inviteExpires": "Expires at: {expiresAt}",
         "footer": "If you have questions, please contact an admin."
       }
+    },
+    "approvalRevokedEmailTemplate": {
+      "subject": "{appName} approval has been revoked",
+      "title": "Your pre-application is pending review again",
+      "intro": "A super admin has revoked the earlier approval result. Your pre-application has been restored to pending review.",
+      "reviewer": "Handled by: {reviewer}",
+      "reason": "Revocation reason: {reason}",
+      "statusHint": "Current status: Pending",
+      "footer": "If you have questions, please contact an admin."
     }
   },
   "inviteCode": {
@@ -1932,6 +1945,15 @@
     "inviteCode": "Invite Code",
     "inviteExpiresAt": "Expiry",
     "reviewSubmit": "Submit Review",
+    "preApplicationRevokeApprovalAction": "Revoke Approval",
+    "preApplicationRevokeApprovalTitle": "Revoke approved result",
+    "preApplicationRevokeApprovalDescription": "This restores the pre-application to pending review and sends the applicant an email with the revoke reason.",
+    "preApplicationRevokeApprovalReasonLabel": "Revoke reason",
+    "preApplicationRevokeApprovalReasonPlaceholder": "Explain why the approved result is being revoked...",
+    "preApplicationRevokeApprovalReasonRequired": "Please enter a revoke reason",
+    "preApplicationRevokeApprovalSubmitting": "Revoking...",
+    "preApplicationRevokeApprovalSuccess": "Approved result revoked",
+    "preApplicationRevokeApprovalFailed": "Failed to revoke approved result",
     "emailSendFailed": "but email failed to send",
     "reviewCancel": "Cancel",
     "statusAll": "All statuses",

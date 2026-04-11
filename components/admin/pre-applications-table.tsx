@@ -371,6 +371,9 @@ export function AdminPreApplicationsTable({
   const [reviewRequestTarget, setReviewRequestTarget] = useState<AdminPreApplication | null>(null)
   const [reviewRequestReason, setReviewRequestReason] = useState("")
   const [reviewRequestSubmitting, setReviewRequestSubmitting] = useState(false)
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false)
+  const [revokeReason, setRevokeReason] = useState("")
+  const [revokeSubmitting, setRevokeSubmitting] = useState(false)
   const [historyRecords, setHistoryRecords] = useState<PreApplicationVersion[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [noteRecords, setNoteRecords] = useState<PreApplicationAdminNote[]>([])
@@ -656,6 +659,24 @@ export function AdminPreApplicationsTable({
     setReviewRequestReason("")
   }
 
+  const openRevokeDialog = () => {
+    if (!selected || selected.status !== "APPROVED") {
+      return
+    }
+
+    setRevokeReason(selected.guidance || "")
+    setRevokeDialogOpen(true)
+  }
+
+  const closeRevokeDialog = () => {
+    if (revokeSubmitting) {
+      return
+    }
+
+    setRevokeDialogOpen(false)
+    setRevokeReason("")
+  }
+
   const submitReviewRequest = async () => {
     if (!reviewRequestTarget) return
 
@@ -696,6 +717,56 @@ export function AdminPreApplicationsTable({
       )
     } finally {
       setReviewRequestSubmitting(false)
+    }
+  }
+
+  const handleRevokeApproval = async () => {
+    if (!isSuperAdmin || !selected || selected.status !== "APPROVED") {
+      return
+    }
+
+    const reason = revokeReason.trim()
+    if (!reason) {
+      toast.error(adminExt.preApplicationRevokeApprovalReasonRequired || "请输入撤回原因")
+      return
+    }
+
+    setRevokeSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/pre-applications/${selected.id}/revoke-approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, locale }),
+      })
+
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(
+          resolveApiErrorMessage(result, dict) ??
+            adminExt.preApplicationRevokeApprovalFailed ??
+            t.actionFailed,
+        )
+      }
+
+      if (result.emailError) {
+        toast.warning(
+          `${adminExt.preApplicationRevokeApprovalSuccess || "已撤回通过审核"}, ${t.emailSendFailed || "但邮件发送失败"}: ${result.emailError}`,
+        )
+      } else {
+        toast.success(adminExt.preApplicationRevokeApprovalSuccess || "已撤回通过审核")
+      }
+
+      closeRevokeDialog()
+      setDialogOpen(false)
+      await fetchRecords()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : (adminExt.preApplicationRevokeApprovalFailed ?? t.actionFailed),
+      )
+    } finally {
+      setRevokeSubmitting(false)
     }
   }
 
@@ -2894,6 +2965,12 @@ export function AdminPreApplicationsTable({
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 {t.reviewCancel}
               </Button>
+              {isSuperAdmin && selected?.status === "APPROVED" && (
+                <Button variant="outline" onClick={openRevokeDialog} className="gap-2">
+                  <RotateCcw className="h-4 w-4" />
+                  {adminExt.preApplicationRevokeApprovalAction || "撤回通过"}
+                </Button>
+              )}
               {selected?.status === "REJECTED" && (
                 <Button
                   variant="outline"
@@ -2998,6 +3075,78 @@ export function AdminPreApplicationsTable({
                 <>
                   <Send className="h-4 w-4" />
                   {adminExt.preApplicationReviewRequestAction || "提交复审"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={revokeDialogOpen}
+        onOpenChange={(open) => (!open ? closeRevokeDialog() : setRevokeDialogOpen(true))}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {adminExt.preApplicationRevokeApprovalTitle || "撤回已通过审核"}
+            </DialogTitle>
+            <DialogDescription>
+              {adminExt.preApplicationRevokeApprovalDescription ||
+                "撤回后状态将恢复为待审核，并向申请邮箱发送撤回原因邮件。"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="pre-application-revoke-reason">
+                {adminExt.preApplicationRevokeApprovalReasonLabel || "撤回原因"}
+              </Label>
+              <Textarea
+                id="pre-application-revoke-reason"
+                value={revokeReason}
+                onChange={(event) => setRevokeReason(event.target.value)}
+                placeholder={
+                  adminExt.preApplicationRevokeApprovalReasonPlaceholder ||
+                  "请输入撤回通过审核的原因..."
+                }
+                rows={5}
+                maxLength={2000}
+                className="resize-none"
+              />
+            </div>
+            {selected && (
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                <p>{selected.registerEmail}</p>
+                {selected.inviteCode?.code && (
+                  <p className="mt-1 font-mono">{selected.inviteCode.code}</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={revokeSubmitting}
+              onClick={closeRevokeDialog}
+            >
+              {t.reviewCancel}
+            </Button>
+            <Button
+              type="button"
+              disabled={revokeSubmitting || !revokeReason.trim()}
+              onClick={handleRevokeApproval}
+              className="gap-2"
+            >
+              {revokeSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {adminExt.preApplicationRevokeApprovalSubmitting || "撤回中..."}
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4" />
+                  {adminExt.preApplicationRevokeApprovalAction || "撤回通过"}
                 </>
               )}
             </Button>
