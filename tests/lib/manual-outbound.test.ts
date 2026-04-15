@@ -21,6 +21,47 @@ test("external email recipients can only use the email channel", async () => {
   )
 })
 
+test("external email recipients can be normalized from one-per-line input", async () => {
+  const { manualOutboundSchema, splitManualOutboundRecipientEmails } = await loadModule()
+
+  const emails = splitManualOutboundRecipientEmails(`
+    alpha@example.com
+
+    beta@example.com
+    alpha@example.com
+  `)
+
+  assert.deepEqual(emails, ["alpha@example.com", "beta@example.com"])
+
+  const payload = manualOutboundSchema.parse({
+    channel: "email",
+    recipientType: "external-email",
+    emails,
+    template: "custom",
+    subject: "Hello",
+    emailText: "hello",
+    emailHtml: "<p>hello</p>",
+  })
+
+  assert.deepEqual(payload.emails, ["alpha@example.com", "beta@example.com"])
+})
+
+test("external email recipients require at least one isolated address", async () => {
+  const { manualOutboundSchema } = await loadModule()
+
+  assert.throws(() =>
+    manualOutboundSchema.parse({
+      channel: "email",
+      recipientType: "external-email",
+      emails: [],
+      template: "custom",
+      subject: "Hello",
+      emailText: "hello",
+      emailHtml: "<p>hello</p>",
+    }),
+  )
+})
+
 test("invite-code-resend requires a manually entered invite code", async () => {
   const { manualOutboundSchema } = await loadModule()
 

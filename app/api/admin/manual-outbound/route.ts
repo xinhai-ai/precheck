@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     if (!db) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
+    const database = db
 
     const body = await request.json()
     const payload = manualOutboundSchema.parse(body)
@@ -27,12 +28,12 @@ export async function POST(request: NextRequest) {
     const result = await sendManualOutbound(
       {
         getUserById: async (userId) =>
-          db.user.findUnique({
+          database.user.findUnique({
             where: { id: userId },
             select: { id: true, email: true, name: true },
           }),
         createMessage: async ({ title, content, recipientUserId, actorId }) =>
-          db.message.create({
+          database.message.create({
             data: {
               title,
               content,
@@ -46,7 +47,11 @@ export async function POST(request: NextRequest) {
             select: { id: true },
           }),
         sendEmail: ({ to, subject, text, html }) => sendEmail({ to, subject, text, html }),
-        writeAuditLog: (input) => writeAuditLog(db, { request, ...(input as never) }),
+        writeAuditLog: (input) =>
+          writeAuditLog(database, {
+            ...(input as Parameters<typeof writeAuditLog>[1]),
+            request,
+          }),
       },
       {
         actor: {

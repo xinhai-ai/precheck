@@ -37,3 +37,4 @@ scripts/*.js
 *.tar.gz
 .pnpm-store/
 docs/superpowers
+.codex

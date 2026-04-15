@@ -71,3 +71,48 @@ test("both mode rejects system users without an email address", async () => {
     ),
   )
 })
+
+test("external email batches are sent one by one and keep partial delivery details", async () => {
+  const { sendManualOutbound } = await loadModule()
+
+  const sent: string[] = []
+
+  const result = await sendManualOutbound(
+    {
+      getUserById: async () => null,
+      createMessage: async () => {
+        throw new Error("message should not be created for external email batches")
+      },
+      sendEmail: async ({ to }: { to: string }) => {
+        sent.push(to)
+        if (to === "beta@example.com") {
+          throw new Error("smtp down")
+        }
+      },
+      writeAuditLog: async () => null,
+    },
+    {
+      actor: { id: "sa_1", email: "root@example.com", role: "SUPER_ADMIN" },
+      payload: {
+        channel: "email",
+        recipientType: "external-email",
+        emails: ["alpha@example.com", "beta@example.com", "gamma@example.com"],
+        template: "custom",
+        subject: "hello",
+        emailText: "hello",
+        emailHtml: "<p>hello</p>",
+      },
+    },
+  )
+
+  assert.deepEqual(sent, ["alpha@example.com", "beta@example.com", "gamma@example.com"])
+  assert.equal(result.status, "partial")
+  assert.equal(result.email.ok, false)
+  assert.equal(result.email.sentCount, 2)
+  assert.equal(result.email.failedCount, 1)
+  assert.deepEqual(result.email.deliveries, [
+    { ok: true, to: "alpha@example.com" },
+    { ok: false, to: "beta@example.com", error: "smtp down" },
+    { ok: true, to: "gamma@example.com" },
+  ])
+})

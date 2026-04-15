@@ -3250,6 +3250,10 @@ export const openApiSpec = {
                   recipientType: { type: "string", enum: ["system-user", "external-email"] },
                   userId: { type: "string" },
                   email: { type: "string", format: "email" },
+                  emails: {
+                    type: "array",
+                    items: { type: "string", format: "email" },
+                  },
                   template: {
                     type: "string",
                     enum: ["custom", "invite-code-resend", "manual-notice"],

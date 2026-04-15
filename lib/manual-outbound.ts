@@ -4,12 +4,38 @@ export const manualOutboundChannels = ["email", "message", "both"] as const
 export const manualOutboundRecipientTypes = ["system-user", "external-email"] as const
 export const manualOutboundTemplates = ["custom", "invite-code-resend", "manual-notice"] as const
 
+const manualOutboundEmailSchema = z.string().trim().email()
+
+export function splitManualOutboundRecipientEmails(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/\r?\n/g)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  )
+}
+
+export function normalizeManualOutboundRecipientEmails(input: {
+  email?: string
+  emails?: string[]
+}) {
+  return Array.from(
+    new Set([
+      ...(input.email?.trim() ? [input.email.trim()] : []),
+      ...((input.emails ?? []).map((item) => item.trim()).filter(Boolean)),
+    ]),
+  )
+}
+
 export const manualOutboundSchema = z
   .object({
     channel: z.enum(manualOutboundChannels),
     recipientType: z.enum(manualOutboundRecipientTypes),
     userId: z.string().trim().optional(),
-    email: z.string().trim().email().optional(),
+    email: manualOutboundEmailSchema.optional(),
+    emails: z.array(manualOutboundEmailSchema).optional(),
     template: z.enum(manualOutboundTemplates),
     subject: z.string().trim().min(1).max(200),
     messageContent: z.string().optional(),
@@ -28,7 +54,10 @@ export const manualOutboundSchema = z
         message: "external email only supports email",
       })
     }
-    if (value.recipientType === "external-email" && !value.email) {
+    if (
+      value.recipientType === "external-email" &&
+      normalizeManualOutboundRecipientEmails(value).length === 0
+    ) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "email is required" })
     }
     if (value.template === "invite-code-resend" && !value.inviteCode?.trim()) {

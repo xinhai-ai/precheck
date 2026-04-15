@@ -15,4 +15,5 @@ test("manual outbound route is super-admin only and documented in openapi", () =
   assert.match(routeSource, /sendManualOutbound/)
   assert.match(errorKeysSource, /manualOutbound:/)
   assert.match(openApiSource, /"\/admin\/manual-outbound":\s*\{/)
+  assert.match(openApiSource, /emails:\s*\{/)
 })

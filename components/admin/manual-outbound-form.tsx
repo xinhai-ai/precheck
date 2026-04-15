@@ -22,6 +22,7 @@ import {
   buildManualOutboundDraft,
   manualOutboundSchema,
   manualOutboundTemplates,
+  splitManualOutboundRecipientEmails,
 } from "@/lib/manual-outbound"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
@@ -82,6 +83,10 @@ export function AdminManualOutboundForm({ locale, dict }: AdminManualOutboundFor
 
   const needsEmail = formData.recipientType === "external-email" || formData.channel !== "message"
   const needsMessage = formData.recipientType === "system-user" && formData.channel !== "email"
+  const externalRecipients =
+    formData.recipientType === "external-email"
+      ? splitManualOutboundRecipientEmails(formData.email)
+      : []
 
   const applyTemplateDraft = (nextTemplate?: ManualOutboundTemplate) => {
     const template = nextTemplate ?? formData.template
@@ -162,8 +167,12 @@ export function AdminManualOutboundForm({ locale, dict }: AdminManualOutboundFor
         recipientType: formData.recipientType,
         userId: formData.recipientType === "system-user" ? formData.userId || undefined : undefined,
         email:
-          formData.recipientType === "external-email"
-            ? formData.email.trim() || undefined
+          formData.recipientType === "external-email" && externalRecipients.length === 1
+            ? externalRecipients[0]
+            : undefined,
+        emails:
+          formData.recipientType === "external-email" && externalRecipients.length > 0
+            ? externalRecipients
             : undefined,
         template: formData.template,
         subject: formData.subject.trim(),
@@ -340,16 +349,19 @@ export function AdminManualOutboundForm({ locale, dict }: AdminManualOutboundFor
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="manual-outbound-email">{t.manualOutboundTargetEmailLabel}</Label>
-              <Input
-                id="manual-outbound-email"
-                type="email"
+              <Label htmlFor="manual-outbound-email-list">{t.manualOutboundTargetEmailLabel}</Label>
+              <Textarea
+                id="manual-outbound-email-list"
                 value={formData.email}
                 onChange={(event) =>
                   setFormData((prev) => ({ ...prev, email: event.target.value }))
                 }
                 placeholder={t.manualOutboundTargetEmailPlaceholder}
+                rows={5}
               />
+              <p className="text-xs text-muted-foreground">
+                {t.manualOutboundExternalEmailBatchHint}
+              </p>
             </div>
           )}
 
@@ -488,13 +500,23 @@ export function AdminManualOutboundForm({ locale, dict }: AdminManualOutboundFor
         <CardContent className="space-y-3 text-sm">
           <div>
             <p className="text-muted-foreground">{t.manualOutboundSummaryRecipient}</p>
-            <p className="font-medium">
-              {formData.recipientType === "external-email"
-                ? formData.email || "-"
-                : selectedUser
-                  ? `${selectedUser.name || "-"} <${selectedUser.email}>`
-                  : "-"}
-            </p>
+            {formData.recipientType === "external-email" ? (
+              externalRecipients.length > 0 ? (
+                <div className="space-y-1 rounded-lg border bg-muted/20 p-3">
+                  {externalRecipients.map((email) => (
+                    <p key={email} className="font-medium break-all">
+                      {email}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-medium">-</p>
+              )
+            ) : (
+              <p className="font-medium">
+                {selectedUser ? `${selectedUser.name || "-"} <${selectedUser.email}>` : "-"}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-muted-foreground">{t.manualOutboundSummaryChannel}</p>

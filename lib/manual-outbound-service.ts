@@ -9,6 +9,7 @@ type ManualOutboundPayload = {
   recipientType: "system-user" | "external-email"
   userId?: string
   email?: string
+  emails?: string[]
   template: "custom" | "invite-code-resend" | "manual-notice"
   subject: string
   messageContent?: string
@@ -39,11 +40,37 @@ type ManualOutboundDeps = {
   writeAuditLog: (input: Record<string, unknown>) => Promise<unknown>
 }
 
+type ManualOutboundEmailDelivery = {
+  ok: boolean
+  to: string
+  error?: string
+}
+
 type ManualOutboundResult = {
   status: "success" | "partial"
   messageId?: string
   message: { ok: boolean; skipped?: boolean }
-  email: { ok: boolean; skipped?: boolean; error?: string; to?: string }
+  email: {
+    ok: boolean
+    skipped?: boolean
+    error?: string
+    to?: string
+    deliveries?: ManualOutboundEmailDelivery[]
+    sentCount?: number
+    failedCount?: number
+  }
+}
+
+function normalizeManualOutboundRecipientEmails(input: {
+  email?: string
+  emails?: string[]
+}) {
+  return Array.from(
+    new Set([
+      ...(input.email?.trim() ? [input.email.trim()] : []),
+      ...((input.emails ?? []).map((item) => item.trim()).filter(Boolean)),
+    ]),
+  )
 }
 
 export async function sendManualOutbound(
@@ -86,27 +113,61 @@ export async function sendManualOutbound(
   }
 
   if (needsEmail) {
-    const to = payload.recipientType === "external-email" ? payload.email : recipient?.email
-    if (!to) {
+    const recipients =
+      payload.recipientType === "external-email"
+        ? normalizeManualOutboundRecipientEmails(payload)
+        : recipient?.email
+          ? [recipient.email]
+          : []
+
+    if (recipients.length === 0) {
       throw new Error("Email recipient is required")
     }
 
-    try {
-      await deps.sendEmail({
-        to,
-        subject: payload.subject,
-        text: payload.emailText || "",
-        html: payload.emailHtml,
-      })
-      result.email = { ok: true, to }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      if (payload.channel === "both" && messageId) {
-        result.status = "partial"
-        result.email = { ok: false, to, error: errorMessage }
-      } else {
-        throw error
+    const deliveries: ManualOutboundEmailDelivery[] = []
+
+    for (const to of recipients) {
+      try {
+        await deps.sendEmail({
+          to,
+          subject: payload.subject,
+          text: payload.emailText || "",
+          html: payload.emailHtml,
+        })
+        deliveries.push({ ok: true, to })
+      } catch (error) {
+        deliveries.push({
+          ok: false,
+          to,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
+    }
+
+    const sentCount = deliveries.filter((delivery) => delivery.ok).length
+    const failedDeliveries = deliveries.filter((delivery) => !delivery.ok)
+    const failedCount = failedDeliveries.length
+    const firstFailure = failedDeliveries[0]
+
+    if (failedCount === 0) {
+      result.email =
+        deliveries.length === 1
+          ? { ok: true, to: deliveries[0]!.to }
+          : {
+              ok: true,
+              deliveries,
+              sentCount,
+              failedCount,
+            }
+    } else if (sentCount > 0 || (payload.channel === "both" && messageId)) {
+      result.status = "partial"
+      result.email = {
+        ok: false,
+        ...(deliveries.length === 1 ? { to: deliveries[0]!.to, error: firstFailure?.error } : {}),
+        ...(deliveries.length > 1 ? { deliveries, sentCount, failedCount } : {}),
+      }
+    } else {
+      throw new Error(firstFailure?.error || "Failed to send email")
     }
   }
 
