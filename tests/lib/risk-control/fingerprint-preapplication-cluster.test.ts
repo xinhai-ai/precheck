@@ -33,3 +33,17 @@ test("pre-application detail renders fingerprint risk cluster summary", () => {
   assert.match(preApplicationsTableSource, /maxSimilarity/)
   assert.match(preApplicationsTableSource, /eventCount/)
 })
+
+test("pre-application fingerprint panel defaults collapsed when no risk is present", () => {
+  assert.match(preApplicationsTableSource, /function hasFingerprintRisk/)
+  assert.match(preApplicationsTableSource, /fingerprintSectionValue/)
+  assert.match(
+    preApplicationsTableSource,
+    /setFingerprintSectionValue\(hasFingerprintRisk\(fingerprintDetail\) \? \["fingerprint"\] : \[\]\)/,
+  )
+  assert.match(
+    preApplicationsTableSource,
+    /<Accordion\s+type="multiple"\s+value=\{fingerprintSectionValue\}/,
+  )
+  assert.match(preApplicationsTableSource, /<AccordionItem\s+value="fingerprint"/)
+})

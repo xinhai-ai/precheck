@@ -1697,6 +1697,7 @@
     "shadowbanReasonPrompt": "Enter shadowban reason (admin-only):",
     "unshadowbanConfirm": "Remove shadowban and restore this user's applications to pending?",
     "riskControl": "Risk Control",
+    "noFingerprintRisk": "No Risk",
     "riskControlPanel": {
       "title": "Risk Control Center",
       "description": "Centralized fingerprint risk view with global ignore controls for known-safe users.",

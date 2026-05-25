@@ -1693,6 +1693,7 @@
     "shadowbanReasonPrompt": "请输入 Shadowban 原因（仅管理员可见）：",
     "unshadowbanConfirm": "确认解除该用户 Shadowban 并恢复其申请到待审核？",
     "riskControl": "风险控制",
+    "noFingerprintRisk": "暂无风险",
     "riskControlPanel": {
       "title": "风险控制中心",
       "description": "集中查看指纹关联风险，支持忽略特定用户以降低误报。",
