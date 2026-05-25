@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Prisma, PreApplicationAppealStatus } from "@prisma/client"
+import { Prisma, PreApplicationAppealStatus, PreApplicationStatus } from "@prisma/client"
 import { getCurrentUserFromRequest } from "@/lib/auth/session"
-import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
 import { getAppealRejectionSnapshot } from "@/lib/pre-application/appeal-utils"
+import {
+  canViewPreApplicationAppeals,
+  getPreApplicationAppealReviewPolicy,
+} from "@/lib/auth/policies/pre-application-appeal"
 
 const userSelect = {
   id: true,
@@ -84,7 +87,7 @@ export async function GET(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
 
-    if (!isSuperAdmin(user.role)) {
+    if (!canViewPreApplicationAppeals(user)) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })
     }
 
@@ -99,7 +102,12 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const skip = (page - 1) * limit
 
-    const where: Prisma.PreApplicationAppealWhereInput = {}
+    const archivedExcludedWhere: Prisma.PreApplicationAppealWhereInput = {
+      preApplication: {
+        status: { not: PreApplicationStatus.ARCHIVED },
+      },
+    }
+    const where: Prisma.PreApplicationAppealWhereInput = { ...archivedExcludedWhere }
 
     if (!status) {
       where.status = PreApplicationAppealStatus.PENDING
@@ -141,27 +149,44 @@ export async function GET(request: NextRequest) {
         select: appealRecordSelect,
       }),
       db.preApplicationAppeal.count({ where }),
-      db.preApplicationAppeal.count({ where: { status: PreApplicationAppealStatus.PENDING } }),
-      db.preApplicationAppeal.count({ where: { status: PreApplicationAppealStatus.REJECTED } }),
-      db.preApplicationAppeal.count({ where: { status: PreApplicationAppealStatus.OVERRIDDEN } }),
+      db.preApplicationAppeal.count({
+        where: { ...archivedExcludedWhere, status: PreApplicationAppealStatus.PENDING },
+      }),
+      db.preApplicationAppeal.count({
+        where: { ...archivedExcludedWhere, status: PreApplicationAppealStatus.REJECTED },
+      }),
+      db.preApplicationAppeal.count({
+        where: { ...archivedExcludedWhere, status: PreApplicationAppealStatus.OVERRIDDEN },
+      }),
     ])
 
     const normalizedRecords = records.map((record) => {
       const { essay, reviewedBy, versions, ...preApplication } = record.preApplication
+      const rejectionSnapshot = getAppealRejectionSnapshot({
+        appealCreatedAt: record.createdAt,
+        preApplication: {
+          status: record.preApplication.status,
+          essay,
+          guidance: record.preApplication.guidance,
+          reviewedAt: record.preApplication.reviewedAt,
+          reviewedBy,
+        },
+        versions,
+      })
 
       return {
         ...record,
         preApplication,
-        rejectionSnapshot: getAppealRejectionSnapshot({
-          appealCreatedAt: record.createdAt,
-          preApplication: {
-            status: record.preApplication.status,
-            essay,
-            guidance: record.preApplication.guidance,
-            reviewedAt: record.preApplication.reviewedAt,
-            reviewedBy,
+        rejectionSnapshot,
+        reviewPolicy: getPreApplicationAppealReviewPolicy({
+          actor: user,
+          appeal: {
+            status: record.status,
+            source: record.source,
+            initiatedById: record.initiatedById,
+            preApplication: { status: record.preApplication.status },
+            rejectionReviewedById: rejectionSnapshot?.reviewedBy?.id ?? null,
           },
-          versions,
         }),
       }
     })
