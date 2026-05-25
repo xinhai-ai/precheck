@@ -928,9 +928,17 @@
       "title": "预申请流程说明",
       "description": "请按以下流程提交与跟进审核。",
       "stepsTitle": "流程步骤",
-      "steps": ["填写预申请表单并提交", "管理员审核并给出指导意见", "通过站内信与审核记录查看结果"],
+      "steps": [
+        "填写预申请表单并提交",
+        "管理员审核并给出指导意见",
+        "通过站内信与审核记录查看结果"
+      ],
       "statusTitle": "审核状态",
-      "statuses": ["待审核", "已通过", "已驳回"],
+      "statuses": [
+        "待审核",
+        "已通过",
+        "已驳回"
+      ],
       "rulesTitle": "规则提示",
       "rules": [
         "仅允许提交一次预申请",
@@ -1769,7 +1777,18 @@
       "unbanSuccess": "已解封用户",
       "banFailed": "封禁失败",
       "unbanFailed": "解封失败",
-      "actionForbidden": "仅超级管理员可执行该操作"
+      "actionForbidden": "仅超级管理员可执行该操作",
+      "similarityScore": "相似提醒",
+      "noSimilarity": "暂无相似提醒",
+      "similarEvents": "相似事件",
+      "similarEventsDesc": "跨绑定键命中的相似指纹证据。",
+      "emptySimilarEvents": "暂无相似事件",
+      "componentDetails": "指纹组件明细",
+      "componentDetailsDesc": "后端保存的完整指纹组件内容。",
+      "emptyComponentDetails": "暂无组件明细",
+      "matchedComponents": "相同项",
+      "differentComponents": "差异项",
+      "strongComponents": "强证据"
     },
     "inviteCodes": "邀请码",
     "inviteCodesDesc": "维护邀请码库存与有效期",
@@ -2722,15 +2741,25 @@
         "intro": "本项目采用 MIT 许可证。这意味着您可以自由使用、复制、修改、合并、发布、分发、再许可和/或销售该软件的副本。",
         "permissions": {
           "title": "权限",
-          "items": ["商业使用", "修改", "分发", "私人使用"]
+          "items": [
+            "商业使用",
+            "修改",
+            "分发",
+            "私人使用"
+          ]
         },
         "conditions": {
           "title": "条件",
-          "items": ["必须包含许可证和版权声明"]
+          "items": [
+            "必须包含许可证和版权声明"
+          ]
         },
         "limitations": {
           "title": "限制",
-          "items": ["无责任", "无保证"]
+          "items": [
+            "无责任",
+            "无保证"
+          ]
         },
         "fullText": {
           "title": "完整许可证文本",

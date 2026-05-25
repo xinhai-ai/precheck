@@ -134,6 +134,57 @@ function formatEvidenceFlag(value: string, riskT: Record<string, string>): strin
   }
 }
 
+function formatSimilarityScore(value: number | null | undefined, riskT: Record<string, string>) {
+  if (!value) return riskT.noSimilarity || "暂无相似提醒"
+  return `${value}/100`
+}
+
+function renderComponentValue(value: unknown): string {
+  if (Array.isArray(value)) return value.join(", ")
+  if (value && typeof value === "object") return JSON.stringify(value, null, 2)
+  if (value === null || value === undefined) return "-"
+  return String(value)
+}
+
+function ComponentDetails({
+  components,
+  title,
+  empty,
+}: {
+  components: FingerprintRiskGroupDetailResponse["componentDetails"]
+  title: string
+  empty: string
+}) {
+  const fingerprintComponents = components
+
+  if (!fingerprintComponents || Object.keys(fingerprintComponents).length === 0) {
+    return <p className="text-sm text-muted-foreground">{empty}</p>
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium">{title}</p>
+      {Object.entries(fingerprintComponents).map(([group, fields]) => (
+        <div key={group} className="rounded-lg border bg-muted/20 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {group}
+          </p>
+          <div className="space-y-2">
+            {Object.entries(fields).map(([field, value]) => (
+              <div key={field} className="grid gap-1 md:grid-cols-[160px_1fr]">
+                <span className="text-xs text-muted-foreground">{field}</span>
+                <pre className="whitespace-pre-wrap break-words rounded bg-background p-2 font-mono text-[11px]">
+                  {renderComponentValue(value)}
+                </pre>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function StatCard({
   icon: Icon,
   label,
@@ -588,13 +639,16 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   <th className="px-3 py-2 text-left font-medium">
                     {riskT.riskLevel || "风险等级"}
                   </th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {riskT.similarityScore || "相似提醒"}
+                  </th>
                   <th className="px-3 py-2 text-right font-medium">{t.actions as string}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                       <span className="inline-flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         {t.loading as string}
@@ -603,7 +657,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                       {riskT.empty || "暂无风险分组"}
                     </td>
                   </tr>
@@ -659,6 +713,24 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                           {item.riskExplanation && (
                             <p className="max-w-xs text-[11px] leading-4 text-muted-foreground">
                               {item.riskExplanation}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="space-y-1">
+                          <Badge
+                            variant={(item.maxSimilarityScore || 0) >= 85 ? "destructive" : "outline"}
+                          >
+                            {formatSimilarityScore(item.maxSimilarityScore, riskT)}
+                          </Badge>
+                          <p className="text-[11px] text-muted-foreground">
+                            {(item.similarEventCount || 0).toLocaleString()}{" "}
+                            {riskT.similarEvents || "相似事件"}
+                          </p>
+                          {item.fingerprintSummary?.webgl && (
+                            <p className="max-w-xs truncate text-[11px] text-muted-foreground">
+                              {item.fingerprintSummary.webgl}
                             </p>
                           )}
                         </div>
@@ -976,6 +1048,88 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {riskT.similarEvents || "相似事件"}
+                    </CardTitle>
+                    <CardDescription>
+                      {riskT.similarEventsDesc || "跨绑定键命中的相似指纹证据。"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {detail.similarEvents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {riskT.emptySimilarEvents || "暂无相似事件"}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {detail.similarEvents.map((item) => (
+                          <div key={item.id} className="space-y-2 rounded-md border p-3 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium">
+                                {item.eventType} · {formatDateTime(item.createdAt, locale)}
+                              </p>
+                              <Badge
+                                variant={(item.similarityScore || 0) >= 85 ? "destructive" : "secondary"}
+                              >
+                                {formatSimilarityScore(item.similarityScore, riskT)}
+                              </Badge>
+                            </div>
+                            <p className="break-all font-mono text-[11px] text-muted-foreground">
+                              {item.fingerprintHash || "-"}
+                            </p>
+                            <div className="grid gap-2 md:grid-cols-3">
+                              <div>
+                                <p className="mb-1 font-medium">
+                                  {riskT.matchedComponents || "相同项"}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {(item.similaritySignals?.matched || []).join(", ") || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="mb-1 font-medium">
+                                  {riskT.differentComponents || "差异项"}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {(item.similaritySignals?.different || []).join(", ") || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="mb-1 font-medium">
+                                  {riskT.strongComponents || "强证据"}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {(item.similaritySignals?.strong || []).join(", ") || "-"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {riskT.componentDetails || "指纹组件明细"}
+                    </CardTitle>
+                    <CardDescription>
+                      {riskT.componentDetailsDesc || "后端保存的完整指纹组件内容。"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ComponentDetails
+                      components={detail.componentDetails}
+                      title={riskT.componentDetails || "指纹组件明细"}
+                      empty={riskT.emptyComponentDetails || "暂无组件明细"}
+                    />
                   </CardContent>
                 </Card>
               </>

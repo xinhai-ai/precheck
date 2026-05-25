@@ -934,7 +934,11 @@
         "Check results via messages and review history"
       ],
       "statusTitle": "Statuses",
-      "statuses": ["Pending", "Approved", "Rejected"],
+      "statuses": [
+        "Pending",
+        "Approved",
+        "Rejected"
+      ],
       "rulesTitle": "Rules",
       "rules": [
         "Only one pre-application is allowed",
@@ -1773,7 +1777,18 @@
       "unbanSuccess": "User unbanned",
       "banFailed": "Failed to ban user",
       "unbanFailed": "Failed to unban user",
-      "actionForbidden": "Only super admins can perform this action"
+      "actionForbidden": "Only super admins can perform this action",
+      "similarityScore": "Similarity Alert",
+      "noSimilarity": "No similarity alert",
+      "similarEvents": "Similar Events",
+      "similarEventsDesc": "Cross-key fingerprint similarity evidence.",
+      "emptySimilarEvents": "No similar events",
+      "componentDetails": "Fingerprint Component Details",
+      "componentDetailsDesc": "Complete fingerprint components stored by the server.",
+      "emptyComponentDetails": "No component details",
+      "matchedComponents": "Matched Components",
+      "differentComponents": "Different Components",
+      "strongComponents": "Strong Evidence"
     },
     "inviteCodes": "Invite Codes",
     "inviteCodesDesc": "Manage invite codes and expiry",
@@ -2726,15 +2741,25 @@
         "intro": "This project is licensed under the MIT License. This means you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.",
         "permissions": {
           "title": "Permissions",
-          "items": ["Commercial use", "Modification", "Distribution", "Private use"]
+          "items": [
+            "Commercial use",
+            "Modification",
+            "Distribution",
+            "Private use"
+          ]
         },
         "conditions": {
           "title": "Conditions",
-          "items": ["License and copyright notice must be included"]
+          "items": [
+            "License and copyright notice must be included"
+          ]
         },
         "limitations": {
           "title": "Limitations",
-          "items": ["No liability", "No warranty"]
+          "items": [
+            "No liability",
+            "No warranty"
+          ]
         },
         "fullText": {
           "title": "Full License Text",
