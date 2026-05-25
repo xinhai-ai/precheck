@@ -12,6 +12,10 @@ export type FingerprintRiskEvidence =
   | "recentConcentration"
   | "networkOverlap"
   | "crossEventContinuity"
+  | "componentSimilarity"
+  | "strongComponentMatch"
+  | "hashExactMatch"
+  | "safariLowConfidence"
 
 export type FingerprintRiskSortBy = "userCount" | "applicationCount" | "lastSeenAt"
 
