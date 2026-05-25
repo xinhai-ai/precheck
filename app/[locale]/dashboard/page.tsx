@@ -21,14 +21,9 @@ import {
   MessageCircle,
   MessageSquare,
   Activity,
-  ShieldCheck,
-  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-  useDashboardFeatureFlags,
-  useDashboardOnlineSummary,
-} from "@/components/dashboard/dashboard-layout-client"
+import { useDashboardFeatureFlags } from "@/components/dashboard/dashboard-layout-client"
 
 interface DashboardPageProps {
   params: Promise<{ locale: string }>
@@ -87,7 +82,6 @@ export default function DashboardPage({ params }: DashboardPageProps) {
   }, [])
 
   const { userTicketsEnabled } = useDashboardFeatureFlags()
-  const onlineSummary = useDashboardOnlineSummary()
 
   if (!dict) return null
 
@@ -188,46 +182,6 @@ export default function DashboardPage({ params }: DashboardPageProps) {
               </p>
             </div>
           </div>
-        </div>
-      </motion.div>
-
-      <motion.div variants={item}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="overflow-hidden border-0 shadow-md">
-            <CardContent className="relative p-5">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-              <div className="relative flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">{dict.dashboard.onlineStatus}</p>
-                  <p className="mt-1 font-semibold">{dict.dashboard.onlineUsers}</p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-              <p className="relative mt-4 text-3xl font-bold tabular-nums">
-                {onlineSummary?.total ?? "—"}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-0 shadow-md">
-            <CardContent className="relative p-5">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent" />
-              <div className="relative flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">{dict.dashboard.onlineStatus}</p>
-                  <p className="mt-1 font-semibold">{dict.dashboard.onlineAdmins}</p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10">
-                  <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
-              </div>
-              <p className="relative mt-4 text-3xl font-bold tabular-nums">
-                {onlineSummary?.admins ?? "—"}
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </motion.div>
 

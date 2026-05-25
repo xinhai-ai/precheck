@@ -44,11 +44,12 @@ test("dashboard online summary api uses Redis heartbeat presence instead of sess
   assert.match(onlinePresenceSource, /role\s*===\s*"SUPER_ADMIN"/)
 })
 
-test("dashboard layout fetches online summary once for header and page consumers", () => {
+test("dashboard layout fetches online summary for the header only", () => {
   assert.match(dashboardLayoutClientSource, /\/api\/dashboard\/online/)
   assert.match(dashboardLayoutClientSource, /useDashboardOnlineSummary/)
   assert.match(dashboardHeaderSource, /useDashboardOnlineSummary/)
-  assert.match(dashboardPageSource, /useDashboardOnlineSummary/)
+  assert.doesNotMatch(dashboardPageSource, /useDashboardOnlineSummary/)
+  assert.doesNotMatch(dashboardPageSource, /dict\.dashboard\.onlineStatus/)
 })
 
 test("online summary dictionaries include header and dashboard labels", () => {
