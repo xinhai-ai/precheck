@@ -153,6 +153,7 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
+  const [clearUserSessionsOpen, setClearUserSessionsOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [dangerLoading, setDangerLoading] = useState(false)
 
@@ -516,6 +517,33 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
     } finally {
       setDangerLoading(false)
       setClearOpen(false)
+    }
+  }
+
+  const handleClearUserSessions = async () => {
+    setDangerLoading(true)
+    try {
+      const res = await fetch("/api/admin/clear-user-sessions", { method: "POST" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = resolveApiErrorMessage(data, dict) ?? t.clearUserSessionsFailed
+        throw new Error(message)
+      }
+
+      const data = await res.json()
+      const deletedCount = Number(data.deletedCount) || 0
+      toast.success(
+        (t.clearUserSessionsSuccess || "普通用户会话已清理：{count} 个").replace(
+          "{count}",
+          String(deletedCount),
+        ),
+      )
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t.clearUserSessionsFailed)
+    } finally {
+      setDangerLoading(false)
+      setClearUserSessionsOpen(false)
     }
   }
 
@@ -1094,7 +1122,11 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                               }
                             }}
                           />
-                          <Button onClick={handleAddAvatarDomain} type="button" className="shrink-0">
+                          <Button
+                            onClick={handleAddAvatarDomain}
+                            type="button"
+                            className="shrink-0"
+                          >
                             <Plus className="h-4 w-4 mr-1" />
                             {t.systemConfigAvatarDomainAdd}
                           </Button>
@@ -2832,6 +2864,25 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                     <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-4">
                       <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                          <Users className="h-5 w-5 text-destructive" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{t.clearUserSessions}</p>
+                          <p className="text-sm text-muted-foreground">{t.clearUserSessionsDesc}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => setClearUserSessionsOpen(true)}
+                      >
+                        {t.clearUserSessionsBtn}
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
                           <Trash2 className="h-5 w-5 text-destructive" />
                         </div>
                         <div>
@@ -2859,6 +2910,17 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
         confirmLabel={t.confirm}
         cancelLabel={t.cancel}
         onConfirm={handleClearCache}
+        confirming={dangerLoading}
+        destructive
+      />
+      <ConfirmDialog
+        open={clearUserSessionsOpen}
+        onOpenChange={setClearUserSessionsOpen}
+        title={t.clearUserSessionsConfirmTitle}
+        description={t.clearUserSessionsConfirmDesc}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleClearUserSessions}
         confirming={dangerLoading}
         destructive
       />

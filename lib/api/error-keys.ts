@@ -174,6 +174,9 @@ export const ApiErrorKeys = {
     resetDatabase: {
       failed: "apiErrors.admin.resetDatabase.failed",
     },
+    clearUserSessions: {
+      failed: "apiErrors.admin.clearUserSessions.failed",
+    },
     stats: {
       failedToFetch: "apiErrors.admin.stats.failedToFetch",
     },

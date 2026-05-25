@@ -261,6 +261,9 @@
       "resetDatabase": {
         "failed": "Failed to reset database"
       },
+      "clearUserSessions": {
+        "failed": "Failed to clear normal user sessions"
+      },
       "stats": {
         "failedToFetch": "Failed to fetch stats"
       },
@@ -2257,6 +2260,13 @@
     "clearCacheConfirmDesc": "This will revalidate pages and clear cached data.",
     "clearCacheSuccess": "Cache cleared",
     "clearCacheFailed": "Failed to clear cache",
+    "clearUserSessions": "Clear User Sessions",
+    "clearUserSessionsDesc": "Delete all normal user login sessions while keeping admin and super admin sessions.",
+    "clearUserSessionsBtn": "Clear User Sessions",
+    "clearUserSessionsConfirmTitle": "Clear normal user sessions?",
+    "clearUserSessionsConfirmDesc": "This will require all normal users to log in again. Admin and super admin sessions stay active.",
+    "clearUserSessionsSuccess": "Normal user sessions cleared: {count}",
+    "clearUserSessionsFailed": "Failed to clear normal user sessions",
     "resetDatabase": "Reset Database",
     "resetDatabaseDesc": "Delete all data and reset the database",
     "resetDatabaseBtn": "Reset Database",
@@ -2366,6 +2376,7 @@
     "auditAction_SYSTEM_CONFIG_UPDATE": "Update system config",
     "auditAction_SYSTEM_RESET_DATABASE": "Reset database",
     "auditAction_SYSTEM_CLEAR_CACHE": "Clear cache",
+    "auditAction_SYSTEM_CLEAR_USER_SESSIONS": "Clear normal user sessions",
     "auditAction_SETTINGS_INIT": "Initialize settings",
     "auditAction_SETTINGS_UPDATE": "Update settings",
     "auditEntity_AUTH": "Auth",

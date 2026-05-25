@@ -259,6 +259,9 @@
       "resetDatabase": {
         "failed": "重置数据库失败"
       },
+      "clearUserSessions": {
+        "failed": "清理普通用户会话失败"
+      },
       "stats": {
         "failedToFetch": "获取统计数据失败"
       },
@@ -2253,6 +2256,13 @@
     "clearCacheConfirmDesc": "此操作将重新验证页面并清除缓存。",
     "clearCacheSuccess": "缓存已清空",
     "clearCacheFailed": "清空缓存失败",
+    "clearUserSessions": "清理普通用户会话",
+    "clearUserSessionsDesc": "删除所有普通用户登录会话，管理员与超级管理员保持登录。",
+    "clearUserSessionsBtn": "清理普通用户会话",
+    "clearUserSessionsConfirmTitle": "确认清理普通用户会话？",
+    "clearUserSessionsConfirmDesc": "此操作会让所有普通用户重新登录，管理员与超级管理员不受影响。",
+    "clearUserSessionsSuccess": "普通用户会话已清理：{count} 个",
+    "clearUserSessionsFailed": "清理普通用户会话失败",
     "resetDatabase": "重置数据库",
     "resetDatabaseDesc": "删除所有数据并重置数据库",
     "resetDatabaseBtn": "重置数据库",
@@ -2362,6 +2372,7 @@
     "auditAction_SYSTEM_CONFIG_UPDATE": "更新系统配置",
     "auditAction_SYSTEM_RESET_DATABASE": "重置数据库",
     "auditAction_SYSTEM_CLEAR_CACHE": "清除缓存",
+    "auditAction_SYSTEM_CLEAR_USER_SESSIONS": "清理普通用户会话",
     "auditAction_SETTINGS_INIT": "初始化设置",
     "auditAction_SETTINGS_UPDATE": "更新设置",
     "auditEntity_AUTH": "认证",
