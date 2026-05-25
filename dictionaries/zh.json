@@ -2689,7 +2689,10 @@
     "auditAction_AUTH_PASSKEY_LOGIN": "通行密钥登录",
     "auditAction_AUTH_PASSKEY_REGISTER": "绑定通行密钥",
     "auditAction_AUTH_PASSKEY_DELETE": "移除通行密钥",
-    "auditEntity_PASSKEY": "通行密钥"
+    "auditEntity_PASSKEY": "通行密钥",
+    "statisticsCenter": "统计中心",
+    "statisticsCenterDesc": "汇总全站运营、来源归因、行为、转化、留存、审核、安全与系统健康数据。",
+    "accountStatistics": "账号画像"
   },
   "theme": {
     "toggle": "切换主题",
