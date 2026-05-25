@@ -31,10 +31,12 @@ import {
 import { getDictionary, type Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
 import { cn } from "@/lib/utils"
+import { hasCapability } from "@/lib/auth/capabilities"
+import type { Role } from "@prisma/client"
 
 interface CommandMenuProps {
   locale: Locale
-  isSuperAdmin?: boolean
+  role?: Role | null
 }
 
 interface RecentCommand {
@@ -47,8 +49,10 @@ interface RecentCommand {
 const RECENT_COMMANDS_KEY = "admin-recent-commands"
 const MAX_RECENT_COMMANDS = 5
 
-export function CommandMenu({ locale, isSuperAdmin = false }: CommandMenuProps) {
+export function CommandMenu({ locale, role = null }: CommandMenuProps) {
   const router = useRouter()
+  const isSuperAdmin = role === "SUPER_ADMIN"
+  const canViewAppeals = hasCapability(role, "preApplicationAppeal.view")
   const [open, setOpen] = useState(false)
   const [dict, setDict] = useState<Dictionary | null>(null)
   const [recentCommands, setRecentCommands] = useState<RecentCommand[]>(() => {
@@ -130,6 +134,10 @@ export function CommandMenu({ locale, isSuperAdmin = false }: CommandMenuProps) 
             icon: Users,
             shortcut: "⌘2",
           },
+        ]
+      : []),
+    ...(canViewAppeals
+      ? [
           {
             id: "pre-application-appeals",
             label: dict.admin.preApplicationAppeals,

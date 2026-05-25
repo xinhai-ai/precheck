@@ -25,6 +25,7 @@ import {
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { hasCapability, type Capability } from "@/lib/auth/capabilities"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
 import type { Role } from "@prisma/client"
@@ -64,7 +65,7 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       name: dict.admin.preApplicationAppeals,
       href: `/${locale}/admin/pre-application-appeals`,
       icon: ClipboardCheck,
-      superAdminOnly: true,
+      requiredCapability: "preApplicationAppeal.view" as Capability,
     },
     {
       name: ((dict.admin as Record<string, unknown>).riskControl as string) || "风险控制",
@@ -123,7 +124,13 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
   ]
 
   // 根据角色过滤导航项
-  const navigation = allNavigation.filter((item) => !item.superAdminOnly || isSuperAdmin)
+  const navigation = allNavigation.filter((item) => {
+    if ("requiredCapability" in item && item.requiredCapability) {
+      return hasCapability(user?.role, item.requiredCapability)
+    }
+
+    return !item.superAdminOnly || isSuperAdmin
+  })
 
   return (
     <motion.aside

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
 import { AdminPreApplicationAppealsTable } from "@/components/admin/pre-application-appeals-table"
+import { canViewPreApplicationAppeals } from "@/lib/auth/policies/pre-application-appeal"
 
 interface AdminPreApplicationAppealsPageProps {
   params: Promise<{ locale: Locale }>
@@ -15,7 +16,7 @@ export default async function AdminPreApplicationAppealsPage({
   const dict = await getDictionary(locale)
   const currentUser = await getCurrentUser()
 
-  if (currentUser?.role !== "SUPER_ADMIN") {
+  if (!canViewPreApplicationAppeals(currentUser)) {
     redirect(`/${locale}/error/403`)
   }
 
