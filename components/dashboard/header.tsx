@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Bell, Menu, Mail, LogOut, User, Settings } from "lucide-react"
+import { Bell, Menu, Mail, LogOut, Settings, ShieldCheck, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { LocaleSwitcher } from "@/components/ui/locale-switcher"
 import { DashboardCommandMenu } from "@/components/dashboard/dashboard-command-menu"
+import { useDashboardOnlineSummary } from "@/components/dashboard/dashboard-layout-client"
 import { useRouter } from "next/navigation"
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ export function DashboardHeader({
   onMenuClick,
 }: DashboardHeaderProps) {
   const router = useRouter()
+  const onlineSummary = useDashboardOnlineSummary()
   const [unreadCount, setUnreadCount] = useState(0)
   const [latestMessage, setLatestMessage] = useState<{
     id: string
@@ -89,6 +91,23 @@ export function DashboardHeader({
       </div>
 
       <div className="flex items-center gap-3">
+        <div className="hidden items-center gap-3 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs text-muted-foreground shadow-sm xl:flex">
+          <span className="flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-primary" />
+            <span>{dict.dashboard.onlineUsers}</span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {onlineSummary?.total ?? "—"}
+            </span>
+          </span>
+          <span className="h-4 w-px bg-border" />
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{dict.dashboard.onlineAdmins}</span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {onlineSummary?.admins ?? "—"}
+            </span>
+          </span>
+        </div>
         <LocaleSwitcher currentLocale={locale} />
         <ThemeToggle dict={dict} />
         <DropdownMenu>

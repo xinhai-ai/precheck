@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { NewUserAnnouncementGate } from "@/components/dashboard/new-user-announcement-gate"
 import { DashboardHeader } from "@/components/dashboard/header"
@@ -12,6 +12,12 @@ import type { Locale } from "@/lib/i18n/config"
 
 type DashboardFeatureFlags = {
   userTicketsEnabled: boolean
+  onlineSummary: DashboardOnlineSummary | null
+}
+
+type DashboardOnlineSummary = {
+  total: number
+  admins: number
 }
 
 type DashboardAnnouncement = {
@@ -22,12 +28,19 @@ type DashboardAnnouncement = {
   version: number
 }
 
+const DASHBOARD_ONLINE_REFRESH_MS = 30_000
+
 const DashboardFeatureFlagsContext = createContext<DashboardFeatureFlags>({
   userTicketsEnabled: true,
+  onlineSummary: null,
 })
 
 export function useDashboardFeatureFlags(): DashboardFeatureFlags {
   return useContext(DashboardFeatureFlagsContext)
+}
+
+export function useDashboardOnlineSummary(): DashboardOnlineSummary | null {
+  return useContext(DashboardFeatureFlagsContext).onlineSummary
 }
 
 interface DashboardLayoutClientProps {
@@ -50,9 +63,39 @@ export function DashboardLayoutClient({
   children,
 }: DashboardLayoutClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [onlineSummary, setOnlineSummary] = useState<DashboardOnlineSummary | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    const fetchOnlineSummary = async () => {
+      try {
+        const res = await fetch("/api/dashboard/online")
+        if (!res.ok) return
+
+        const data = await res.json()
+        if (!active) return
+
+        setOnlineSummary({
+          total: Number(data.total) || 0,
+          admins: Number(data.admins) || 0,
+        })
+      } catch {
+        // ignore
+      }
+    }
+
+    fetchOnlineSummary()
+    const timer = window.setInterval(fetchOnlineSummary, DASHBOARD_ONLINE_REFRESH_MS)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
 
   return (
-    <DashboardFeatureFlagsContext.Provider value={{ userTicketsEnabled }}>
+    <DashboardFeatureFlagsContext.Provider value={{ userTicketsEnabled, onlineSummary }}>
       <AvatarAllowlistProvider allowedAvatarDomains={allowedAvatarDomains}>
         <NewUserAnnouncementGate locale={locale} user={user} announcement={announcement} />
         <div className="flex min-h-screen bg-muted/30">
