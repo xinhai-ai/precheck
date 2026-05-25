@@ -15,6 +15,7 @@ import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { isShadowHiddenLockedForAdminMutation } from "@/lib/pre-application/shadowban"
 import { shouldHidePreApplicationFromAdmin } from "@/lib/pre-application/admin-archived-visibility"
+import { canReviewPreApplication } from "@/lib/auth/policies/pre-application"
 
 const reviewSchema = z.object({
   action: z.enum(["APPROVE", "REJECT", "DISPUTE", "PENDING_REVIEW", "ON_HOLD"]),
@@ -33,8 +34,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
 
-    // 预申请审核仅允许 ADMIN 角色，禁止 SUPER_ADMIN
-    if (user.role !== "ADMIN") {
+    const reviewPolicy = canReviewPreApplication(user)
+
+    if (!reviewPolicy.allowed) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })
     }
 

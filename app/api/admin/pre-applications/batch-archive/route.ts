@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { PreApplicationAppealStatus } from "@prisma/client"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { getCurrentUserFromRequest } from "@/lib/auth/session"
@@ -6,6 +7,7 @@ import { writeAuditLog } from "@/lib/audit"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { isShadowHiddenLockedForAdminMutation } from "@/lib/pre-application/shadowban"
+import { canArchivePreApplication } from "@/lib/auth/policies/pre-application"
 
 const batchArchiveSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(100),
@@ -19,7 +21,9 @@ export async function POST(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
 
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    const baseArchivePolicy = canArchivePreApplication(user, { pendingAppealCount: 0 })
+
+    if (!baseArchivePolicy.allowed) {
       return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })
     }
 
@@ -43,6 +47,24 @@ export async function POST(request: NextRequest) {
       return createApiErrorResponse(request, ApiErrorKeys.admin.preApplications.shadowbanLocked, {
         status: 409,
       })
+    }
+
+    const pendingAppealCount = await db.preApplicationAppeal.count({
+      where: {
+        preApplicationId: { in: ids },
+        status: PreApplicationAppealStatus.PENDING,
+      },
+    })
+    const archivePolicy = canArchivePreApplication(user, { pendingAppealCount })
+
+    if (!archivePolicy.allowed) {
+      return createApiErrorResponse(
+        request,
+        archivePolicy.reason === "PENDING_APPEAL_EXISTS"
+          ? ApiErrorKeys.preApplication.appeal.pendingAppealExists
+          : ApiErrorKeys.general.forbidden,
+        { status: archivePolicy.reason === "PENDING_APPEAL_EXISTS" ? 409 : 403 },
+      )
     }
 
     const result = await db.$transaction(async (tx) => {
