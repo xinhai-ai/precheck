@@ -1,19 +1,18 @@
-import Link from "next/link"
 import {
   Activity,
   BarChart3,
-  Fingerprint,
   LineChart,
-  LockKeyhole,
-  ShieldCheck,
-  Users,
 } from "lucide-react"
 import type { Locale } from "@/lib/i18n/config"
 import { getDictionary } from "@/lib/i18n/get-dictionary"
 import { db } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getAdminStatisticsOverview, type StatisticDistribution } from "@/lib/statistics/admin-statistics"
+import {
+  getAdminStatisticsOverview,
+  type StatisticCard,
+  type StatisticDistribution,
+} from "@/lib/statistics/admin-statistics"
 
 interface AdminStatisticsPageProps {
   params: Promise<{ locale: Locale }>
@@ -45,29 +44,177 @@ function MetricCards({ title, items }: { title: string; items: Array<{ label: st
   )
 }
 
-function DistributionList({ title, items }: { title: string; items: StatisticDistribution[] }) {
+type UnifiedChartTone = {
+  badge: string
+  bar: string
+  dot: string
+  surface: string
+}
+
+type UnifiedStatisticsChartRow = StatisticDistribution & {
+  group: string
+  tone: UnifiedChartTone
+}
+
+const chartTones: UnifiedChartTone[] = [
+  {
+    badge: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+    bar: "bg-sky-500",
+    dot: "bg-sky-500",
+    surface: "from-sky-500/15 to-sky-500/5",
+  },
+  {
+    badge: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    bar: "bg-violet-500",
+    dot: "bg-violet-500",
+    surface: "from-violet-500/15 to-violet-500/5",
+  },
+  {
+    badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    bar: "bg-emerald-500",
+    dot: "bg-emerald-500",
+    surface: "from-emerald-500/15 to-emerald-500/5",
+  },
+  {
+    badge: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    bar: "bg-amber-500",
+    dot: "bg-amber-500",
+    surface: "from-amber-500/15 to-amber-500/5",
+  },
+  {
+    badge: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+    bar: "bg-rose-500",
+    dot: "bg-rose-500",
+    surface: "from-rose-500/15 to-rose-500/5",
+  },
+  {
+    badge: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    bar: "bg-cyan-500",
+    dot: "bg-cyan-500",
+    surface: "from-cyan-500/15 to-cyan-500/5",
+  },
+  {
+    badge: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+    bar: "bg-fuchsia-500",
+    dot: "bg-fuchsia-500",
+    surface: "from-fuchsia-500/15 to-fuchsia-500/5",
+  },
+  {
+    badge: "bg-lime-500/10 text-lime-700 dark:text-lime-300",
+    bar: "bg-lime-500",
+    dot: "bg-lime-500",
+    surface: "from-lime-500/15 to-lime-500/5",
+  },
+]
+
+function toChartRows(group: string, items: StatisticDistribution[], toneIndex: number): UnifiedStatisticsChartRow[] {
+  const tone = chartTones[toneIndex % chartTones.length]
+  return items.map((item) => ({ ...item, group, tone }))
+}
+
+function UnifiedStatisticsChart({
+  rows,
+  readiness,
+}: {
+  rows: UnifiedStatisticsChartRow[]
+  readiness: StatisticCard[]
+}) {
+  const maxValue = Math.max(1, ...rows.map((row) => row.value))
+  const totalValue = rows.reduce((sum, row) => sum + row.value, 0)
+  const strongestRow = rows.reduce<UnifiedStatisticsChartRow | null>(
+    (current, row) => (!current || row.value > current.value ? row : current),
+    null,
+  )
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+    <Card className="overflow-hidden border-primary/10">
+      <CardHeader className="border-b bg-[radial-gradient(circle_at_top_right,_hsl(var(--primary)/0.16),_transparent_32%)]">
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" />
+          运营分布总图
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          来源、行为、转化、留存、审核、安全与系统健康使用同一刻度展示，颜色代表模块，长度代表规模。
+        </p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {items.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">暂无数据</div>
-        ) : (
-          items.map((item) => (
-            <div key={item.label} className="space-y-2">
-              <div className="flex items-center justify-between gap-4">
-                <span className="truncate text-sm font-medium">{item.label}</span>
-                <span className="text-sm text-muted-foreground">
-                  {item.value.toLocaleString()} · {item.percentage}%
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(item.percentage, 3)}%` }} />
-              </div>
+      <CardContent className="space-y-6 p-6">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border bg-muted/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Signals</div>
+            <div className="mt-2 text-2xl font-semibold">{rows.length.toLocaleString()}</div>
+            <div className="mt-1 text-xs text-muted-foreground">纳入总图的统计项</div>
+          </div>
+          <div className="rounded-2xl border bg-muted/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Volume</div>
+            <div className="mt-2 text-2xl font-semibold">{totalValue.toLocaleString()}</div>
+            <div className="mt-1 text-xs text-muted-foreground">统一口径下的累计量</div>
+          </div>
+          <div className="rounded-2xl border bg-muted/20 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Peak</div>
+            <div className="mt-2 truncate text-2xl font-semibold">{strongestRow?.label || "暂无"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {strongestRow ? `${strongestRow.group} · ${strongestRow.value.toLocaleString()}` : "暂无数据"}
             </div>
-          ))
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">暂无数据</div>
+        ) : (
+          <div className="overflow-hidden rounded-3xl border bg-background">
+            <div className="grid grid-cols-[minmax(112px,0.9fr)_minmax(160px,1.1fr)_minmax(180px,3fr)_minmax(72px,0.6fr)] border-b bg-muted/40 px-4 py-3 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              <span>Module</span>
+              <span>Metric</span>
+              <span>Unified scale</span>
+              <span className="text-right">Share</span>
+            </div>
+            <div className="divide-y">
+              {rows.map((row) => {
+                const width = Math.max((row.value / maxValue) * 100, row.value > 0 ? 4 : 0)
+
+                return (
+                  <div
+                    key={`${row.group}-${row.label}`}
+                    className={`grid grid-cols-1 gap-3 bg-gradient-to-r px-4 py-4 ${row.tone.surface} md:grid-cols-[minmax(112px,0.9fr)_minmax(160px,1.1fr)_minmax(180px,3fr)_minmax(72px,0.6fr)] md:items-center`}
+                  >
+                    <div>
+                      <Badge variant="secondary" className={row.tone.badge}>
+                        <span className={`mr-1.5 h-2 w-2 rounded-full ${row.tone.dot}`} />
+                        {row.group}
+                      </Badge>
+                    </div>
+                    <div>
+                      <div className="font-medium">{row.label}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{row.value.toLocaleString()} 次</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 overflow-hidden rounded-full bg-background/80 shadow-inner">
+                        <div className={`h-full rounded-full ${row.tone.bar}`} style={{ width: `${width}%` }} />
+                      </div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {[25, 50, 75, 100].map((mark) => (
+                          <span key={mark} className="h-1 rounded-full bg-background/70" />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-right text-sm font-semibold">{row.percentage}%</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {readiness.length > 0 && (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {readiness.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-dashed bg-muted/10 p-4">
+                <div className="text-sm font-medium">{item.label}</div>
+                <div className="mt-2 text-lg font-semibold">{formatValue(item.value)}</div>
+                {item.helper && <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>}
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
@@ -98,6 +245,16 @@ export default async function AdminStatisticsPage({ params }: AdminStatisticsPag
     1,
     ...statistics.aggregation.map((point) => point.users + point.applications + point.audits),
   )
+  const chartRows = [
+    ...toChartRows("预申请来源", statistics.sourceAttribution.preApplicationSources, 0),
+    ...toChartRows("OAuth 来源", statistics.sourceAttribution.oauthProviders, 1),
+    ...toChartRows("行为", statistics.behavior, 2),
+    ...toChartRows("转化", statistics.conversion, 3),
+    ...toChartRows("留存", statistics.retention, 4),
+    ...toChartRows("审核", statistics.review, 5),
+    ...toChartRows("安全", statistics.security, 6),
+    ...toChartRows("系统健康", statistics.systemHealth, 7),
+  ]
 
   return (
     <div className="space-y-8">
@@ -134,7 +291,6 @@ export default async function AdminStatisticsPage({ params }: AdminStatisticsPag
         <CardContent>
           <div className="flex h-56 items-end gap-1 overflow-hidden rounded-2xl border bg-muted/20 p-4">
             {statistics.aggregation.map((point) => {
-              const total = point.users + point.applications + point.audits
               return (
                 <div key={point.bucket} className="flex min-w-4 flex-1 flex-col items-center gap-2">
                   <div className="flex w-full flex-col justify-end overflow-hidden rounded-t-lg bg-background" style={{ height: 180 }}>
@@ -155,56 +311,7 @@ export default async function AdminStatisticsPage({ params }: AdminStatisticsPag
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <DistributionList title="预申请来源" items={statistics.sourceAttribution.preApplicationSources} />
-        <DistributionList title="OAuth 来源" items={statistics.sourceAttribution.oauthProviders} />
-        <MetricCards title="Referer 与 UTM" items={statistics.sourceAttribution.refererReadiness} />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <DistributionList title="行为分析" items={statistics.behavior} />
-        <DistributionList title="转化分析" items={statistics.conversion} />
-        <DistributionList title="留存分析" items={statistics.retention} />
-        <DistributionList title="审核分析" items={statistics.review} />
-        <DistributionList title="安全分析" items={statistics.security} />
-        <DistributionList title="系统健康" items={statistics.systemHealth} />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            指标字典
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {statistics.metricDefinitions.map((metric) => (
-            <div key={metric.key} className="rounded-xl border p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-medium">{metric.label}</div>
-                <Badge variant={metric.scope === "super_admin" ? "destructive" : "secondary"}>{metric.scope}</Badge>
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">{metric.key}</div>
-              <div className="mt-3 text-sm text-muted-foreground">{metric.formula}</div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2 font-semibold">
-              <Users className="h-4 w-4 text-primary" />
-              账号画像入口
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">账号画像页面位于 /admin/statistics/accounts/[id]，展示来源、生命周期、行为和安全摘要。</p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LockKeyhole className="h-4 w-4" />超级管理员查看完整明细
-          </div>
-        </CardContent>
-      </Card>
+      <UnifiedStatisticsChart rows={chartRows} readiness={statistics.sourceAttribution.refererReadiness} />
     </div>
   )
 }

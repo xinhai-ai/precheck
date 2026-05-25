@@ -26,6 +26,30 @@ test("admin statistics center routes and service are wired", () => {
   assert.match(accountPage, /AccountStatisticsPage/)
 })
 
+test("statistics center uses one unified chart instead of many distribution cards", () => {
+  const overviewPage = readWorkspaceFile("app/[locale]/admin/statistics/page.tsx")
+
+  assert.match(overviewPage, /UnifiedStatisticsChart/)
+  assert.match(overviewPage, /chartRows/)
+  assert.doesNotMatch(overviewPage, /<DistributionList/)
+  assert.doesNotMatch(overviewPage, /指标字典/)
+  assert.doesNotMatch(overviewPage, /metricDefinitions/)
+})
+
+test("admin users table links each user row to account statistics", () => {
+  const usersTable = readWorkspaceFile("components/admin/users-table.tsx")
+
+  assert.match(usersTable, /admin\/statistics\/accounts/)
+  assert.match(usersTable, /accountStatistics/)
+})
+
+test("statistics overview service omits the metric dictionary payload", () => {
+  const statisticsService = readWorkspaceFile("lib/statistics/admin-statistics.ts")
+
+  assert.doesNotMatch(statisticsService, /metricDefinitions/)
+  assert.doesNotMatch(statisticsService, /MetricDefinition/)
+})
+
 test("admin sidebar exposes statistics center for admins", () => {
   const sidebar = readWorkspaceFile("components/admin/sidebar.tsx")
 

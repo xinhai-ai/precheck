@@ -19,14 +19,6 @@ export type StatisticSeriesPoint = {
   audits: number
 }
 
-export type MetricDefinition = {
-  key: string
-  label: string
-  formula: string
-  scope: "admin" | "super_admin"
-  sensitivity: "normal" | "sensitive" | "high"
-}
-
 export type AdminStatisticsOverview = {
   rangeDays: number
   generatedAt: string
@@ -49,7 +41,6 @@ export type AdminStatisticsOverview = {
   security: StatisticDistribution[]
   systemHealth: StatisticDistribution[]
   aggregation: StatisticSeriesPoint[]
-  metricDefinitions: MetricDefinition[]
 }
 
 export type AdminAccountStatistics = {
@@ -105,60 +96,6 @@ function toDistribution(rows: Array<{ label: string | null; value: number }>, fa
     value: row.value,
     percentage: percentage(row.value, total),
   }))
-}
-
-function buildMetricDefinitions(): MetricDefinition[] {
-  return [
-    {
-      key: "account.total",
-      label: "累计账号",
-      formula: "User.count()",
-      scope: "admin",
-      sensitivity: "normal",
-    },
-    {
-      key: "source.pre_application",
-      label: "预申请来源",
-      formula: "PreApplication.groupBy(source)",
-      scope: "admin",
-      sensitivity: "normal",
-    },
-    {
-      key: "source.oauth",
-      label: "OAuth 来源",
-      formula: "Account.groupBy(provider)",
-      scope: "admin",
-      sensitivity: "normal",
-    },
-    {
-      key: "conversion.apply_to_approved",
-      label: "申请通过转化",
-      formula: "approved / processed applications",
-      scope: "admin",
-      sensitivity: "normal",
-    },
-    {
-      key: "review.avg_duration",
-      label: "平均审核时长",
-      formula: "avg(PreApplication.reviewedAt - PreApplication.createdAt)",
-      scope: "admin",
-      sensitivity: "normal",
-    },
-    {
-      key: "security.fingerprint_similarity",
-      label: "指纹相似命中",
-      formula: "FingerprintEvent.similarityScore >= 70",
-      scope: "super_admin",
-      sensitivity: "high",
-    },
-    {
-      key: "system.audit_count",
-      label: "审计记录",
-      formula: "AuditLog.count()",
-      scope: "super_admin",
-      sensitivity: "sensitive",
-    },
-  ]
 }
 
 function buildEmptyAggregation(rangeStart: Date, rangeDays: number) {
@@ -369,7 +306,6 @@ export async function getAdminStatisticsOverview(
       { label: "系统记录", value: systemAuditLogs, percentage: percentage(systemAuditLogs, auditLogs) },
     ],
     aggregation: Array.from(aggregationMap.values()),
-    metricDefinitions: buildMetricDefinitions(),
   }
 }
 
