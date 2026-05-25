@@ -10,12 +10,17 @@ import {
 } from "@/lib/risk-control/fingerprint-risk"
 
 type FingerprintSupportEvent = {
+  fingerprintHash?: string | null
   browserFamily: string | null
   networkKey: string | null
   createdAt: Date
   userId: string | null
   preApplicationId: string | null
   eventType: string
+  fingerprintComponents?: unknown
+  fingerprintSummary?: unknown
+  similarityScore?: number | null
+  similaritySignals?: unknown
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
@@ -198,6 +203,7 @@ export async function GET(
         take: 50,
         select: {
           id: true,
+          fingerprintHash: true,
           eventType: true,
           status: true,
           failureReason: true,
@@ -208,6 +214,10 @@ export async function GET(
           createdAt: true,
           userId: true,
           preApplicationId: true,
+          fingerprintComponents: true,
+          fingerprintSummary: true,
+          similarityScore: true,
+          similaritySignals: true,
         },
       }),
       prisma.fingerprintEvent.findFirst({
@@ -218,12 +228,17 @@ export async function GET(
       prisma.fingerprintEvent.findMany({
         where: eventWhere,
         select: {
+          fingerprintHash: true,
           browserFamily: true,
           networkKey: true,
           createdAt: true,
           userId: true,
           preApplicationId: true,
           eventType: true,
+          fingerprintComponents: true,
+          fingerprintSummary: true,
+          similarityScore: true,
+          similaritySignals: true,
         },
       }),
     ])
@@ -304,6 +319,19 @@ export async function GET(
       relatedUsers.length,
       applicationSeenRows.length,
     )
+    const componentEvent = recentEvents.find((item) => item.fingerprintComponents)
+    const similarEvents = recentEvents
+      .filter((item) => (item.similarityScore || 0) >= 55)
+      .map((item) => ({
+        ...item,
+        fingerprintComponents:
+          item.fingerprintComponents as FingerprintRiskGroupDetailResponse["componentDetails"],
+        fingerprintSummary:
+          item.fingerprintSummary as FingerprintRiskGroupDetailResponse["recentEvents"][number]["fingerprintSummary"],
+        similaritySignals:
+          item.similaritySignals as FingerprintRiskGroupDetailResponse["recentEvents"][number]["similaritySignals"],
+        createdAt: item.createdAt.toISOString(),
+      }))
 
     const response: FingerprintRiskGroupDetailResponse = {
       summary: {
@@ -327,8 +355,18 @@ export async function GET(
       })),
       recentEvents: recentEvents.map((item) => ({
         ...item,
+        fingerprintComponents:
+          item.fingerprintComponents as FingerprintRiskGroupDetailResponse["componentDetails"],
+        fingerprintSummary:
+          item.fingerprintSummary as FingerprintRiskGroupDetailResponse["recentEvents"][number]["fingerprintSummary"],
+        similaritySignals:
+          item.similaritySignals as FingerprintRiskGroupDetailResponse["recentEvents"][number]["similaritySignals"],
         createdAt: item.createdAt.toISOString(),
       })),
+      componentDetails:
+        (componentEvent?.fingerprintComponents as FingerprintRiskGroupDetailResponse["componentDetails"]) ||
+        null,
+      similarEvents,
       ignoredImpact,
     }
 

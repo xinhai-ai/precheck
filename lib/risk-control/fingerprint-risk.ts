@@ -1,3 +1,9 @@
+import type {
+  FingerprintComponents,
+  FingerprintSimilaritySignals,
+  FingerprintSummary,
+} from "@/lib/fingerprint/types"
+
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH"
 
 export type BrowserConfidence = "HIGH_CONFIDENCE" | "LOW_CONFIDENCE"
@@ -17,6 +23,9 @@ export type FingerprintRiskGroupItem = {
   applicationCount: number
   lastSeenAt: string
   riskLevel: RiskLevel
+  fingerprintSummary?: FingerprintSummary | null
+  maxSimilarityScore?: number | null
+  similarEventCount?: number
   browserConfidence?: BrowserConfidence
   evidenceFlags?: FingerprintRiskEvidence[]
   riskExplanation?: string
@@ -56,6 +65,7 @@ export type FingerprintRiskDetailApplication = {
 
 export type FingerprintRiskDetailEvent = {
   id: string
+  fingerprintHash?: string | null
   eventType: string
   status: "OK" | "COLLECTION_FAILED"
   failureReason: string | null
@@ -66,6 +76,14 @@ export type FingerprintRiskDetailEvent = {
   createdAt: string
   userId: string | null
   preApplicationId: string | null
+  fingerprintSummary?: FingerprintSummary | null
+  fingerprintComponents?: FingerprintComponents | null
+  similarityScore?: number | null
+  similaritySignals?: FingerprintSimilaritySignals | null
+}
+
+export type FingerprintRiskSimilarEvent = FingerprintRiskDetailEvent & {
+  fingerprintHash: string | null
 }
 
 export type FingerprintRiskGroupDetailResponse = {
@@ -82,6 +100,8 @@ export type FingerprintRiskGroupDetailResponse = {
   relatedUsers: FingerprintRiskDetailUser[]
   relatedApplications: FingerprintRiskDetailApplication[]
   recentEvents: FingerprintRiskDetailEvent[]
+  componentDetails: FingerprintComponents | null
+  similarEvents: FingerprintRiskSimilarEvent[]
   ignoredImpact: number
 }
 

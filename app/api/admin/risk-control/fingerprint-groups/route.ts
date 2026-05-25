@@ -29,6 +29,8 @@ type FingerprintSupportEvent = {
   userId: string | null
   preApplicationId: string | null
   eventType: string
+  fingerprintSummary?: unknown
+  similarityScore?: number | null
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
@@ -199,6 +201,8 @@ export async function GET(request: NextRequest) {
             userId: true,
             preApplicationId: true,
             eventType: true,
+            fingerprintSummary: true,
+            similarityScore: true,
           },
           orderBy: { createdAt: "desc" },
         })
@@ -213,8 +217,13 @@ export async function GET(request: NextRequest) {
     }
 
     const enriched: FingerprintRiskGroupItem[] = rows.map((row) => {
+      const hashEvents = eventsByHash.get(row.fingerprintHash) || []
+      const latestSummaryEvent = hashEvents.find((event) => event.fingerprintSummary)
+      const similarityScores = hashEvents
+        .map((event) => event.similarityScore || 0)
+        .filter((score) => score > 0)
       const assessment = buildRiskSignals(
-        eventsByHash.get(row.fingerprintHash) || [],
+        hashEvents,
         Number(row.userCount),
         Number(row.applicationCount),
       )
@@ -225,6 +234,11 @@ export async function GET(request: NextRequest) {
         applicationCount: Number(row.applicationCount),
         lastSeenAt: row.lastSeenAt.toISOString(),
         riskLevel: assessment.riskLevel,
+        fingerprintSummary:
+          (latestSummaryEvent?.fingerprintSummary as FingerprintRiskGroupItem["fingerprintSummary"]) ||
+          null,
+        maxSimilarityScore: similarityScores.length ? Math.max(...similarityScores) : null,
+        similarEventCount: similarityScores.filter((score) => score >= 55).length,
         browserConfidence: assessment.browserConfidence,
         evidenceFlags: assessment.evidenceFlags,
         riskExplanation: assessment.riskExplanation,

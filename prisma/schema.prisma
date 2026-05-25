@@ -335,31 +335,37 @@ model PreApplicationDraft {
 }
 
 model FingerprintProfile {
-  id              String             @id @default(cuid())
-  fingerprintHash String             @unique
-  firstSeenAt     DateTime           @default(now())
-  lastSeenAt      DateTime           @default(now())
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  events          FingerprintEvent[]
+  id               String             @id @default(cuid())
+  fingerprintHash  String             @unique
+  fingerprintBasis Json?
+  componentKeys    String[]           @default([])
+  firstSeenAt      DateTime           @default(now())
+  lastSeenAt       DateTime           @default(now())
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  events           FingerprintEvent[]
 
   @@index([lastSeenAt])
 }
 
 model FingerprintEvent {
-  id               String            @id @default(cuid())
-  fingerprintId    String?
-  fingerprintHash  String?
-  eventType        String
-  status           FingerprintStatus @default(COLLECTION_FAILED)
-  failureReason    String?
-  userId           String?
-  preApplicationId String?
-  ip               String?
-  userAgent        String?
-  browserFamily    String?
-  networkKey       String?
-  createdAt        DateTime          @default(now())
+  id                    String            @id @default(cuid())
+  fingerprintId         String?
+  fingerprintHash       String?
+  eventType             String
+  status                FingerprintStatus @default(COLLECTION_FAILED)
+  failureReason         String?
+  userId                String?
+  preApplicationId      String?
+  ip                    String?
+  userAgent             String?
+  browserFamily         String?
+  networkKey            String?
+  fingerprintComponents Json?
+  fingerprintSummary    Json?
+  similarityScore       Int?
+  similaritySignals     Json?
+  createdAt             DateTime          @default(now())
 
   fingerprint    FingerprintProfile? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
   user           User?               @relation("UserFingerprintEvents", fields: [userId], references: [id], onDelete: SetNull)
@@ -372,6 +378,7 @@ model FingerprintEvent {
   @@index([eventType, createdAt])
   @@index([browserFamily, createdAt])
   @@index([networkKey, createdAt])
+  @@index([similarityScore, createdAt])
 }
 
 model RiskIgnoredUser {
