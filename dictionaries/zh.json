@@ -198,6 +198,7 @@
         "invalidInviteExpiry": "邀请码过期时间无效",
         "expiryMustBeInFuture": "邀请码过期时间必须晚于当前时间",
         "alreadyReviewed": "已审核",
+        "pendingAppealExists": "该申请存在待处理申诉，无法归档",
         "shadowbanLocked": "该申请处于 Shadowban 锁定，需先解除后才能修改",
         "aiNotConfigured": "AI 服务未配置",
         "aiReviewFailed": "AI 审核失败",
@@ -218,7 +219,10 @@
         "notFound": "未找到预申请申诉",
         "alreadyReviewed": "该申诉已处理",
         "invalidAction": "无效的申诉审核操作",
-        "targetChanged": "该申诉对应的预申请状态已变化，无法恢复到待审核"
+        "targetChanged": "该申诉对应的预申请状态已变化，无法恢复到待审核",
+        "archivedPreApplication": "已归档申请无法处理申诉",
+        "originalReviewer": "当前账号是该拒绝结果的审核人，无法处理此申诉",
+        "reviewRequestInitiator": "当前账号是该复审请求的发起人，无法处理此申诉"
       },
       "posts": {
         "failedToFetch": "获取帖子失败",
@@ -1358,7 +1362,7 @@
     "appealAutoRejected": "申诉已被系统自动驳回",
     "appealWarningTitle": "申诉前请确认以下事项",
     "appealWarningDescription": "申诉不是重新提交预申请，而是对当前这条预申请的驳回结果提出异议。",
-    "appealWarningBanHint": "如果申诉被驳回，你可能会被限制再次提交预申请；是否封禁以及封禁天数由超级管理员决定。",
+    "appealWarningBanHint": "如果申诉被驳回，你可能会被限制再次提交预申请；是否封禁以及封禁天数由管理员决定。",
     "appealWarningAutoRejectHint": "若当前驳回意见命中自动拒绝规则，系统可能直接驳回本次申诉。",
     "appealWarningAiRejectedHint": "如果当前这条预申请是由 AI 审核驳回的，提交申诉后将会被系统自动驳回。",
     "appealConfirmDescription": "提交前请再次确认以下风险提示。",
@@ -1432,7 +1436,7 @@
       "claimCodeHint": "暂无可用邀请码，请稍后在申请页面领取。",
       "appealReview": {
         "rejectedTitle": "预申请申诉已驳回",
-        "rejectedIntro": "你的预申请申诉已被超级管理员驳回。",
+        "rejectedIntro": "你的预申请申诉已被管理员驳回。",
         "overriddenTitle": "预申请申诉已通过",
         "overriddenIntro": "你的预申请申诉已通过，原预申请已直接通过。",
         "reviewCommentLabel": "审核说明：",
@@ -1443,7 +1447,7 @@
       "appealAutoRejectedIntro": "你的预申请申诉命中了自动拒绝规则，系统已自动驳回。",
       "appealAutoRejectedReason": "当前驳回意见命中自动拒绝规则，系统已自动驳回本次申诉。",
       "reviewRequestCreatedTitle": "预申请已进入复审",
-      "reviewRequestCreatedIntro": "管理员已为你的已驳回预申请提交复审请求，请等待超级管理员处理。",
+      "reviewRequestCreatedIntro": "管理员已为你的已驳回预申请提交复审请求，请等待其他管理员处理。",
       "footer": "如有疑问，请联系管理员。"
     },
     "emailTemplate": {
@@ -1586,7 +1590,7 @@
     "preApplicationReviewRequestTitle": "为已驳回申请提交复审",
     "preApplicationReviewRequestDescription": "提交后会创建一条待处理复审记录，并立即通知申请人。",
     "preApplicationReviewRequestReasonLabel": "复审原因",
-    "preApplicationReviewRequestReasonPlaceholder": "请说明为何需要超级管理员重新复核这条已驳回申请...",
+    "preApplicationReviewRequestReasonPlaceholder": "请说明为何需要其他管理员重新复核这条已驳回申请...",
     "preApplicationReviewRequestReasonRequired": "请填写复审原因",
     "preApplicationReviewRequestSuccess": "已提交复审请求并通知申请人",
     "preApplicationReviewRequestFailed": "提交复审请求失败",
@@ -1658,6 +1662,14 @@
         "none": "无",
         "unknownUser": "未知用户",
         "rejectionSnapshotEmpty": "未找到与本次申诉对应的驳回快照。"
+      },
+      "policyReasons": {
+        "MISSING_CAPABILITY": "当前账号没有处理申诉的权限",
+        "ARCHIVED_PRE_APPLICATION": "已归档申请无法处理申诉",
+        "APPEAL_ALREADY_REVIEWED": "该申诉已处理",
+        "TARGET_NOT_REJECTED": "目标申请状态已变化",
+        "ORIGINAL_REVIEWER": "当前账号是该拒绝结果的审核人，无法处理此申诉",
+        "REVIEW_REQUEST_INITIATOR": "当前账号是该复审请求的发起人，无法处理此申诉"
       },
       "messages": {
         "loadError": "加载预申请申诉失败",

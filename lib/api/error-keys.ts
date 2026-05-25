@@ -113,6 +113,7 @@ export const ApiErrorKeys = {
       invalidInviteExpiry: "apiErrors.admin.preApplications.invalidInviteExpiry",
       expiryMustBeInFuture: "apiErrors.admin.preApplications.expiryMustBeInFuture",
       alreadyReviewed: "apiErrors.admin.preApplications.alreadyReviewed",
+      pendingAppealExists: "apiErrors.admin.preApplications.pendingAppealExists",
       shadowbanLocked: "apiErrors.admin.preApplications.shadowbanLocked",
       aiNotConfigured: "apiErrors.admin.preApplications.aiNotConfigured",
       aiReviewFailed: "apiErrors.admin.preApplications.aiReviewFailed",
@@ -134,6 +135,9 @@ export const ApiErrorKeys = {
       alreadyReviewed: "apiErrors.admin.preApplicationAppeals.alreadyReviewed",
       invalidAction: "apiErrors.admin.preApplicationAppeals.invalidAction",
       targetChanged: "apiErrors.admin.preApplicationAppeals.targetChanged",
+      archivedPreApplication: "apiErrors.admin.preApplicationAppeals.archivedPreApplication",
+      originalReviewer: "apiErrors.admin.preApplicationAppeals.originalReviewer",
+      reviewRequestInitiator: "apiErrors.admin.preApplicationAppeals.reviewRequestInitiator",
     },
     posts: {
       failedToFetch: "apiErrors.admin.posts.failedToFetch",

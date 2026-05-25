@@ -200,6 +200,7 @@
         "invalidInviteExpiry": "Invalid invite expiry",
         "expiryMustBeInFuture": "Invite expiry must be in the future",
         "alreadyReviewed": "Already reviewed",
+        "pendingAppealExists": "This application has a pending appeal and cannot be archived",
         "shadowbanLocked": "This application is shadowban-locked and cannot be modified",
         "aiNotConfigured": "AI service not configured",
         "aiReviewFailed": "AI review failed",
@@ -220,7 +221,10 @@
         "notFound": "Pre-application appeal not found",
         "alreadyReviewed": "This appeal has already been reviewed",
         "invalidAction": "Invalid appeal review action",
-        "targetChanged": "The appealed pre-application has changed and can no longer be reopened"
+        "targetChanged": "The appealed pre-application has changed and can no longer be reopened",
+        "archivedPreApplication": "Archived applications cannot be reviewed through appeals",
+        "originalReviewer": "This account reviewed the rejected result and cannot process this appeal",
+        "reviewRequestInitiator": "This account initiated the review request and cannot process this appeal"
       },
       "posts": {
         "failedToFetch": "Failed to fetch posts",
@@ -1361,7 +1365,7 @@
     "appealAutoRejected": "Appeal was automatically rejected",
     "appealWarningTitle": "Please confirm before appealing",
     "appealWarningDescription": "An appeal is not a new pre-application. It is a request to challenge the current rejection result for this pre-application.",
-    "appealWarningBanHint": "If your appeal is rejected, your ability to submit another pre-application may be restricted; the final decision and duration are set by a super admin.",
+    "appealWarningBanHint": "If your appeal is rejected, your ability to submit another pre-application may be restricted; the final decision and duration are set by an administrator.",
     "appealWarningAutoRejectHint": "If the current rejection guidance matches an auto-reject rule, the system may reject this appeal immediately.",
     "appealWarningAiRejectedHint": "If this pre-application was rejected by AI review, submitting an appeal will cause it to be automatically rejected.",
     "appealConfirmDescription": "Please review these risk reminders once more before submitting.",
@@ -1435,7 +1439,7 @@
       "claimCodeHint": "No invite codes available yet. Please claim one from the application page later.",
       "appealReview": {
         "rejectedTitle": "Pre-application appeal rejected",
-        "rejectedIntro": "Your pre-application appeal has been rejected by a super admin.",
+        "rejectedIntro": "Your pre-application appeal has been rejected by an administrator.",
         "overriddenTitle": "Pre-application appeal approved",
         "overriddenIntro": "Your pre-application appeal has been approved and your pre-application has been approved directly.",
         "reviewCommentLabel": "Review note: ",
@@ -1446,7 +1450,7 @@
       "appealAutoRejectedIntro": "Your pre-application appeal matched an auto-reject rule and was rejected automatically.",
       "appealAutoRejectedReason": "The current rejection guidance matched an auto-reject rule, so this appeal was rejected automatically.",
       "reviewRequestCreatedTitle": "Pre-application review requested",
-      "reviewRequestCreatedIntro": "An administrator has submitted a review request for your rejected pre-application. Please wait for a super admin to review it.",
+      "reviewRequestCreatedIntro": "An administrator has submitted a review request for your rejected pre-application. Please wait for another administrator to review it.",
       "footer": "If you have questions, please contact an admin."
     },
     "emailTemplate": {
@@ -1590,7 +1594,7 @@
     "preApplicationReviewRequestTitle": "Submit review request for rejected application",
     "preApplicationReviewRequestDescription": "This creates a pending review request and immediately notifies the applicant.",
     "preApplicationReviewRequestReasonLabel": "Review request reason",
-    "preApplicationReviewRequestReasonPlaceholder": "Explain why a super admin should re-review this rejected application...",
+    "preApplicationReviewRequestReasonPlaceholder": "Explain why another administrator should re-review this rejected application...",
     "preApplicationReviewRequestReasonRequired": "Please enter a review request reason",
     "preApplicationReviewRequestSuccess": "Review request created and applicant notified",
     "preApplicationReviewRequestFailed": "Failed to submit review request",
@@ -1662,6 +1666,14 @@
         "none": "None",
         "unknownUser": "Unknown user",
         "rejectionSnapshotEmpty": "No matching rejection snapshot is available for this appeal."
+      },
+      "policyReasons": {
+        "MISSING_CAPABILITY": "This account does not have permission to review appeals",
+        "ARCHIVED_PRE_APPLICATION": "Archived applications cannot be reviewed through appeals",
+        "APPEAL_ALREADY_REVIEWED": "This appeal has already been reviewed",
+        "TARGET_NOT_REJECTED": "The target application status has changed",
+        "ORIGINAL_REVIEWER": "This account reviewed the rejected result and cannot process this appeal",
+        "REVIEW_REQUEST_INITIATOR": "This account initiated the review request and cannot process this appeal"
       },
       "messages": {
         "loadError": "Failed to load pre-application appeals",

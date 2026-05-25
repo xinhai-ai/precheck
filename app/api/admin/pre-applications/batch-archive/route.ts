@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return createApiErrorResponse(
         request,
         archivePolicy.reason === "PENDING_APPEAL_EXISTS"
-          ? ApiErrorKeys.preApplication.appeal.pendingAppealExists
+          ? ApiErrorKeys.admin.preApplications.pendingAppealExists
           : ApiErrorKeys.general.forbidden,
         { status: archivePolicy.reason === "PENDING_APPEAL_EXISTS" ? 409 : 403 },
       )
