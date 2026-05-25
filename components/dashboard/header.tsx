@@ -154,8 +154,8 @@ export function DashboardHeader({
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 border-l border-border pl-3 transition-colors hover:opacity-80">
-              <Avatar className="h-9 w-9 cursor-pointer">
+            <button className="flex max-w-[16rem] items-center gap-3 border-l border-border pl-3 transition-colors hover:opacity-80">
+              <Avatar className="h-9 w-9 shrink-0 cursor-pointer">
                 <AvatarImage
                   src={user.avatar || undefined}
                   alt={user.name || dict.dashboard.userFallback}
@@ -164,19 +164,25 @@ export function DashboardHeader({
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden flex-col md:flex text-left">
-                <span className="text-sm font-medium">
+              <div className="hidden min-w-0 max-w-[22ch] flex-col text-left md:flex">
+                <span className="truncate text-sm font-medium">
                   {user.name || dict.dashboard.userFallback}
                 </span>
-                <span className="text-xs text-muted-foreground">{user.email}</span>
+                <span className="truncate text-xs text-muted-foreground" title={user.email}>
+                  {user.email}
+                </span>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{user.name || dict.dashboard.userFallback}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+              <div className="flex min-w-0 flex-col space-y-1">
+                <p className="truncate text-sm font-medium">
+                  {user.name || dict.dashboard.userFallback}
+                </p>
+                <p className="truncate text-xs text-muted-foreground" title={user.email}>
+                  {user.email}
+                </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
