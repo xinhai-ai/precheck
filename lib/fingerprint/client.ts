@@ -1,6 +1,10 @@
 "use client"
 
-import type { FingerprintComponents, FingerprintPayload } from "@/lib/fingerprint/types"
+import type {
+  FingerprintComponents,
+  FingerprintComponentValue,
+  FingerprintPayload,
+} from "@/lib/fingerprint/types"
 
 function toFailureReason(error: unknown): string {
   if (error instanceof Error) {
@@ -46,7 +50,7 @@ function getCanvasSignature(): string | null {
   }
 }
 
-function getWebglInfo() {
+function getWebglInfo(): Record<string, FingerprintComponentValue> {
   try {
     const canvas = document.createElement("canvas")
     const gl = (canvas.getContext("webgl") ||

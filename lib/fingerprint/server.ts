@@ -82,7 +82,12 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
           where: {
             fingerprintComponents: { not: Prisma.DbNull },
             ...(normalized.fingerprintHash
-              ? { OR: [{ fingerprintHash: null }, { fingerprintHash: { not: normalized.fingerprintHash } }] }
+              ? {
+                  OR: [
+                    { fingerprintHash: null },
+                    { fingerprintHash: { not: normalized.fingerprintHash } },
+                  ],
+                }
               : {}),
           },
           orderBy: { createdAt: "desc" },
@@ -142,7 +147,9 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
         fingerprintComponents: hasComponents
           ? (normalized.components as Prisma.InputJsonValue)
           : undefined,
-        fingerprintSummary: hasComponents ? (normalized.summary as Prisma.InputJsonValue) : undefined,
+        fingerprintSummary: hasComponents
+          ? (normalized.summary as Prisma.InputJsonValue)
+          : undefined,
         similarityScore: bestSimilarity.score > 0 ? bestSimilarity.score : null,
         similaritySignals:
           bestSimilarity.score > 0

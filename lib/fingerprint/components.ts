@@ -99,9 +99,7 @@ function sanitizeValue(value: unknown): FingerprintComponentValue | undefined {
     const output: Record<string, FingerprintComponentPrimitive | FingerprintComponentPrimitive[]> =
       {}
 
-    for (const [key, nestedValue] of Object.entries(value).sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
+    for (const [key, nestedValue] of Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) {
       const safeKey = key.trim().slice(0, 80)
       const safeValue = sanitizeValue(nestedValue)
 
@@ -113,7 +111,9 @@ function sanitizeValue(value: unknown): FingerprintComponentValue | undefined {
           safeValue === null ||
           (Array.isArray(safeValue) && safeValue.every((item) => typeof item !== "object")))
       ) {
-        output[safeKey] = safeValue as FingerprintComponentPrimitive | FingerprintComponentPrimitive[]
+        output[safeKey] = safeValue as
+          | FingerprintComponentPrimitive
+          | FingerprintComponentPrimitive[]
       }
     }
 
@@ -182,9 +182,7 @@ export function sanitizeFingerprintComponents(raw: unknown): {
     if (!allowedFields || !fields || typeof fields !== "object" || Array.isArray(fields)) continue
 
     const outputFields: Record<string, FingerprintComponentValue> = {}
-    for (const [field, value] of Object.entries(fields).sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
+    for (const [field, value] of Object.entries(fields).sort(([a], [b]) => a.localeCompare(b))) {
       if (!allowedFields.has(field)) continue
       const safeValue = sanitizeValue(value)
       if (safeValue !== undefined) outputFields[field] = safeValue
@@ -259,7 +257,9 @@ export function buildFingerprintBinding(
 
   const hasBasis = Object.keys(basis).some((group) => Object.keys(basis[group] || {}).length > 0)
   const fingerprintHash = hasBasis
-    ? createHash("sha256").update(`${stableJson(basis)}${pepper}`).digest("hex")
+    ? createHash("sha256")
+        .update(`${stableJson(basis)}${pepper}`)
+        .digest("hex")
     : hashLegacyVisitorId(legacyVisitorId, pepper)
 
   return {
@@ -271,7 +271,9 @@ export function buildFingerprintBinding(
   }
 }
 
-export function flattenFingerprintComponents(components: FingerprintComponents): Map<string, string> {
+export function flattenFingerprintComponents(
+  components: FingerprintComponents,
+): Map<string, string> {
   const output = new Map<string, string>()
   for (const [group, fields] of Object.entries(components)) {
     for (const [field, value] of Object.entries(fields)) {

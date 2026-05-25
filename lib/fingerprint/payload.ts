@@ -76,9 +76,7 @@ function sanitizeValue(value: unknown): FingerprintComponentValue | undefined {
   if (typeof value === "object" && value) {
     const output: Record<string, FingerprintComponentPrimitive | FingerprintComponentPrimitive[]> =
       {}
-    for (const [key, nestedValue] of Object.entries(value).sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
+    for (const [key, nestedValue] of Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) {
       const safeKey = key.trim().slice(0, 80)
       const safeValue = sanitizeValue(nestedValue)
       if (
@@ -89,7 +87,9 @@ function sanitizeValue(value: unknown): FingerprintComponentValue | undefined {
           safeValue === null ||
           (Array.isArray(safeValue) && safeValue.every((item) => typeof item !== "object")))
       ) {
-        output[safeKey] = safeValue as FingerprintComponentPrimitive | FingerprintComponentPrimitive[]
+        output[safeKey] = safeValue as
+          | FingerprintComponentPrimitive
+          | FingerprintComponentPrimitive[]
       }
     }
     return output
@@ -112,9 +112,7 @@ function sanitizePayloadComponents(raw: unknown): {
     if (!allowedFields || !fields || typeof fields !== "object" || Array.isArray(fields)) continue
 
     const safeFields: Record<string, FingerprintComponentValue> = {}
-    for (const [field, value] of Object.entries(fields).sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
+    for (const [field, value] of Object.entries(fields).sort(([a], [b]) => a.localeCompare(b))) {
       if (!allowedFields.has(field)) continue
       const safeValue = sanitizeValue(value)
       if (safeValue !== undefined) safeFields[field] = safeValue

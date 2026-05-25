@@ -6,7 +6,15 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
+export type PreApplicationStatus =
+  | "PENDING"
+  | "SHADOW_HIDDEN"
+  | "APPROVED"
+  | "REJECTED"
+  | "DISPUTED"
+  | "ARCHIVED"
+  | "PENDING_REVIEW"
+  | "ON_HOLD"
 
 export type PreApplicationAppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
 
@@ -284,6 +292,8 @@ export interface PreApplicationDraft {
 export interface FingerprintProfile {
   id: string
   fingerprintHash: string
+  fingerprintBasis: Prisma.JsonValue | null
+  componentKeys: string[]
   firstSeenAt: Date
   lastSeenAt: Date
   createdAt: Date
@@ -304,6 +314,10 @@ export interface FingerprintEvent {
   userAgent: string | null
   browserFamily: string | null
   networkKey: string | null
+  fingerprintComponents: Prisma.JsonValue | null
+  fingerprintSummary: Prisma.JsonValue | null
+  similarityScore: number | null
+  similaritySignals: Prisma.JsonValue | null
   createdAt: Date
   fingerprint: FingerprintProfile | null
   user: User | null

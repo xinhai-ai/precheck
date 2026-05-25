@@ -720,7 +720,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                       <td className="px-3 py-2">
                         <div className="space-y-1">
                           <Badge
-                            variant={(item.maxSimilarityScore || 0) >= 85 ? "destructive" : "outline"}
+                            variant={
+                              (item.maxSimilarityScore || 0) >= 85 ? "destructive" : "outline"
+                            }
                           >
                             {formatSimilarityScore(item.maxSimilarityScore, riskT)}
                           </Badge>
@@ -1053,9 +1055,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">
-                      {riskT.similarEvents || "相似事件"}
-                    </CardTitle>
+                    <CardTitle className="text-base">{riskT.similarEvents || "相似事件"}</CardTitle>
                     <CardDescription>
                       {riskT.similarEventsDesc || "跨绑定键命中的相似指纹证据。"}
                     </CardDescription>
@@ -1074,7 +1074,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                                 {item.eventType} · {formatDateTime(item.createdAt, locale)}
                               </p>
                               <Badge
-                                variant={(item.similarityScore || 0) >= 85 ? "destructive" : "secondary"}
+                                variant={
+                                  (item.similarityScore || 0) >= 85 ? "destructive" : "secondary"
+                                }
                               >
                                 {formatSimilarityScore(item.similarityScore, riskT)}
                               </Badge>
