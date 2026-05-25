@@ -40,6 +40,8 @@ export default async function PreApplicationPage({ params }: PreApplicationPageP
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       reviewedAt: r.reviewedAt?.toISOString() ?? null,
+      formalApplicationApprovedFeedbackAt:
+        r.formalApplicationApprovedFeedbackAt?.toISOString() ?? null,
       inviteCode: r.inviteCode
         ? {
             ...r.inviteCode,

@@ -166,6 +166,18 @@ type FingerprintRelatedApplication = {
   user: { id: string; name: string | null; email: string } | null
 }
 
+type FingerprintRiskClusterSummary = {
+  clusterId: string
+  riskLevel: "LOW" | "MEDIUM" | "HIGH"
+  riskScore: number
+  userCount: number
+  applicationCount: number
+  eventCount: number
+  maxSimilarity: number | null
+  evidenceFlags: string[]
+  lastSeenAt: string | null
+}
+
 type FingerprintDetail = {
   id: string
   fingerprintHash: string | null
@@ -175,6 +187,7 @@ type FingerprintDetail = {
   relatedApplicationsCount: number
   relatedUsers: FingerprintRelatedUser[]
   relatedApplications: FingerprintRelatedApplication[]
+  riskCluster: FingerprintRiskClusterSummary | null
 }
 
 type PreApplicationVersion = {
@@ -311,6 +324,47 @@ const isReviewEditableStatus = (status: AdminPreApplication["status"]) =>
 const getLatestVersionTime = (record: AdminPreApplication) =>
   record.latestVersionCreatedAt ?? record.createdAt
 
+function formatRiskLevel(value: string | null | undefined, riskT: Record<string, string>): string {
+  if (value === "HIGH") return riskT.levelHigh || "高风险"
+  if (value === "MEDIUM") return riskT.levelMedium || "中风险"
+  if (value === "LOW") return riskT.levelLow || "低风险"
+  return "-"
+}
+
+function getRiskLevelBadgeClass(value: string | null | undefined): string {
+  if (value === "HIGH") return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+  if (value === "MEDIUM") {
+    return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+  }
+  return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+}
+
+function formatEvidenceFlag(value: string, riskT: Record<string, string>): string {
+  switch (value) {
+    case "recentConcentration":
+      return riskT.signalRecentConcentration || "近期集中出现"
+    case "networkOverlap":
+      return riskT.signalNetworkOverlap || "网络重合"
+    case "crossEventContinuity":
+      return riskT.signalCrossEventContinuity || "跨事件连续性"
+    case "componentSimilarity":
+      return riskT.componentSimilarity || "组件相似"
+    case "strongComponentMatch":
+      return riskT.strongComponentMatch || "强组件命中"
+    case "hashExactMatch":
+      return riskT.hashExactMatch || "兼容哈希命中"
+    case "safariLowConfidence":
+      return riskT.safariLowConfidence || "Safari 低可信"
+    default:
+      return value
+  }
+}
+
+function formatSimilarityScore(value: number | null | undefined, riskT: Record<string, string>) {
+  if (!value) return riskT.noSimilarity || "暂无相似提醒"
+  return `${value}/100`
+}
+
 export function AdminPreApplicationsTable({
   locale,
   dict,
@@ -318,6 +372,7 @@ export function AdminPreApplicationsTable({
 }: AdminPreApplicationsTableProps) {
   const t = dict.admin
   const adminExt = t as unknown as Record<string, string>
+  const riskT = t.riskControlPanel as Record<string, string>
   const isSuperAdmin = currentUserRole === "SUPER_ADMIN"
   const [records, setRecords] = useState<AdminPreApplication[]>([])
   const [total, setTotal] = useState(0)
@@ -2200,7 +2255,7 @@ export function AdminPreApplicationsTable({
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                       <div className="col-span-2">
                         <span className="text-xs text-muted-foreground">
-                          {adminExt.fingerprintHash || "指纹哈希"}
+                          {riskT.compatibilityHash || adminExt.fingerprintHash || "兼容哈希"}
                         </span>
                         <div className="mt-1 flex items-center gap-1.5">
                           <p className="font-mono text-xs break-all">
@@ -2265,6 +2320,100 @@ export function AdminPreApplicationsTable({
                         </p>
                       </div>
                     </div>
+
+                    {fingerprintDetail?.riskCluster ? (
+                      <div className="space-y-3 rounded-lg border bg-card/80 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {riskT.clusterDetail || "集群详情"}
+                            </p>
+                            <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                              {fingerprintDetail.riskCluster.clusterId}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              className={cn(
+                                "text-xs",
+                                getRiskLevelBadgeClass(fingerprintDetail.riskCluster.riskLevel),
+                              )}
+                            >
+                              {formatRiskLevel(fingerprintDetail.riskCluster.riskLevel, riskT)}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {riskT.riskScore || "风险分"}:{" "}
+                              {fingerprintDetail.riskCluster.riskScore}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+                          <div className="rounded-md bg-muted/40 p-2">
+                            <span className="text-muted-foreground">
+                              {riskT.userCount || "用户数"}
+                            </span>
+                            <p className="mt-1 font-semibold">
+                              {fingerprintDetail.riskCluster.userCount}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-muted/40 p-2">
+                            <span className="text-muted-foreground">
+                              {riskT.applicationCount || "申请数"}
+                            </span>
+                            <p className="mt-1 font-semibold">
+                              {fingerprintDetail.riskCluster.applicationCount}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-muted/40 p-2">
+                            <span className="text-muted-foreground">
+                              {riskT.memberEvents || "成员事件"}
+                            </span>
+                            <p className="mt-1 font-semibold">
+                              {fingerprintDetail.riskCluster.eventCount}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-muted/40 p-2">
+                            <span className="text-muted-foreground">
+                              {riskT.similarityScore || "相似提醒"}
+                            </span>
+                            <p className="mt-1 font-semibold">
+                              {formatSimilarityScore(
+                                fingerprintDetail.riskCluster.maxSimilarity,
+                                riskT,
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 text-xs md:grid-cols-[1fr_2fr]">
+                          <div className="rounded-md bg-muted/30 p-2">
+                            <span className="text-muted-foreground">
+                              {riskT.lastSeenAt || "最近出现"}
+                            </span>
+                            <p className="mt-1 font-medium">
+                              {formatDateTime(fingerprintDetail.riskCluster.lastSeenAt, locale)}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-muted/30 p-2">
+                            <span className="text-muted-foreground">
+                              {riskT.keyEvidence || "关键证据"}
+                            </span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {fingerprintDetail.riskCluster.evidenceFlags.length ? (
+                                fingerprintDetail.riskCluster.evidenceFlags.map((flag) => (
+                                  <Badge key={flag} variant="secondary" className="text-[10px]">
+                                    {formatEvidenceFlag(flag, riskT)}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
 
                     {fingerprintDetail?.relatedUsers?.length ? (
                       <div className="space-y-1.5">

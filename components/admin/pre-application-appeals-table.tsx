@@ -266,9 +266,11 @@ export function AdminPreApplicationAppealsTable({
     (reason: AppealReviewPolicyReason | null) => {
       if (!reason) return ""
 
-      const policyReasons =
-        ((pageT as unknown as { policyReasons?: Record<AppealReviewPolicyReason, string> })
-          .policyReasons as Record<AppealReviewPolicyReason, string> | undefined) ?? {}
+      const policyReasons = ((
+        pageT as unknown as {
+          policyReasons?: Partial<Record<AppealReviewPolicyReason, string>>
+        }
+      ).policyReasons ?? {}) as Partial<Record<AppealReviewPolicyReason, string>>
 
       return policyReasons[reason] || reason
     },

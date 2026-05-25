@@ -6,7 +6,10 @@ function readIfExists(fileUrl: URL) {
   return existsSync(fileUrl) ? readFileSync(fileUrl, "utf8") : ""
 }
 
-const helperUrl = new URL("../../../lib/pre-application/admin-archived-visibility.ts", import.meta.url)
+const helperUrl = new URL(
+  "../../../lib/pre-application/admin-archived-visibility.ts",
+  import.meta.url,
+)
 const listRouteUrl = new URL("../../../app/api/admin/pre-applications/route.ts", import.meta.url)
 const exportRouteUrl = new URL(
   "../../../app/api/admin/pre-applications/export/route.ts",
@@ -74,14 +77,28 @@ test("admin pre-application routes use archived visibility helper", () => {
     assert.match(source, /admin-archived-visibility/)
   }
 
-  assert.match(listRouteSource, /canViewArchivedPreApplications|filterAdminVisiblePreApplicationStatuses|shouldHidePreApplicationFromAdmin/)
-  assert.match(exportRouteSource, /shouldHidePreApplicationFromAdmin|canViewArchivedPreApplications/)
-  assert.match(duplicateCheckRouteSource, /shouldHidePreApplicationFromAdmin\(currentRecord\.status, user\.role\)/)
+  assert.match(
+    listRouteSource,
+    /canViewArchivedPreApplications|filterAdminVisiblePreApplicationStatuses|shouldHidePreApplicationFromAdmin/,
+  )
+  assert.match(
+    exportRouteSource,
+    /shouldHidePreApplicationFromAdmin|canViewArchivedPreApplications/,
+  )
+  assert.match(
+    duplicateCheckRouteSource,
+    /shouldHidePreApplicationFromAdmin\(currentRecord\.status, user\.role\)/,
+  )
   assert.doesNotMatch(
     duplicateCheckRouteSource,
     /status:\s*\{\s*not:\s*ARCHIVED_PRE_APPLICATION_STATUS\s*\}/,
   )
-  assert.match(fingerprintRouteSource, /ARCHIVED_PRE_APPLICATION_STATUS|canViewArchivedPreApplications/)
+  assert.match(
+    fingerprintRouteSource,
+    /ARCHIVED_PRE_APPLICATION_STATUS|canViewArchivedPreApplications/,
+  )
+  assert.match(fingerprintRouteSource, /fingerprintRiskClusterMember/)
+  assert.match(fingerprintRouteSource, /riskCluster/)
 })
 
 test("admin pre-application table hides archived filter and stats behind super-admin gate", () => {

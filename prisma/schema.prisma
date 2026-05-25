@@ -367,9 +367,11 @@ model FingerprintEvent {
   similaritySignals     Json?
   createdAt             DateTime          @default(now())
 
-  fingerprint    FingerprintProfile? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
-  user           User?               @relation("UserFingerprintEvents", fields: [userId], references: [id], onDelete: SetNull)
-  preApplication PreApplication?     @relation("PreApplicationFingerprintEvents", fields: [preApplicationId], references: [id], onDelete: SetNull)
+  fingerprint          FingerprintProfile?            @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
+  user                 User?                          @relation("UserFingerprintEvents", fields: [userId], references: [id], onDelete: SetNull)
+  preApplication       PreApplication?                @relation("PreApplicationFingerprintEvents", fields: [preApplicationId], references: [id], onDelete: SetNull)
+  riskClusterMembers   FingerprintRiskClusterMember[] @relation("FingerprintRiskClusterMemberEvent")
+  anchoredRiskClusters FingerprintRiskCluster[]       @relation("FingerprintRiskClusterAnchor")
 
   @@index([fingerprintId, createdAt])
   @@index([fingerprintHash, createdAt])
@@ -379,6 +381,47 @@ model FingerprintEvent {
   @@index([browserFamily, createdAt])
   @@index([networkKey, createdAt])
   @@index([similarityScore, createdAt])
+}
+
+model FingerprintRiskCluster {
+  id               String   @id @default(cuid())
+  anchorEventId    String?
+  riskLevel        String
+  riskScore        Int
+  userCount        Int      @default(0)
+  applicationCount Int      @default(0)
+  eventCount       Int      @default(0)
+  maxSimilarity    Int?
+  evidenceFlags    String[] @default([])
+  summary          Json?
+  firstSeenAt      DateTime
+  lastSeenAt       DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  anchorEvent FingerprintEvent?              @relation("FingerprintRiskClusterAnchor", fields: [anchorEventId], references: [id], onDelete: SetNull)
+  members     FingerprintRiskClusterMember[]
+
+  @@index([riskLevel, lastSeenAt])
+  @@index([lastSeenAt])
+  @@index([anchorEventId])
+}
+
+model FingerprintRiskClusterMember {
+  id              String   @id @default(cuid())
+  clusterId       String
+  eventId         String   @unique
+  similarityScore Int
+  matchedKeys     String[] @default([])
+  differentKeys   String[] @default([])
+  strongKeys      String[] @default([])
+  createdAt       DateTime @default(now())
+
+  cluster FingerprintRiskCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  event   FingerprintEvent       @relation("FingerprintRiskClusterMemberEvent", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([clusterId, similarityScore])
+  @@index([eventId])
 }
 
 model RiskIgnoredUser {

@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client"
-import { hasCapability } from "../capabilities.ts"
+import { hasCapability } from "../capabilities"
 
 export type PreApplicationPolicyActor = {
   id: string

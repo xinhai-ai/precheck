@@ -17,11 +17,12 @@ import {
 import { useRouter } from "next/navigation"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
+import type { Role } from "@prisma/client"
 
 interface AdminHeaderProps {
   locale: Locale
   dict: Dictionary
-  user: { id: string; name?: string | null; email: string; role: string }
+  user: { id: string; name?: string | null; email: string; role: Role }
   onMenuClick?: () => void
 }
 

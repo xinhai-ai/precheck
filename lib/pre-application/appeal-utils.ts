@@ -1,4 +1,4 @@
-import { getSubmitBanUntilFromDays } from "./submit-ban-utils.ts"
+import { getSubmitBanUntilFromDays } from "./submit-ban-utils"
 
 export const PRE_APPLICATION_APPEAL_COOLDOWN_DAYS = 3
 export const PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS = 7

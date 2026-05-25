@@ -322,6 +322,40 @@ export interface FingerprintEvent {
   fingerprint: FingerprintProfile | null
   user: User | null
   preApplication: PreApplication | null
+  riskClusterMembers: FingerprintRiskClusterMember[]
+  anchoredRiskClusters: FingerprintRiskCluster[]
+}
+
+export interface FingerprintRiskCluster {
+  id: string
+  anchorEventId: string | null
+  riskLevel: string
+  riskScore: number
+  userCount: number
+  applicationCount: number
+  eventCount: number
+  maxSimilarity: number | null
+  evidenceFlags: string[]
+  summary: Prisma.JsonValue | null
+  firstSeenAt: Date
+  lastSeenAt: Date
+  createdAt: Date
+  updatedAt: Date
+  anchorEvent: FingerprintEvent | null
+  members: FingerprintRiskClusterMember[]
+}
+
+export interface FingerprintRiskClusterMember {
+  id: string
+  clusterId: string
+  eventId: string
+  similarityScore: number
+  matchedKeys: string[]
+  differentKeys: string[]
+  strongKeys: string[]
+  createdAt: Date
+  cluster: FingerprintRiskCluster
+  event: FingerprintEvent
 }
 
 export interface RiskIgnoredUser {

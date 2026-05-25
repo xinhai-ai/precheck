@@ -87,8 +87,26 @@ type IgnoredUserItem = {
   }
 }
 
-type GroupListResponse = {
-  items: FingerprintRiskGroupItem[]
+type FingerprintRiskClusterItem = FingerprintRiskGroupItem & {
+  clusterId: string
+  riskScore: number
+  eventCount: number
+}
+
+type ClusterListResponse = {
+  items: Array<{
+    id: string
+    clusterId: string
+    riskLevel: FingerprintRiskGroupItem["riskLevel"]
+    riskScore: number
+    userCount: number
+    applicationCount: number
+    eventCount: number
+    maxSimilarity: number | null
+    evidenceFlags: FingerprintRiskGroupItem["evidenceFlags"]
+    summary: FingerprintRiskGroupItem["fingerprintSummary"]
+    lastSeenAt: string
+  }>
   total: number
   page: number
   limit: number
@@ -97,6 +115,53 @@ type GroupListResponse = {
     medium: number
     ignoredUsers: number
   }
+}
+
+type FingerprintRiskClusterDetailResponse = {
+  summary: {
+    id: string
+    clusterId: string
+    riskLevel: FingerprintRiskGroupItem["riskLevel"]
+    riskScore: number
+    userCount: number
+    applicationCount: number
+    eventCount: number
+    maxSimilarity: number | null
+    evidenceFlags: FingerprintRiskGroupItem["evidenceFlags"]
+    summary: FingerprintRiskGroupItem["fingerprintSummary"]
+    lastSeenAt: string
+  }
+  relatedUsers: FingerprintRiskGroupDetailResponse["relatedUsers"]
+  relatedApplications: FingerprintRiskGroupDetailResponse["relatedApplications"]
+  members: Array<{
+    id: string
+    eventId: string
+    similarityScore: number
+    matchedKeys: string[]
+    differentKeys: string[]
+    strongKeys: string[]
+    eventType: string
+    createdAt: string
+    ip: string | null
+    browserFamily: string | null
+    networkKey: string | null
+    fingerprintHash: string | null
+    fingerprintSummary: FingerprintRiskGroupDetailResponse["recentEvents"][number]["fingerprintSummary"]
+  }>
+  componentEvidence: {
+    anchor: FingerprintRiskGroupDetailResponse["componentDetails"]
+    samples: FingerprintRiskGroupDetailResponse["componentDetails"][]
+  }
+  ignoredImpact: number
+}
+
+type FingerprintRiskClusterDetailView = FingerprintRiskGroupDetailResponse & {
+  summary: FingerprintRiskGroupDetailResponse["summary"] & {
+    riskScore: number
+    eventCount: number
+    compatibilityHash: string
+  }
+  componentEvidence: FingerprintRiskClusterDetailResponse["componentEvidence"]
 }
 
 const DEFAULT_LIMIT = 20
@@ -129,6 +194,14 @@ function formatEvidenceFlag(value: string, riskT: Record<string, string>): strin
       return riskT.signalNetworkOverlap || "网络重合"
     case "crossEventContinuity":
       return riskT.signalCrossEventContinuity || "跨事件连续性"
+    case "componentSimilarity":
+      return riskT.componentSimilarity || "组件相似"
+    case "strongComponentMatch":
+      return riskT.strongComponentMatch || "强组件命中"
+    case "hashExactMatch":
+      return riskT.hashExactMatch || "兼容哈希命中"
+    case "safariLowConfidence":
+      return riskT.safariLowConfidence || "Safari 低可信"
     default:
       return value
   }
@@ -245,7 +318,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
   const isSuperAdmin = currentRole === "SUPER_ADMIN"
 
   const [loading, setLoading] = useState(true)
-  const [items, setItems] = useState<FingerprintRiskGroupItem[]>([])
+  const [items, setItems] = useState<FingerprintRiskClusterItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [limit] = useState(DEFAULT_LIMIT)
@@ -253,14 +326,14 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
   const [searchInput, setSearchInput] = useState("")
   const [search, setSearch] = useState("")
   const [riskLevel, setRiskLevel] = useState<RiskLevelFilter>("ALL")
-  const [sortBy, setSortBy] = useState<"lastSeenAt" | "userCount" | "applicationCount">(
-    "lastSeenAt",
-  )
+  const [sortBy, setSortBy] = useState<
+    "lastSeenAt" | "riskScore" | "userCount" | "applicationCount"
+  >("lastSeenAt")
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
 
-  const [selectedHash, setSelectedHash] = useState<string | null>(null)
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [detail, setDetail] = useState<FingerprintRiskGroupDetailResponse | null>(null)
+  const [detail, setDetail] = useState<FingerprintRiskClusterDetailView | null>(null)
 
   const [ignoredLoading, setIgnoredLoading] = useState(false)
   const [ignoredItems, setIgnoredItems] = useState<IgnoredUserItem[]>([])
@@ -287,13 +360,29 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
       if (search) params.set("search", search)
       if (riskLevel !== "ALL") params.set("riskLevel", riskLevel)
 
-      const res = await fetch(`/api/admin/risk-control/fingerprint-groups?${params.toString()}`)
+      const res = await fetch(`/api/admin/risk-control/fingerprint-clusters?${params.toString()}`)
       if (!res.ok) {
         throw new Error(riskT.loadFailed || "加载风险分组失败")
       }
 
-      const data: GroupListResponse = await res.json()
-      setItems(data.items || [])
+      const data: ClusterListResponse = await res.json()
+      setItems(
+        (data.items || []).map((item) => ({
+          fingerprintHash: item.clusterId,
+          clusterId: item.clusterId,
+          riskScore: item.riskScore,
+          eventCount: item.eventCount,
+          userCount: item.userCount,
+          applicationCount: item.applicationCount,
+          lastSeenAt: item.lastSeenAt,
+          riskLevel: item.riskLevel,
+          fingerprintSummary: item.summary,
+          maxSimilarityScore: item.maxSimilarity,
+          similarEventCount: item.eventCount,
+          evidenceFlags: item.evidenceFlags || [],
+          riskExplanation: `${riskT.riskScore || "风险分"} ${item.riskScore}/100`,
+        })),
+      )
       setTotal(data.total || 0)
       setStats(
         data.stats || {
@@ -330,17 +419,78 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
     }
   }
 
-  const loadDetail = async (fingerprintHash: string) => {
+  const loadDetail = async (clusterId: string) => {
     setDetailLoading(true)
     try {
       const res = await fetch(
-        `/api/admin/risk-control/fingerprint-groups/${encodeURIComponent(fingerprintHash)}`,
+        `/api/admin/risk-control/fingerprint-clusters/${encodeURIComponent(clusterId)}`,
       )
       if (!res.ok) {
         throw new Error(riskT.detailLoadFailed || "加载详情失败")
       }
-      const data: FingerprintRiskGroupDetailResponse = await res.json()
-      setDetail(data)
+      const data: FingerprintRiskClusterDetailResponse = await res.json()
+      const compatibilityHash = data.summary.clusterId
+      setDetail({
+        summary: {
+          fingerprintHash: compatibilityHash,
+          userCount: data.summary.userCount,
+          applicationCount: data.summary.applicationCount,
+          lastSeenAt: data.summary.lastSeenAt,
+          riskLevel: data.summary.riskLevel,
+          riskScore: data.summary.riskScore,
+          eventCount: data.summary.eventCount,
+          compatibilityHash,
+          evidenceFlags: data.summary.evidenceFlags || [],
+          riskExplanation: `${riskT.riskScore || "风险分"} ${data.summary.riskScore}/100`,
+        },
+        relatedUsers: data.relatedUsers || [],
+        relatedApplications: data.relatedApplications || [],
+        recentEvents: (data.members || []).map((member) => ({
+          id: member.eventId,
+          fingerprintHash: member.fingerprintHash,
+          eventType: member.eventType,
+          status: "OK",
+          failureReason: null,
+          ip: member.ip,
+          userAgent: null,
+          browserFamily: member.browserFamily,
+          networkKey: member.networkKey,
+          createdAt: member.createdAt,
+          userId: null,
+          preApplicationId: null,
+          fingerprintSummary: member.fingerprintSummary,
+          similarityScore: member.similarityScore,
+          similaritySignals: {
+            matched: member.matchedKeys,
+            different: member.differentKeys,
+            strong: member.strongKeys,
+          },
+        })),
+        componentDetails: data.componentEvidence.anchor,
+        componentEvidence: data.componentEvidence,
+        similarEvents: (data.members || []).map((member) => ({
+          id: member.eventId,
+          fingerprintHash: member.fingerprintHash,
+          eventType: member.eventType,
+          status: "OK",
+          failureReason: null,
+          ip: member.ip,
+          userAgent: null,
+          browserFamily: member.browserFamily,
+          networkKey: member.networkKey,
+          createdAt: member.createdAt,
+          userId: null,
+          preApplicationId: null,
+          fingerprintSummary: member.fingerprintSummary,
+          similarityScore: member.similarityScore,
+          similaritySignals: {
+            matched: member.matchedKeys,
+            different: member.differentKeys,
+            strong: member.strongKeys,
+          },
+        })),
+        ignoredImpact: data.ignoredImpact,
+      })
     } catch (error) {
       console.error("Risk detail fetch error:", error)
       toast.error(error instanceof Error ? error.message : riskT.detailLoadFailed || "加载失败")
@@ -359,10 +509,10 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
   }, [])
 
   useEffect(() => {
-    if (selectedHash) {
-      loadDetail(selectedHash)
+    if (selectedClusterId) {
+      loadDetail(selectedClusterId)
     }
-  }, [selectedHash])
+  }, [selectedClusterId])
 
   const handleSearchApply = () => {
     setPage(1)
@@ -373,7 +523,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
     await Promise.all([
       loadGroups(),
       loadIgnoredUsers(),
-      selectedHash ? loadDetail(selectedHash) : null,
+      selectedClusterId ? loadDetail(selectedClusterId) : null,
     ])
   }
 
@@ -406,7 +556,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
       await Promise.all([
         loadGroups(),
         loadIgnoredUsers(),
-        selectedHash ? loadDetail(selectedHash) : null,
+        selectedClusterId ? loadDetail(selectedClusterId) : null,
       ])
     } catch (error) {
       console.error("Ignore user save error:", error)
@@ -435,7 +585,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
       await Promise.all([
         loadGroups(),
         loadIgnoredUsers(),
-        selectedHash ? loadDetail(selectedHash) : null,
+        selectedClusterId ? loadDetail(selectedClusterId) : null,
       ])
     } catch (error) {
       console.error("Unignore user error:", error)
@@ -483,7 +633,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
       await Promise.all([
         loadGroups(),
         loadIgnoredUsers(),
-        selectedHash ? loadDetail(selectedHash) : null,
+        selectedClusterId ? loadDetail(selectedClusterId) : null,
       ])
     } catch (error) {
       console.error("Toggle user ban status error:", error)
@@ -544,16 +694,16 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
 
       <Card>
         <CardHeader>
-          <CardTitle>{riskT.groupList || "风险分组"}</CardTitle>
+          <CardTitle>{riskT.fingerprintClusters || "指纹风险集群"}</CardTitle>
           <CardDescription>
-            {riskT.groupListDesc || "基于指纹事件聚合，默认展示同指纹多账号或多申请记录。"}
+            {riskT.groupListDesc || "基于完整指纹组件聚合，保留兼容哈希作为辅助证据。"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-6">
             <div className="md:col-span-2 flex gap-2">
               <Input
-                placeholder={riskT.searchPlaceholder || "搜索指纹哈希或邮箱"}
+                placeholder={riskT.searchPlaceholder || "搜索集群、兼容哈希或邮箱"}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -585,7 +735,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
             </Select>
             <Select
               value={sortBy}
-              onValueChange={(value: "lastSeenAt" | "userCount" | "applicationCount") => {
+              onValueChange={(
+                value: "lastSeenAt" | "riskScore" | "userCount" | "applicationCount",
+              ) => {
                 setSortBy(value)
                 setPage(1)
               }}
@@ -595,6 +747,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="lastSeenAt">{riskT.sortLastSeen || "按最近出现"}</SelectItem>
+                <SelectItem value="riskScore">{riskT.sortRiskScore || "按风险分"}</SelectItem>
                 <SelectItem value="userCount">{riskT.sortUsers || "按用户数"}</SelectItem>
                 <SelectItem value="applicationCount">
                   {riskT.sortApplications || "按申请数"}
@@ -627,7 +780,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
               <thead className="bg-muted/40">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">
-                    {riskT.fingerprintHash || "指纹哈希"}
+                    {riskT.fingerprintClusters || "指纹风险集群"}
                   </th>
                   <th className="px-3 py-2 text-left font-medium">{riskT.userCount || "用户数"}</th>
                   <th className="px-3 py-2 text-left font-medium">
@@ -640,7 +793,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                     {riskT.riskLevel || "风险等级"}
                   </th>
                   <th className="px-3 py-2 text-left font-medium">
-                    {riskT.similarityScore || "相似提醒"}
+                    {riskT.keyEvidence || "关键证据"}
                   </th>
                   <th className="px-3 py-2 text-right font-medium">{t.actions as string}</th>
                 </tr>
@@ -663,14 +816,14 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   </tr>
                 ) : (
                   items.map((item) => (
-                    <tr key={item.fingerprintHash} className="border-t">
+                    <tr key={item.clusterId} className="border-t">
                       <td className="px-3 py-2 font-mono text-xs">
                         <div className="inline-flex items-center gap-1.5">
-                          <span>{maskFingerprintHash(item.fingerprintHash)}</span>
+                          <span>{maskFingerprintHash(item.clusterId)}</span>
                           <button
                             className="text-muted-foreground hover:text-foreground"
                             onClick={() => {
-                              navigator.clipboard.writeText(item.fingerprintHash)
+                              navigator.clipboard.writeText(item.clusterId)
                               toast.success(riskT.copied || "已复制")
                             }}
                           >
@@ -699,6 +852,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                                 ? riskT.levelMedium || "中风险"
                                 : riskT.levelLow || "低风险"}
                           </Badge>
+                          <p className="text-[11px] text-muted-foreground">
+                            {riskT.riskScore || "风险分"}: {item.riskScore}/100
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             <Badge variant="outline" className="text-[10px]">
                               {riskT.browserConfidence || "可信度"}:{" "}
@@ -712,7 +868,8 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                           </div>
                           {item.riskExplanation && (
                             <p className="max-w-xs text-[11px] leading-4 text-muted-foreground">
-                              {item.riskExplanation}
+                              {item.riskExplanation} · {riskT.memberEvents || "成员事件"}{" "}
+                              {item.eventCount}
                             </p>
                           )}
                         </div>
@@ -728,7 +885,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                           </Badge>
                           <p className="text-[11px] text-muted-foreground">
                             {(item.similarEventCount || 0).toLocaleString()}{" "}
-                            {riskT.similarEvents || "相似事件"}
+                            {riskT.memberEvents || "成员事件"}
                           </p>
                           {item.fingerprintSummary?.webgl && (
                             <p className="max-w-xs truncate text-[11px] text-muted-foreground">
@@ -741,7 +898,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setSelectedHash(item.fingerprintHash)}
+                          onClick={() => setSelectedClusterId(item.clusterId)}
                         >
                           {riskT.viewDetail || "查看详情"}
                         </Button>
@@ -783,10 +940,10 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
       </Card>
 
       <Drawer
-        open={Boolean(selectedHash)}
+        open={Boolean(selectedClusterId)}
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedHash(null)
+            setSelectedClusterId(null)
             setDetail(null)
           }
         }}
@@ -799,9 +956,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                 <ShieldAlert className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <DrawerTitle>{riskT.detailTitle || "风险详情"}</DrawerTitle>
+                <DrawerTitle>{riskT.clusterDetail || "集群详情"}</DrawerTitle>
                 <DrawerDescription className="font-mono text-xs break-all">
-                  {selectedHash || "-"}
+                  {selectedClusterId || "-"}
                 </DrawerDescription>
               </div>
             </div>
@@ -822,6 +979,18 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                 <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
                   <Card>
                     <CardHeader className="pb-2">
+                      <CardDescription>{riskT.riskScore || "风险分"}</CardDescription>
+                      <CardTitle className="text-lg">{detail.summary.riskScore}/100</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>{riskT.memberEvents || "成员事件"}</CardDescription>
+                      <CardTitle className="text-lg">{detail.summary.eventCount}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
                       <CardDescription>{riskT.userCount || "用户数"}</CardDescription>
                       <CardTitle className="text-lg">{detail.summary.userCount}</CardTitle>
                     </CardHeader>
@@ -832,6 +1001,9 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                       <CardTitle className="text-lg">{detail.summary.applicationCount}</CardTitle>
                     </CardHeader>
                   </Card>
+                </div>
+
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
                   <Card>
                     <CardHeader className="pb-2">
                       <CardDescription>{riskT.lastSeenAt || "最近出现"}</CardDescription>
@@ -846,11 +1018,19 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                       <CardTitle className="text-lg">{detail.ignoredImpact}</CardTitle>
                     </CardHeader>
                   </Card>
+                  <Card className="col-span-2">
+                    <CardHeader className="pb-2">
+                      <CardDescription>{riskT.compatibilityHash || "兼容哈希"}</CardDescription>
+                      <CardTitle className="break-all font-mono text-sm">
+                        {detail.summary.compatibilityHash}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
                 </div>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">{riskT.relatedUsers || "关联用户"}</CardTitle>
+                    <CardTitle className="text-base">{riskT.keyEvidence || "关键证据"}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4 space-y-2 rounded-md border bg-muted/20 p-3">
@@ -872,6 +1052,14 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                         {detail.summary.riskExplanation || "-"}
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">{riskT.relatedUsers || "关联用户"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     {detail.relatedUsers.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         {riskT.emptyRelatedUsers || "暂无关联用户"}
@@ -1025,7 +1213,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">{riskT.recentEvents || "最近事件"}</CardTitle>
+                    <CardTitle className="text-base">{riskT.memberEvents || "成员事件"}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {detail.recentEvents.length === 0 ? (
@@ -1057,7 +1245,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   <CardHeader>
                     <CardTitle className="text-base">{riskT.similarEvents || "相似事件"}</CardTitle>
                     <CardDescription>
-                      {riskT.similarEventsDesc || "跨绑定键命中的相似指纹证据。"}
+                      {riskT.similarEventsDesc || "集群成员与锚点事件之间的组件相似证据。"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1082,7 +1270,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                               </Badge>
                             </div>
                             <p className="break-all font-mono text-[11px] text-muted-foreground">
-                              {item.fingerprintHash || "-"}
+                              {riskT.compatibilityHash || "兼容哈希"}: {item.fingerprintHash || "-"}
                             </p>
                             <div className="grid gap-2 md:grid-cols-3">
                               <div>
@@ -1120,7 +1308,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">
-                      {riskT.componentDetails || "指纹组件明细"}
+                      {riskT.componentEvidence || "组件证据"}
                     </CardTitle>
                     <CardDescription>
                       {riskT.componentDetailsDesc || "后端保存的完整指纹组件内容。"}
@@ -1129,7 +1317,7 @@ export function AdminRiskControlCenter({ locale, dict, currentRole }: AdminRiskC
                   <CardContent>
                     <ComponentDetails
                       components={detail.componentDetails}
-                      title={riskT.componentDetails || "指纹组件明细"}
+                      title={riskT.componentEvidence || "组件证据"}
                       empty={riskT.emptyComponentDetails || "暂无组件明细"}
                     />
                   </CardContent>

@@ -97,6 +97,7 @@ type PreApplicationRecord = {
     | "ARCHIVED"
     | "PENDING_REVIEW"
     | "ON_HOLD"
+    | "SHADOW_HIDDEN"
   guidance: string | null
   reviewedAt: string | null
   updatedAt: string
@@ -372,9 +373,7 @@ export function PreApplicationForm({
         throw new Error(resolveApiErrorMessage(data, dict) ?? t.submitFailed)
       }
 
-      toast.success(
-        formalFeedbackT.formalApprovalFeedbackSuccess || "反馈已提交，感谢您的支持",
-      )
+      toast.success(formalFeedbackT.formalApprovalFeedbackSuccess || "反馈已提交，感谢您的支持")
       await loadRecord(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.submitFailed)
@@ -417,15 +416,15 @@ export function PreApplicationForm({
         group: qqGroups[0]?.id || "GROUP_ONE",
       })
       toast.success(
-        (((t as Record<string, unknown>).startNewApplicationSuccess as string) || "已开始新一轮申请")
+        ((t as Record<string, unknown>).startNewApplicationSuccess as string) || "已开始新一轮申请",
       )
       await loadRecord(false)
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : (((t as Record<string, unknown>).startNewApplicationFailed as string) ||
-            "开始新申请失败"),
+          : ((t as Record<string, unknown>).startNewApplicationFailed as string) ||
+              "开始新申请失败",
       )
     } finally {
       setStartingNewApplication(false)
@@ -674,6 +673,12 @@ export function PreApplicationForm({
       icon: Clock,
       color: "text-purple-600 dark:text-purple-400",
       bg: "bg-purple-500/10",
+    },
+    SHADOW_HIDDEN: {
+      label: t.status.pending,
+      icon: Clock,
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-500/10",
     },
   }
 
@@ -1157,14 +1162,14 @@ export function PreApplicationForm({
 
     if (canStartNewApplication) {
       toast.error(
-        (((t as Record<string, unknown>).startNewApplicationFirst as string) || "请先开始新一轮申请")
+        ((t as Record<string, unknown>).startNewApplicationFirst as string) || "请先开始新一轮申请",
       )
       return
     }
 
     if (latest?.status === "ARCHIVED" && !reapply.started) {
       toast.error(
-        (((t as Record<string, unknown>).startNewApplicationFirst as string) || "请先开始新一轮申请")
+        ((t as Record<string, unknown>).startNewApplicationFirst as string) || "请先开始新一轮申请",
       )
       return
     }
@@ -1233,9 +1238,7 @@ export function PreApplicationForm({
     !isSubmitBanned &&
     (!latest || latest.status === "PENDING" || canResubmit || canEditDisputed || isNewRoundStarted)
   const showForm =
-    !latest ||
-    isNewRoundStarted ||
-    (latest.status !== "APPROVED" && latest.status !== "ARCHIVED")
+    !latest || isNewRoundStarted || (latest.status !== "APPROVED" && latest.status !== "ARCHIVED")
   const appealStatusContent = renderAppealStatusContent()
 
   return (
@@ -1257,14 +1260,12 @@ export function PreApplicationForm({
       </div>
 
       {canStartNewApplication && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="border-0 shadow-md">
             <CardHeader>
               <CardTitle>
-                {((t as Record<string, unknown>).reapplyReadyTitle as string) || "可以开始新一轮申请"}
+                {((t as Record<string, unknown>).reapplyReadyTitle as string) ||
+                  "可以开始新一轮申请"}
               </CardTitle>
               <CardDescription>
                 {((t as Record<string, unknown>).reapplyReadyDescription as string) ||
@@ -1286,8 +1287,7 @@ export function PreApplicationForm({
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    {((t as Record<string, unknown>).startNewApplication as string) ||
-                      "开始新申请"}
+                    {((t as Record<string, unknown>).startNewApplication as string) || "开始新申请"}
                   </>
                 )}
               </Button>
@@ -1724,8 +1724,7 @@ export function PreApplicationForm({
                             formalFeedbackT.formalApprovalFeedbackConfirmButton ||
                             "我确认我已经通过"
                           ) : (
-                            formalFeedbackT.formalApprovalFeedbackButton ||
-                            "我已经通过L站正式申请"
+                            formalFeedbackT.formalApprovalFeedbackButton || "我已经通过L站正式申请"
                           )}
                         </Button>
                         {formalApprovalFeedbackConfirming && (

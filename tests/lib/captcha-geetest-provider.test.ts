@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { verifyGeeTestPayload } from "../../lib/captcha/providers/geetest.ts"
+import { verifyGeeTestPayload } from "../../lib/captcha/providers/geetest"
 
 const originalFetch = global.fetch
 const originalCaptchaId = process.env.NEXT_PUBLIC_GEETEST_CAPTCHA_ID

@@ -4,7 +4,7 @@ import {
   PreApplicationStatus,
   type Role,
 } from "@prisma/client"
-import { hasCapability } from "../capabilities.ts"
+import { hasCapability } from "../capabilities"
 
 export type PreApplicationAppealPolicyActor = {
   id: string

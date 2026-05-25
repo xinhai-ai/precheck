@@ -5,6 +5,7 @@ import { getFingerprintPepper } from "@/lib/fingerprint/hash"
 import { buildFingerprintBinding } from "@/lib/fingerprint/components"
 import { buildNetworkKey, normalizeBrowserFamily } from "@/lib/fingerprint/metadata"
 import { selectBestFingerprintSimilarity } from "@/lib/fingerprint/similarity"
+import { assignFingerprintRiskCluster } from "@/lib/risk-control/fingerprint-cluster"
 import type {
   FingerprintComponents,
   FingerprintEventType,
@@ -131,7 +132,7 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
       fingerprintId = profile.id
     }
 
-    await input.db.fingerprintEvent.create({
+    const createdEvent = await input.db.fingerprintEvent.create({
       data: {
         fingerprintId,
         fingerprintHash: normalized.fingerprintHash,
@@ -156,6 +157,7 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
             ? (bestSimilarity.signals as unknown as Prisma.InputJsonValue)
             : undefined,
       },
+      select: { id: true },
     })
 
     if (input.userId && normalized.fingerprintHash) {
@@ -184,6 +186,11 @@ export async function recordFingerprintEvent(input: RecordFingerprintEventInput)
             },
       })
     }
+
+    await assignFingerprintRiskCluster({
+      db: input.db,
+      eventId: createdEvent.id,
+    })
 
     return normalized
   } catch (error) {

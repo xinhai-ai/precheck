@@ -417,6 +417,25 @@ const latestAuthPaths = {
 } as const
 
 const latestAdminPaths = {
+  "/admin/clear-user-sessions": {
+    post: {
+      tags: ["Admin"],
+      summary: "清理普通用户会话",
+      responses: {
+        "200": jsonResponse("清理结果", {
+          type: "object",
+          properties: {
+            success: { type: "boolean" },
+            deletedCount: { type: "integer" },
+          },
+        }),
+        "401": apiErrorResponse("未认证"),
+        "403": apiErrorResponse("无权限"),
+        "500": apiErrorResponse("清理失败"),
+        "503": apiErrorResponse("数据库未配置"),
+      },
+    },
+  },
   "/admin/analytics": {
     get: {
       tags: ["Admin"],
@@ -1170,6 +1189,18 @@ const latestDashboardPaths = {
         "401": apiErrorResponse("未认证"),
         "500": apiErrorResponse("删除失败"),
         "503": apiErrorResponse("数据库未配置"),
+      },
+    },
+  },
+  "/dashboard/online": {
+    get: {
+      tags: ["Dashboard"],
+      summary: "记录并获取控制台在线摘要",
+      responses: {
+        "200": jsonResponse("在线摘要", { $ref: "#/components/schemas/LooseObject" }),
+        "401": apiErrorResponse("未认证"),
+        "500": apiErrorResponse("获取失败"),
+        "503": apiErrorResponse("在线统计不可用"),
       },
     },
   },
@@ -2874,6 +2905,166 @@ export const openApiSpec = {
             },
           },
           "404": { description: "未找到" },
+        },
+      },
+    },
+    "/admin/risk-control/fingerprint-clusters": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取完整指纹风险集群",
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          {
+            name: "riskLevel",
+            in: "query",
+            schema: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+          },
+          {
+            name: "sortBy",
+            in: "query",
+            schema: {
+              type: "string",
+              enum: ["riskScore", "userCount", "applicationCount", "lastSeenAt"],
+            },
+          },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"] } },
+        ],
+        responses: {
+          "200": jsonResponse("指纹风险集群列表", {
+            type: "object",
+            properties: {
+              items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    clusterId: { type: "string" },
+                    riskLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+                    riskScore: { type: "integer" },
+                    userCount: { type: "integer" },
+                    applicationCount: { type: "integer" },
+                    eventCount: { type: "integer" },
+                    maxSimilarity: { type: "integer", nullable: true },
+                    evidenceFlags: {
+                      type: "array",
+                      items: {
+                        type: "string",
+                        enum: [
+                          "recentConcentration",
+                          "networkOverlap",
+                          "crossEventContinuity",
+                          "componentSimilarity",
+                          "strongComponentMatch",
+                          "hashExactMatch",
+                          "safariLowConfidence",
+                        ],
+                      },
+                    },
+                    summary: { type: "object", nullable: true },
+                    firstSeenAt: { type: "string", format: "date-time" },
+                    lastSeenAt: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+              total: { type: "integer" },
+              page: { type: "integer" },
+              limit: { type: "integer" },
+              stats: {
+                type: "object",
+                properties: {
+                  high: { type: "integer" },
+                  medium: { type: "integer" },
+                  ignoredUsers: { type: "integer" },
+                },
+              },
+            },
+          }),
+          "401": apiErrorResponse("未认证"),
+          "403": apiErrorResponse("无权限"),
+          "500": apiErrorResponse("获取失败"),
+          "503": apiErrorResponse("数据库未配置"),
+        },
+      },
+    },
+    "/admin/risk-control/fingerprint-clusters/{clusterId}": {
+      get: {
+        tags: ["Admin"],
+        summary: "获取完整指纹风险集群详情",
+        parameters: [pathParameter("clusterId", "指纹风险集群 ID")],
+        responses: {
+          "200": jsonResponse("指纹风险集群详情", {
+            type: "object",
+            properties: {
+              summary: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  clusterId: { type: "string" },
+                  riskLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+                  riskScore: { type: "integer" },
+                  userCount: { type: "integer" },
+                  applicationCount: { type: "integer" },
+                  eventCount: { type: "integer" },
+                  maxSimilarity: { type: "integer", nullable: true },
+                  evidenceFlags: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
+                  summary: { type: "object", nullable: true },
+                  firstSeenAt: { type: "string", format: "date-time" },
+                  lastSeenAt: { type: "string", format: "date-time" },
+                },
+              },
+              relatedUsers: {
+                type: "array",
+                items: { $ref: "#/components/schemas/LooseObject" },
+              },
+              relatedApplications: {
+                type: "array",
+                items: { $ref: "#/components/schemas/LooseObject" },
+              },
+              members: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    eventId: { type: "string" },
+                    similarityScore: { type: "integer" },
+                    matchedKeys: { type: "array", items: { type: "string" } },
+                    differentKeys: { type: "array", items: { type: "string" } },
+                    strongKeys: { type: "array", items: { type: "string" } },
+                    eventType: { type: "string" },
+                    createdAt: { type: "string", format: "date-time" },
+                    ip: { type: "string", nullable: true },
+                    browserFamily: { type: "string", nullable: true },
+                    networkKey: { type: "string", nullable: true },
+                    fingerprintHash: { type: "string", nullable: true },
+                    fingerprintSummary: { type: "object", nullable: true },
+                  },
+                },
+              },
+              componentEvidence: {
+                type: "object",
+                properties: {
+                  anchor: { type: "object", nullable: true },
+                  samples: {
+                    type: "array",
+                    items: { type: "object" },
+                  },
+                },
+              },
+              ignoredImpact: { type: "integer" },
+            },
+          }),
+          "401": apiErrorResponse("未认证"),
+          "403": apiErrorResponse("无权限"),
+          "404": apiErrorResponse("未找到"),
+          "500": apiErrorResponse("获取失败"),
+          "503": apiErrorResponse("数据库未配置"),
         },
       },
     },
