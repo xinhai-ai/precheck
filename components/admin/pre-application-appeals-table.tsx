@@ -47,6 +47,18 @@ type AppealSource = "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
 type AppealFilter = "ALL" | AppealStatus
 type ReviewAction = "REJECT" | "APPROVE"
 type DialogMode = ReviewAction | "VIEW"
+type AppealReviewPolicyReason =
+  | "MISSING_CAPABILITY"
+  | "ARCHIVED_PRE_APPLICATION"
+  | "APPEAL_ALREADY_REVIEWED"
+  | "TARGET_NOT_REJECTED"
+  | "ORIGINAL_REVIEWER"
+  | "REVIEW_REQUEST_INITIATOR"
+
+type AppealReviewPolicy = {
+  allowed: boolean
+  reason: AppealReviewPolicyReason | null
+}
 
 type AppealRejectionSnapshot = {
   essay: string
@@ -73,6 +85,7 @@ type AppealRecord = {
   createdAt: string
   updatedAt: string
   rejectionSnapshot: AppealRejectionSnapshot | null
+  reviewPolicy: AppealReviewPolicy
   user: {
     id: string
     name: string | null
@@ -249,6 +262,19 @@ export function AdminPreApplicationAppealsTable({
     [pageT.fields],
   )
 
+  const getPolicyReasonLabel = useCallback(
+    (reason: AppealReviewPolicyReason | null) => {
+      if (!reason) return ""
+
+      const policyReasons =
+        ((pageT as unknown as { policyReasons?: Record<AppealReviewPolicyReason, string> })
+          .policyReasons as Record<AppealReviewPolicyReason, string> | undefined) ?? {}
+
+      return policyReasons[reason] || reason
+    },
+    [pageT],
+  )
+
   const fetchAppeals = useCallback(async () => {
     setLoading(true)
 
@@ -321,6 +347,11 @@ export function AdminPreApplicationAppealsTable({
   }
 
   const openReviewDialog = (appeal: AppealRecord, mode: DialogMode) => {
+    if (mode !== "VIEW" && !appeal.reviewPolicy.allowed) {
+      toast.error(getPolicyReasonLabel(appeal.reviewPolicy.reason))
+      return
+    }
+
     setReviewDialog({ appeal, mode })
     setReviewComment("")
     setGuidance(mode === "APPROVE" ? (appeal.reviewComment ?? "") : "")
@@ -382,6 +413,11 @@ export function AdminPreApplicationAppealsTable({
 
   const submitReview = async () => {
     if (!reviewDialog || reviewDialog.mode === "VIEW") return
+
+    if (!reviewDialog.appeal.reviewPolicy.allowed) {
+      toast.error(getPolicyReasonLabel(reviewDialog.appeal.reviewPolicy.reason))
+      return
+    }
 
     const nextComment = reviewComment.trim()
     const nextGuidance = guidance.trim()
@@ -611,13 +647,17 @@ export function AdminPreApplicationAppealsTable({
             )
           }
 
+          const denyReason = getPolicyReasonLabel(item.reviewPolicy.reason)
+          const disableReview = isReviewing || !item.reviewPolicy.allowed
+
           return (
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={isReviewing}
+                disabled={disableReview}
+                title={denyReason}
                 onClick={() => openReviewDialog(item, "REJECT")}
               >
                 <XCircle className="h-4 w-4" />
@@ -626,18 +666,24 @@ export function AdminPreApplicationAppealsTable({
               <Button
                 type="button"
                 size="sm"
-                disabled={isReviewing}
+                disabled={disableReview}
+                title={denyReason}
                 onClick={() => openReviewDialog(item, "APPROVE")}
               >
                 <ShieldCheck className="h-4 w-4" />
                 {pageT.actions.override}
               </Button>
+              {!item.reviewPolicy.allowed && denyReason ? (
+                <div className="max-w-44 text-right text-xs text-muted-foreground">
+                  {denyReason}
+                </div>
+              ) : null}
             </div>
           )
         },
       },
     ]
-  }, [getSourceLabel, getStatusLabel, locale, pageT, reviewingId])
+  }, [getPolicyReasonLabel, getSourceLabel, getStatusLabel, locale, pageT, reviewingId])
 
   const reviewDialogText = reviewDialog
     ? reviewDialog.mode === "REJECT"
@@ -773,75 +819,91 @@ export function AdminPreApplicationAppealsTable({
             summaryFormatter={({ total: totalCount, page: currentPage, totalPages }) =>
               `${totalCount.toLocaleString()} · ${currentPage}/${Math.max(totalPages, 1)}`
             }
-            mobileCardRender={(item) => (
-              <div className="rounded-xl border bg-card p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-medium">{item.user.name || pageT.states.unknownUser}</div>
-                    <div className="text-sm text-muted-foreground">{item.user.email}</div>
-                  </div>
-                  <Badge
-                    variant={
-                      item.status === "REJECTED"
-                        ? "destructive"
-                        : item.status === "OVERRIDDEN"
-                          ? "default"
-                          : "secondary"
-                    }
-                  >
-                    {getStatusLabel(item.status)}
-                  </Badge>
-                </div>
+            mobileCardRender={(item) => {
+              const denyReason = getPolicyReasonLabel(item.reviewPolicy.reason)
+              const disableReview = !item.reviewPolicy.allowed
 
-                <div className="mt-3 space-y-2 text-sm">
-                  <p className="whitespace-pre-wrap break-words">
-                    {truncateText(item.reason, 220)}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {pageT.fields.registerEmail}: {item.preApplication.registerEmail}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {pageT.columns.submittedAt}:{" "}
-                    {formatDateTime(item.createdAt, locale, pageT.states.notReviewed)}
-                  </p>
-                </div>
+              return (
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">
+                        {item.user.name || pageT.states.unknownUser}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{item.user.email}</div>
+                    </div>
+                    <Badge
+                      variant={
+                        item.status === "REJECTED"
+                          ? "destructive"
+                          : item.status === "OVERRIDDEN"
+                            ? "default"
+                            : "secondary"
+                      }
+                    >
+                      {getStatusLabel(item.status)}
+                    </Badge>
+                  </div>
 
-                {item.status === "PENDING" ? (
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => openReviewDialog(item, "REJECT")}
-                    >
-                      {pageT.actions.reject}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => openReviewDialog(item, "APPROVE")}
-                    >
-                      {pageT.actions.override}
-                    </Button>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <p className="whitespace-pre-wrap break-words">
+                      {truncateText(item.reason, 220)}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {pageT.fields.registerEmail}: {item.preApplication.registerEmail}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {pageT.columns.submittedAt}:{" "}
+                      {formatDateTime(item.createdAt, locale, pageT.states.notReviewed)}
+                    </p>
                   </div>
-                ) : (
-                  <div className="mt-4">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => openReviewDialog(item, "VIEW")}
-                    >
-                      <Eye className="h-4 w-4" />
-                      {pageT.actions.view}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
+
+                  {item.status === "PENDING" ? (
+                    <div className="mt-4">
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          disabled={disableReview}
+                          title={denyReason}
+                          onClick={() => openReviewDialog(item, "REJECT")}
+                        >
+                          {pageT.actions.reject}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1"
+                          disabled={disableReview}
+                          title={denyReason}
+                          onClick={() => openReviewDialog(item, "APPROVE")}
+                        >
+                          {pageT.actions.override}
+                        </Button>
+                      </div>
+                      {disableReview && denyReason ? (
+                        <p className="mt-2 text-xs text-muted-foreground">{denyReason}</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => openReviewDialog(item, "VIEW")}
+                      >
+                        <Eye className="h-4 w-4" />
+                        {pageT.actions.view}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            }}
           />
         </CardContent>
       </Card>
