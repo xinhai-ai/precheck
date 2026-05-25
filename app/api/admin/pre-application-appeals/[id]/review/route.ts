@@ -3,7 +3,6 @@ import { PreApplicationAppealStatus, PreApplicationStatus } from "@prisma/client
 import { z } from "zod"
 import { writeAuditLog } from "@/lib/audit"
 import { getCurrentUserFromRequest } from "@/lib/auth/session"
-import { isSuperAdmin } from "@/lib/auth/permissions"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import { db } from "@/lib/db"
@@ -15,10 +14,15 @@ import { defaultLocale, locales, type Locale } from "@/lib/i18n/config"
 import { getSiteSettings } from "@/lib/site-settings"
 import {
   getAppealRejectSubmitBanUntil,
+  getAppealRejectionSnapshot,
   PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS,
 } from "@/lib/pre-application/appeal-utils"
 import { normalizeSubmitBanDays } from "@/lib/pre-application/submit-ban-utils"
 import { buildLockRejectedPreApplicationQuery } from "@/lib/pre-application/appeal-review-query"
+import {
+  getPreApplicationAppealReviewDeniedStatus,
+  getPreApplicationAppealReviewPolicy,
+} from "@/lib/auth/policies/pre-application-appeal"
 
 const reviewSchema = z.object({
   action: z.string().trim(),
@@ -109,10 +113,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return createApiErrorResponse(request, ApiErrorKeys.notAuthenticated, { status: 401 })
     }
 
-    if (!isSuperAdmin(user.role)) {
-      return createApiErrorResponse(request, ApiErrorKeys.general.forbidden, { status: 403 })
-    }
-
     if (!db) {
       return createApiErrorResponse(request, ApiErrorKeys.databaseNotConfigured, { status: 503 })
     }
@@ -181,6 +181,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         preApplicationId: true,
         userId: true,
         status: true,
+        source: true,
+        initiatedById: true,
         reason: true,
         reviewComment: true,
         submitBanApplied: true,
@@ -204,6 +206,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             guidance: true,
             reviewedAt: true,
             reviewedById: true,
+            reviewedBy: { select: userSelect },
             version: true,
             essay: true,
             source: true,
@@ -212,6 +215,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             group: true,
             createdAt: true,
             updatedAt: true,
+            versions: {
+              orderBy: { createdAt: "desc" },
+              select: {
+                status: true,
+                essay: true,
+                guidance: true,
+                reviewedAt: true,
+                createdAt: true,
+                reviewedBy: {
+                  select: userSelect,
+                },
+              },
+            },
           },
         },
       },
@@ -222,6 +238,53 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         status: 404,
       })
     }
+
+    const rejectionSnapshot = getAppealRejectionSnapshot({
+      appealCreatedAt: appeal.createdAt,
+      preApplication: {
+        status: appeal.preApplication.status,
+        essay: appeal.preApplication.essay,
+        guidance: appeal.preApplication.guidance,
+        reviewedAt: appeal.preApplication.reviewedAt,
+        reviewedBy: appeal.preApplication.reviewedBy,
+      },
+      versions: appeal.preApplication.versions,
+    })
+    const reviewPolicy = getPreApplicationAppealReviewPolicy({
+      actor: user,
+      appeal: {
+        status: appeal.status,
+        source: appeal.source,
+        initiatedById: appeal.initiatedById,
+        preApplication: { status: appeal.preApplication.status },
+        rejectionReviewedById:
+          rejectionSnapshot?.reviewedBy?.id ??
+          appeal.preApplication.reviewedBy?.id ??
+          appeal.preApplication.reviewedById,
+      },
+    })
+
+    if (!reviewPolicy.allowed) {
+      const errorKey =
+        reviewPolicy.reason === "ORIGINAL_REVIEWER"
+          ? ApiErrorKeys.admin.preApplicationAppeals.originalReviewer
+          : reviewPolicy.reason === "REVIEW_REQUEST_INITIATOR"
+            ? ApiErrorKeys.admin.preApplicationAppeals.reviewRequestInitiator
+            : reviewPolicy.reason === "ARCHIVED_PRE_APPLICATION"
+              ? ApiErrorKeys.admin.preApplicationAppeals.archivedPreApplication
+              : reviewPolicy.reason === "APPEAL_ALREADY_REVIEWED"
+                ? ApiErrorKeys.admin.preApplicationAppeals.alreadyReviewed
+                : reviewPolicy.reason === "TARGET_NOT_REJECTED"
+                  ? ApiErrorKeys.admin.preApplicationAppeals.targetChanged
+                  : ApiErrorKeys.general.forbidden
+
+      return createApiErrorResponse(request, errorKey, {
+        status: getPreApplicationAppealReviewDeniedStatus(reviewPolicy.reason),
+      })
+    }
+
+    const { versions: _versions, reviewedBy: _reviewedBy, ...preApplicationBefore } =
+      appeal.preApplication
 
     const now = new Date()
 
@@ -512,12 +575,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
       await writeAuditLog(tx, {
         action: "PRE_APPLICATION_REOPEN_FROM_APPEAL",
-        entityType: "PRE_APPLICATION",
-        entityId: appeal.preApplicationId,
-        actor: user,
-        before: appeal.preApplication,
-        after: updatedPreApplication,
-        metadata: {
+          entityType: "PRE_APPLICATION",
+          entityId: appeal.preApplicationId,
+          actor: user,
+          before: preApplicationBefore,
+          after: updatedPreApplication,
+          metadata: {
           appealId: appeal.id,
           reviewComment: rawGuidance,
           guidance: guidanceWithCode,
