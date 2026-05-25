@@ -50,6 +50,50 @@ test("statistics overview service omits the metric dictionary payload", () => {
   assert.doesNotMatch(statisticsService, /MetricDefinition/)
 })
 
+test("statistics overview exposes the eight whole-site modules", () => {
+  const statisticsService = readWorkspaceFile("lib/statistics/admin-statistics.ts")
+  const overviewPage = readWorkspaceFile("app/[locale]/admin/statistics/page.tsx")
+
+  assert.match(statisticsService, /modules: StatisticModule\[\]/)
+  for (const moduleKey of [
+    "overview",
+    "source",
+    "conversion",
+    "retention",
+    "behavior",
+    "review",
+    "security",
+    "system",
+  ]) {
+    assert.match(statisticsService, new RegExp(`key: "${moduleKey}"`))
+  }
+  assert.match(overviewPage, /StatisticsModuleGrid/)
+  assert.match(overviewPage, /ModulePanel/)
+  assert.match(overviewPage, /funnel/)
+  assert.match(overviewPage, /retention/)
+})
+
+test("account statistics page exposes the complete account portrait sections", () => {
+  const statisticsService = readWorkspaceFile("lib/statistics/admin-statistics.ts")
+  const accountPage = readWorkspaceFile("app/[locale]/admin/statistics/accounts/[id]/page.tsx")
+
+  for (const fieldName of [
+    "basicInfo",
+    "sourceProfile",
+    "lifecycleTimeline",
+    "reviewLinks",
+    "relatedAccounts",
+    "managementRecords",
+  ]) {
+    assert.match(statisticsService, new RegExp(fieldName))
+  }
+  assert.match(accountPage, /AccountProfileSection/)
+  assert.match(accountPage, /生命周期时间轴/)
+  assert.match(accountPage, /审核关联/)
+  assert.match(accountPage, /关联账号/)
+  assert.match(accountPage, /管理记录/)
+})
+
 test("admin sidebar exposes statistics center for admins", () => {
   const sidebar = readWorkspaceFile("components/admin/sidebar.tsx")
 

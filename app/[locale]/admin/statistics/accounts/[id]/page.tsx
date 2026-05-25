@@ -12,7 +12,7 @@ interface AccountStatisticsPageProps {
   params: Promise<{ locale: Locale; id: string }>
 }
 
-function StatCardList({ title, items }: { title: string; items: Array<{ label: string; value: number | string; helper?: string }> }) {
+function AccountProfileSection({ title, items }: { title: string; items: Array<{ label: string; value: number | string; helper?: string }> }) {
   return (
     <Card>
       <CardHeader>
@@ -26,6 +26,116 @@ function StatCardList({ title, items }: { title: string; items: Array<{ label: s
             {item.helper && <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>}
           </div>
         ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function TimelineSection({
+  title,
+  items,
+  locale,
+}: {
+  title: string
+  items: Array<{ label: string; at: string; status: string; helper?: string }>
+  locale: Locale
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {items.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">暂无记录</div>
+        ) : (
+          items.map((item) => (
+            <div key={`${item.label}-${item.at}`} className="relative border-l border-primary/30 pl-5">
+              <span className="absolute -left-1.5 top-1 h-3 w-3 rounded-full bg-primary" />
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="font-medium">{item.label}</div>
+                <Badge variant="outline">{item.status}</Badge>
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">{new Date(item.at).toLocaleString(locale)}</div>
+              {item.helper && <div className="mt-1 text-sm text-muted-foreground">{item.helper}</div>}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function RecordList({
+  title,
+  items,
+  locale,
+}: {
+  title: string
+  items: Array<{ label: string; value: string; helper?: string; at?: string; badge?: string }>
+  locale: Locale
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">暂无记录</div>
+        ) : (
+          items.map((item) => (
+            <div key={`${item.label}-${item.value}-${item.at || ""}`} className="rounded-xl border p-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="font-medium">{item.label}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">{item.value}</div>
+                </div>
+                {item.badge && <Badge variant="outline">{item.badge}</Badge>}
+              </div>
+              <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                {item.helper && <span>{item.helper}</span>}
+                {item.at && <span>{new Date(item.at).toLocaleString(locale)}</span>}
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function RelatedAccountsSection({
+  title,
+  items,
+  locale,
+}: {
+  title: string
+  items: Array<{ id: string; email: string; status: string; reason: string; lastSeenAt?: string }>
+  locale: Locale
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">暂无关联账号</div>
+        ) : (
+          items.map((item) => (
+            <div key={item.id} className="rounded-xl border p-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="font-medium">{item.email}</div>
+                <Badge variant="outline">{item.status}</Badge>
+              </div>
+              <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                <span>{item.reason}</span>
+                {item.lastSeenAt && <span>{new Date(item.lastSeenAt).toLocaleString(locale)}</span>}
+              </div>
+            </div>
+          ))
+        )}
       </CardContent>
     </Card>
   )
@@ -75,39 +185,46 @@ export default async function AccountStatisticsPage({ params }: AccountStatistic
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <StatCardList title="来源归因" items={account.sourceAttribution} />
-        <StatCardList title="生命周期" items={account.lifecycle} />
-        <StatCardList title="行为摘要" items={account.behavior} />
-        <StatCardList title="安全摘要" items={account.security} />
+        <AccountProfileSection title="基础信息" items={account.basicInfo} />
+        <AccountProfileSection title="来源画像" items={account.sourceProfile} />
+        <AccountProfileSection title="生命周期" items={account.lifecycle} />
+        <AccountProfileSection title="行为摘要" items={account.behavior} />
+        <AccountProfileSection title="安全摘要" items={account.security} />
+        <TimelineSection title="生命周期时间轴" items={account.lifecycleTimeline} locale={locale} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Fingerprint className="h-5 w-5 text-primary" />
-            脱敏审计记录
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {account.auditTrail.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">暂无审计记录</div>
-          ) : (
-            account.auditTrail.map((log) => (
-              <div key={`${log.action}-${log.createdAt}`} className="rounded-xl border p-4">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                  <div className="font-medium">{log.action}</div>
-                  <Badge variant="outline">{log.entityType}</Badge>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <RecordList title="审核关联" items={account.reviewLinks} locale={locale} />
+        <RelatedAccountsSection title="关联账号" items={account.relatedAccounts} locale={locale} />
+        <RecordList title="管理记录" items={account.managementRecords} locale={locale} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Fingerprint className="h-5 w-5 text-primary" />
+              脱敏审计记录
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {account.auditTrail.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">暂无审计记录</div>
+            ) : (
+              account.auditTrail.map((log) => (
+                <div key={`${log.action}-${log.createdAt}`} className="rounded-xl border p-4">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div className="font-medium">{log.action}</div>
+                    <Badge variant="outline">{log.entityType}</Badge>
+                  </div>
+                  <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
+                    <span>{new Date(log.createdAt).toLocaleString(locale)}</span>
+                    <span>{log.ip || "IP 未记录"}</span>
+                    <span className="truncate">{log.userAgent || "UA 未记录"}</span>
+                  </div>
                 </div>
-                <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-                  <span>{new Date(log.createdAt).toLocaleString(locale)}</span>
-                  <span>{log.ip || "IP 未记录"}</span>
-                  <span className="truncate">{log.userAgent || "UA 未记录"}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="border-primary/20">
         <CardContent className="flex items-center gap-3 p-5 text-sm text-muted-foreground">

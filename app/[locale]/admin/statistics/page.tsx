@@ -12,6 +12,7 @@ import {
   getAdminStatisticsOverview,
   type StatisticCard,
   type StatisticDistribution,
+  type StatisticModule,
 } from "@/lib/statistics/admin-statistics"
 
 interface AdminStatisticsPageProps {
@@ -20,28 +21,6 @@ interface AdminStatisticsPageProps {
 
 function formatValue(value: number | string) {
   return typeof value === "number" ? value.toLocaleString() : value
-}
-
-function MetricCards({ title, items }: { title: string; items: Array<{ label: string; value: number | string; helper?: string }> }) {
-  return (
-    <Card className="overflow-hidden border-primary/10 bg-gradient-to-br from-card to-primary/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-xl border border-border/70 bg-background/80 p-4">
-            <div className="text-sm text-muted-foreground">{item.label}</div>
-            <div className="mt-2 text-2xl font-semibold tracking-tight">{formatValue(item.value)}</div>
-            {item.helper && <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>}
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  )
 }
 
 type UnifiedChartTone = {
@@ -110,6 +89,73 @@ const chartTones: UnifiedChartTone[] = [
 function toChartRows(group: string, items: StatisticDistribution[], toneIndex: number): UnifiedStatisticsChartRow[] {
   const tone = chartTones[toneIndex % chartTones.length]
   return items.map((item) => ({ ...item, group, tone }))
+}
+
+function ModulePanel({ module, tone }: { module: StatisticModule; tone: UnifiedChartTone }) {
+  const maxValue = Math.max(1, ...module.rows.map((row) => row.value))
+  const isFunnel = module.chart === "funnel"
+  const isRetention = module.chart === "retention"
+
+  return (
+    <Card className={`overflow-hidden border-primary/10 bg-gradient-to-br ${tone.surface}`}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Badge variant="secondary" className={tone.badge}>
+              {module.title}
+            </Badge>
+            <CardTitle className="mt-3 text-lg">{module.title}</CardTitle>
+            <p className="mt-2 text-sm text-muted-foreground">{module.description}</p>
+          </div>
+          <div className={`mt-1 h-3 w-3 rounded-full ${tone.dot}`} />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {module.cards.slice(0, 4).map((item) => (
+            <div key={item.label} className="rounded-2xl border bg-background/75 p-4">
+              <div className="text-xs text-muted-foreground">{item.label}</div>
+              <div className="mt-2 break-words text-2xl font-semibold">{formatValue(item.value)}</div>
+              {item.helper && <div className="mt-1 text-xs text-muted-foreground">{item.helper}</div>}
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          {module.rows.slice(0, 8).map((row, index) => {
+            const width = isFunnel || isRetention ? Math.max(row.percentage, row.value > 0 ? 4 : 0) : Math.max((row.value / maxValue) * 100, row.value > 0 ? 4 : 0)
+
+            return (
+              <div key={`${module.key}-${row.label}`} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate font-medium">{isFunnel ? `${index + 1}. ${row.label}` : row.label}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {row.value.toLocaleString()} · {row.percentage}%
+                  </span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-background/80 shadow-inner">
+                  <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${width}%` }} />
+                </div>
+              </div>
+            )
+          })}
+          {module.rows.length === 0 && (
+            <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">暂无数据</div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function StatisticsModuleGrid({ modules }: { modules: StatisticModule[] }) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-2">
+      {modules.map((module, index) => (
+        <ModulePanel key={module.key} module={module} tone={chartTones[index % chartTones.length]} />
+      ))}
+    </div>
+  )
 }
 
 function UnifiedStatisticsChart({
@@ -274,12 +320,7 @@ export default async function AdminStatisticsPage({ params }: AdminStatisticsPag
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <MetricCards title="全站运营" items={statistics.kpis.operations} />
-        <MetricCards title="转化与留存" items={statistics.kpis.conversion} />
-        <MetricCards title="审核效率" items={statistics.kpis.review} />
-        <MetricCards title="安全与系统健康" items={[...statistics.kpis.security, ...statistics.kpis.systemHealth]} />
-      </div>
+      <StatisticsModuleGrid modules={statistics.modules} />
 
       <Card>
         <CardHeader>
