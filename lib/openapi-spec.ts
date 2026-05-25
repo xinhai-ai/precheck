@@ -1766,6 +1766,7 @@ const latestPublicPaths = {
               type: "object",
               properties: {
                 fingerprintVisitorId: { type: "string", nullable: true },
+                fingerprintComponents: { type: "object", nullable: true },
                 fingerprintStatus: { type: "string", nullable: true },
                 fingerprintFailureReason: { type: "string", nullable: true },
               },
@@ -2769,6 +2770,9 @@ export const openApiSpec = {
                           applicationCount: { type: "integer" },
                           lastSeenAt: { type: "string", format: "date-time" },
                           riskLevel: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] },
+                          fingerprintSummary: { type: "object", nullable: true },
+                          maxSimilarityScore: { type: "number", nullable: true },
+                          similarEventCount: { type: "integer" },
                           browserConfidence: {
                             type: "string",
                             enum: ["HIGH_CONFIDENCE", "LOW_CONFIDENCE"],
@@ -2844,6 +2848,23 @@ export const openApiSpec = {
                         properties: {
                           browserFamily: { type: "string", nullable: true },
                           networkKey: { type: "string", nullable: true },
+                          fingerprintSummary: { type: "object", nullable: true },
+                          fingerprintComponents: { type: "object", nullable: true },
+                          similarityScore: { type: "number", nullable: true },
+                          similaritySignals: { type: "object", nullable: true },
+                        },
+                      },
+                    },
+                    componentDetails: { type: "object", nullable: true },
+                    similarEvents: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          fingerprintHash: { type: "string", nullable: true },
+                          fingerprintComponents: { type: "object", nullable: true },
+                          similarityScore: { type: "number", nullable: true },
+                          similaritySignals: { type: "object", nullable: true },
                         },
                       },
                     },

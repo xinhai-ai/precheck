@@ -80,7 +80,7 @@ npx prisma studio
 - 登录后控制台预申请提交会记录浏览器指纹。
 - 管理端预申请详情抽屉可查看指纹信息及同指纹关联用户/申请。
 - 管理端预申请与用户页支持按指纹哈希检索，导出 CSV 带出指纹字段。
-- 数据库存储的是哈希值，不保存原始 visitor ID。
+- 浏览器端提交指纹组件集合，后端生成绑定键并保存管理员可见的组件明细。
 - 环境开关：`FEATURE_FINGERPRINT`、`NEXT_PUBLIC_FEATURE_FINGERPRINT`、`FINGERPRINT_PEPPER`。
 
 ## 后台功能概览
