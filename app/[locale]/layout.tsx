@@ -134,6 +134,12 @@ export default async function LocaleLayout({
       {analyticsEnabled && (
         <>
           <Script
+            id="umami-analytics"
+            defer
+            src="https://umami.anglergap.org/script.js"
+            data-website-id="9c8968bf-63bd-4a3c-9fe1-cae957f1d22a"
+          />
+          <Script
             id="LA_COLLECT"
             strategy="afterInteractive"
             src="//sdk.51.la/js-sdk-pro.min.js?id=L501OCykxVLJmw8n&ck=L501OCykxVLJmw8n&autoTrack=true&hashMode=true&screenRecord=true"
