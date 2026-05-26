@@ -21,6 +21,7 @@ const settingsSchema = z
     maintenanceMode: z.boolean(),
     userTicketsEnabled: z.boolean(),
     analyticsEnabled: z.boolean(),
+    umamiAnalyticsEnabled: z.boolean(),
     linuxdoAutoAdmin: z.boolean(),
   })
   .partial()

@@ -643,6 +643,7 @@ model SiteSettings {
   inviteCodeCheckApiUrl                        String?
   inviteCodeCheckApiKey                        String? // API Key 值
   analyticsEnabled                             Boolean  @default(true)
+  umamiAnalyticsEnabled                        Boolean  @default(true)
   linuxdoAutoAdmin                             Boolean  @default(false)
   newUserAnnouncementEnabled                   Boolean  @default(false)
   newUserAnnouncementContent                   String   @default("")

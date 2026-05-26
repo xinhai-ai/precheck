@@ -16,6 +16,7 @@ export type SiteSettings = {
   userTicketsEnabled: boolean
   inviteCodeUrlPrefix: string
   analyticsEnabled: boolean
+  umamiAnalyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
   newUserAnnouncementEnabled: boolean
   newUserAnnouncementContent: string
@@ -39,6 +40,7 @@ type SiteSettingsRecord = {
   userTicketsEnabled: boolean
   inviteCodeUrlPrefix: string | null
   analyticsEnabled: boolean
+  umamiAnalyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
   newUserAnnouncementEnabled: boolean
   newUserAnnouncementContent: string
@@ -62,6 +64,7 @@ const defaultSettings: SiteSettings = {
   userTicketsEnabled: true,
   inviteCodeUrlPrefix: "",
   analyticsEnabled: true,
+  umamiAnalyticsEnabled: true,
   linuxdoAutoAdmin: false,
   newUserAnnouncementEnabled: false,
   newUserAnnouncementContent: "",
@@ -92,6 +95,7 @@ function toSiteSettings(record: SiteSettingsRecord): SiteSettings {
     userTicketsEnabled: record.userTicketsEnabled,
     inviteCodeUrlPrefix: record.inviteCodeUrlPrefix ?? "",
     analyticsEnabled: record.analyticsEnabled,
+    umamiAnalyticsEnabled: record.umamiAnalyticsEnabled,
     linuxdoAutoAdmin: record.linuxdoAutoAdmin,
     newUserAnnouncementEnabled: record.newUserAnnouncementEnabled,
     newUserAnnouncementContent: record.newUserAnnouncementContent ?? "",
@@ -123,6 +127,7 @@ function parseCachedSiteSettings(raw: string): SiteSettings | null {
       typeof parsed.userTicketsEnabled !== "boolean" ||
       typeof parsed.inviteCodeUrlPrefix !== "string" ||
       typeof parsed.analyticsEnabled !== "boolean" ||
+      typeof parsed.umamiAnalyticsEnabled !== "boolean" ||
       typeof parsed.linuxdoAutoAdmin !== "boolean" ||
       typeof parsed.newUserAnnouncementEnabled !== "boolean" ||
       typeof parsed.newUserAnnouncementContent !== "string" ||
@@ -207,6 +212,7 @@ async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
       userTicketsEnabled: true,
       inviteCodeUrlPrefix: true,
       analyticsEnabled: true,
+      umamiAnalyticsEnabled: true,
       linuxdoAutoAdmin: true,
       newUserAnnouncementEnabled: true,
       newUserAnnouncementContent: true,
@@ -274,6 +280,7 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
     userTicketsEnabled: updates.userTicketsEnabled ?? current.userTicketsEnabled,
     inviteCodeUrlPrefix: updates.inviteCodeUrlPrefix ?? current.inviteCodeUrlPrefix,
     analyticsEnabled: updates.analyticsEnabled ?? current.analyticsEnabled,
+    umamiAnalyticsEnabled: updates.umamiAnalyticsEnabled ?? current.umamiAnalyticsEnabled,
     linuxdoAutoAdmin: updates.linuxdoAutoAdmin ?? current.linuxdoAutoAdmin,
     newUserAnnouncementEnabled:
       updates.newUserAnnouncementEnabled ?? current.newUserAnnouncementEnabled,
@@ -310,6 +317,7 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
       userTicketsEnabled: true,
       inviteCodeUrlPrefix: true,
       analyticsEnabled: true,
+      umamiAnalyticsEnabled: true,
       linuxdoAutoAdmin: true,
       newUserAnnouncementEnabled: true,
       newUserAnnouncementContent: true,

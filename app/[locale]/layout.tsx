@@ -126,19 +126,13 @@ export default async function LocaleLayout({
     notFound()
   }
   const currentLocale = locale as Locale
-  const { analyticsEnabled } = await getSiteSettings()
+  const { analyticsEnabled, umamiAnalyticsEnabled } = await getSiteSettings()
 
   return (
     <>
       <HtmlLang locale={currentLocale} />
       {analyticsEnabled && (
         <>
-          <Script
-            id="umami-analytics"
-            defer
-            src="https://umami.anglergap.org/script.js"
-            data-website-id="9c8968bf-63bd-4a3c-9fe1-cae957f1d22a"
-          />
           <Script
             id="LA_COLLECT"
             strategy="afterInteractive"
@@ -152,6 +146,14 @@ export default async function LocaleLayout({
             }}
           />
         </>
+      )}
+      {umamiAnalyticsEnabled && (
+        <Script
+          id="umami-analytics"
+          defer
+          src="https://umami.anglergap.org/script.js"
+          data-website-id="9c8968bf-63bd-4a3c-9fe1-cae957f1d22a"
+        />
       )}
       <WebsiteJsonLd locale={currentLocale} />
       <OrganizationJsonLd />

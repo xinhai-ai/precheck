@@ -2297,6 +2297,8 @@
     "userTicketsEnabledDesc": "关闭后将隐藏并禁用用户侧工单功能，管理员后台工单管理不受影响",
     "analyticsEnabled": "51.la 统计",
     "analyticsEnabledDesc": "启用 51.la 网站流量统计与性能监控",
+    "umamiAnalyticsEnabled": "Umami 统计",
+    "umamiAnalyticsEnabledDesc": "启用 Umami 网站访问统计",
     "linuxdoAutoAdmin": "LinuxDo TL3 自动授权管理员",
     "linuxdoAutoAdminDesc": "LinuxDo 信任等级 ≥ 3 的用户登录后自动获得管理员权限",
     "smtpHost": "SMTP 主机",

@@ -180,6 +180,7 @@ CREATE TABLE IF NOT EXISTS "SiteSettings" (
   "inviteCodeCheckApiUrl"    TEXT,
   "inviteCodeCheckApiKey"    TEXT,
   "analyticsEnabled"         BOOLEAN NOT NULL DEFAULT true,
+  "umamiAnalyticsEnabled"    BOOLEAN NOT NULL DEFAULT true,
   "linuxdoAutoAdmin"         BOOLEAN NOT NULL DEFAULT false,
   "createdAt"                TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt"                TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

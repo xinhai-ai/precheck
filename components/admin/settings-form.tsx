@@ -62,6 +62,7 @@ type SiteSettings = {
   userTicketsEnabled: boolean
   inviteCodeUrlPrefix: string
   analyticsEnabled: boolean
+  umamiAnalyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
 }
 
@@ -1318,6 +1319,14 @@ export function AdminSettingsForm({ locale, dict }: AdminSettingsFormProps) {
                       description={t.analyticsEnabledDesc || "启用 51.la 网站流量统计与性能监控"}
                       checked={settings.analyticsEnabled}
                       onCheckedChange={(v) => setSettings({ ...settings, analyticsEnabled: v })}
+                    />
+                    <ToggleItem
+                      title={t.umamiAnalyticsEnabled || "Umami 统计"}
+                      description={t.umamiAnalyticsEnabledDesc || "启用 Umami 网站访问统计"}
+                      checked={settings.umamiAnalyticsEnabled}
+                      onCheckedChange={(v) =>
+                        setSettings({ ...settings, umamiAnalyticsEnabled: v })
+                      }
                     />
                     <ToggleItem
                       title={t.linuxdoAutoAdmin || "LinuxDo TL3 自动授权管理员"}

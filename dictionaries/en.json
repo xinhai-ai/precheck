@@ -2301,6 +2301,8 @@
     "userTicketsEnabledDesc": "Hide and disable tickets for end users when turned off; admin ticket management remains available.",
     "analyticsEnabled": "51.la Analytics",
     "analyticsEnabledDesc": "Enable 51.la website traffic analytics and performance monitoring",
+    "umamiAnalyticsEnabled": "Umami Analytics",
+    "umamiAnalyticsEnabledDesc": "Enable Umami website analytics",
     "linuxdoAutoAdmin": "LinuxDo TL3 Auto Admin",
     "linuxdoAutoAdminDesc": "Automatically grant admin privileges to LinuxDo users with trust level ≥ 3",
     "smtpHost": "SMTP Host",
