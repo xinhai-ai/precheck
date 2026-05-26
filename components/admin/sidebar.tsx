@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import {
   LayoutDashboard,
-  BarChart3,
   Users,
   Settings,
   Shield,
@@ -48,12 +47,6 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       name: dict.dashboard.overview,
       href: `/${locale}/admin`,
       icon: LayoutDashboard,
-      superAdminOnly: false,
-    },
-    {
-      name: dict.admin.statisticsCenter,
-      href: `/${locale}/admin/statistics`,
-      icon: BarChart3,
       superAdminOnly: false,
     },
     {

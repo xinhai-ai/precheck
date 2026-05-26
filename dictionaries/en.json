@@ -2693,10 +2693,7 @@
     "auditAction_AUTH_PASSKEY_LOGIN": "Passkey login",
     "auditAction_AUTH_PASSKEY_REGISTER": "Register passkey",
     "auditAction_AUTH_PASSKEY_DELETE": "Delete passkey",
-    "auditEntity_PASSKEY": "Passkey",
-    "statisticsCenter": "Statistics Center",
-    "statisticsCenterDesc": "Track site operations, attribution, behavior, conversion, retention, review, security, and system health metrics.",
-    "accountStatistics": "Account Profile"
+    "auditEntity_PASSKEY": "Passkey"
   },
   "theme": {
     "toggle": "Toggle theme",

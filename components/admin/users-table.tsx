@@ -1,10 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import Link from "next/link"
 import { motion } from "framer-motion"
 import {
-  BarChart3,
   Search,
   MoreHorizontal,
   Shield,
@@ -844,15 +842,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
           <div>
             <p className="font-medium">{user.name || user.email.split("@")[0]}</p>
             <p className="text-sm text-muted-foreground">{user.email}</p>
-            {currentUserRole === "SUPER_ADMIN" && (
-              <Link
-                href={`/${locale}/admin/statistics/accounts/${user.id}`}
-                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                <BarChart3 className="h-3 w-3" />
-                {t.accountStatistics}
-              </Link>
-            )}
           </div>
         </div>
       ),
@@ -1196,15 +1185,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
                     <div>
                       <p className="font-medium">{user.name || user.email.split("@")[0]}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
-                      {currentUserRole === "SUPER_ADMIN" && (
-                        <Link
-                          href={`/${locale}/admin/statistics/accounts/${user.id}`}
-                          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                        >
-                          <BarChart3 className="h-3 w-3" />
-                          {t.accountStatistics}
-                        </Link>
-                      )}
                     </div>
                   </div>
                   {renderActions(user)}
