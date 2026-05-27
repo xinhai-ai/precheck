@@ -165,7 +165,6 @@ export default async function LocaleLayout({
           src="https://umami.anglergap.org/script.js"
           data-website-id="9c8968bf-63bd-4a3c-9fe1-cae957f1d22a"
           data-performance="true"
-          data-do-not-track="true"
           data-exclude-search="true"
           data-exclude-hash="true"
         />
