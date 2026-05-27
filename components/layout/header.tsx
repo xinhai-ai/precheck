@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { LocaleSwitcher } from "@/components/ui/locale-switcher"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
+import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 interface HeaderProps {
   locale: Locale
@@ -30,6 +31,12 @@ export function Header({ locale, dict, user, authEnabled = true }: HeaderProps) 
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-foreground/90 transition-colors hover:text-primary"
+            onClick={() =>
+              trackUmamiEvent("homepage_video_announcement_click", {
+                locale,
+                placement: "header_announcement",
+              })
+            }
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20">
               <Play className="h-3 w-3 text-primary fill-primary" />
@@ -42,6 +49,12 @@ export function Header({ locale, dict, user, authEnabled = true }: HeaderProps) 
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-foreground/90 transition-colors hover:text-primary"
+            onClick={() =>
+              trackUmamiEvent("homepage_qa_group_click", {
+                locale,
+                placement: "header_announcement",
+              })
+            }
           >
             <MessageCircle className="h-4 w-4 shrink-0 text-primary" />
             <span className="truncate">{dict.header.qqAnnouncement}</span>

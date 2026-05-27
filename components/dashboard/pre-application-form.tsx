@@ -56,6 +56,7 @@ import {
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { cn } from "@/lib/utils"
 import { collectFingerprint } from "@/lib/fingerprint/client"
+import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 import {
   AlertDialog,
@@ -351,6 +352,21 @@ export function PreApplicationForm({
   const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
   const canDelete = isAdmin && latest
   const isSubmitBanned = submitBanStatus?.isSubmitBanned ?? false
+
+  const getSubmitMode = () => {
+    if (latest?.status === "ARCHIVED" && reapply.started) return "new_round"
+    if (!latest) return "create"
+    if (latest.status === "REJECTED") return "resubmit"
+    if (latest.status === "DISPUTED") return "edit_disputed"
+    return "update"
+  }
+
+  const getPreApplicationEventPayload = () => ({
+    locale,
+    source_type: formData.source || "unknown",
+    group: formData.group || "unknown",
+    mode: getSubmitMode(),
+  })
 
   const handleFormalApprovalFeedback = async () => {
     if (!latest || latest.status !== "APPROVED" || latest.formalApplicationApprovedFeedbackAt) {
@@ -812,6 +828,11 @@ export function PreApplicationForm({
       return
     }
 
+    const eventPayload = {
+      ...getPreApplicationEventPayload(),
+      draft_state: draft ? "update" : "create",
+    }
+    trackUmamiEvent("pre_application_draft_save_start", eventPayload)
     setSavingDraft(true)
     try {
       const res = await fetch("/api/pre-application/draft", {
@@ -827,6 +848,10 @@ export function PreApplicationForm({
       })
 
       if (!res.ok) {
+        trackUmamiEvent("pre_application_draft_save_failed", {
+          ...eventPayload,
+          reason_bucket: `status_${res.status}`,
+        })
         const data = await res.json().catch(() => ({}))
         const message =
           resolveApiErrorMessage(data, dict) ??
@@ -838,8 +863,13 @@ export function PreApplicationForm({
 
       const data = await res.json()
       setDraft((data?.draft as PreApplicationDraft | null) ?? null)
+      trackUmamiEvent("pre_application_draft_save_success", eventPayload)
       toast.success(((t as Record<string, unknown>).draftSaveSuccess as string) ?? "草稿已保存")
     } catch (error) {
+      trackUmamiEvent("pre_application_draft_save_failed", {
+        ...eventPayload,
+        reason_bucket: "network",
+      })
       toast.error(
         error instanceof Error
           ? error.message
@@ -1063,6 +1093,11 @@ export function PreApplicationForm({
 
         if (captcha && isCaptchaChallengeMessage(captchaMessage)) {
           closeCaptchaDialog()
+          trackUmamiEvent("pre_application_review_submit_failed", {
+            ...getPreApplicationEventPayload(),
+            captcha: "enabled",
+            reason_bucket: "captcha",
+          })
           toast.error(
             captchaMessage ||
               (locale === "zh"
@@ -1090,26 +1125,50 @@ export function PreApplicationForm({
           }
 
           await loadRecord(false)
+          trackUmamiEvent("pre_application_review_submit_failed", {
+            ...getPreApplicationEventPayload(),
+            captcha: captcha ? "enabled" : "none",
+            reason_bucket: "submit_banned",
+          })
           return false
         }
 
         if (res.status === 409 && errorCode === ApiErrorKeys.preApplication.versionConflict) {
           toast.error(message)
           await loadRecord()
+          trackUmamiEvent("pre_application_review_submit_failed", {
+            ...getPreApplicationEventPayload(),
+            captcha: captcha ? "enabled" : "none",
+            reason_bucket: "version_conflict",
+          })
           return false
         }
 
         toast.error(message)
+        trackUmamiEvent("pre_application_review_submit_failed", {
+          ...getPreApplicationEventPayload(),
+          captcha: captcha ? "enabled" : "none",
+          reason_bucket: `status_${res.status}`,
+        })
         return false
       }
 
       closeCaptchaDialog()
+      trackUmamiEvent("pre_application_review_submit_success", {
+        ...getPreApplicationEventPayload(),
+        captcha: captcha ? "enabled" : "none",
+      })
       toast.success(method === "PUT" ? t.updateSuccess : t.submitSuccess)
       setDraft(null)
       await loadRecord()
       return true
     } catch (error) {
       closeCaptchaDialog()
+      trackUmamiEvent("pre_application_review_submit_failed", {
+        ...getPreApplicationEventPayload(),
+        captcha: captcha ? "enabled" : "none",
+        reason_bucket: "network",
+      })
       toast.error(error instanceof Error ? error.message : t.submitFailed)
       return false
     } finally {
@@ -1141,6 +1200,8 @@ export function PreApplicationForm({
   }
 
   const handleSubmit = async () => {
+    const submitEventPayload = getPreApplicationEventPayload()
+    trackUmamiEvent("pre_application_review_submit_click", submitEventPayload)
     const trimmedEssayLength = formData.essay.trim().length
     if (trimmedEssayLength < essayMinChars) {
       const template = t.validation?.essayTooShort || "申请小作文至少需要 {min} 个字符"
@@ -1203,14 +1264,23 @@ export function PreApplicationForm({
 
     setPrechecking(true)
     setCaptchaError(null)
+    trackUmamiEvent("pre_application_review_submit_start", submitEventPayload)
 
     try {
       const precheck = await runSubmitPrecheck()
       if (!precheck) {
+        trackUmamiEvent("pre_application_review_submit_failed", {
+          ...submitEventPayload,
+          reason_bucket: "precheck_error",
+        })
         return
       }
 
       if (!precheck.allowed) {
+        trackUmamiEvent("pre_application_review_submit_failed", {
+          ...submitEventPayload,
+          reason_bucket: precheck.reason || "precheck_denied",
+        })
         toast.error(getPrecheckFailureMessage(precheck))
         return
       }
@@ -1225,6 +1295,10 @@ export function PreApplicationForm({
       setCaptchaTicket(precheck.captchaTicket ?? null)
       setCaptchaDialogOpen(true)
     } catch (error) {
+      trackUmamiEvent("pre_application_review_submit_failed", {
+        ...submitEventPayload,
+        reason_bucket: "precheck_exception",
+      })
       toast.error(error instanceof Error ? error.message : t.submitFailed)
     } finally {
       setPrechecking(false)

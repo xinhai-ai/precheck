@@ -11,7 +11,14 @@ function readOptionalSource(relativePath: string) {
 const analyticsBridgeSource = readOptionalSource("components/analytics/umami-analytics-bridge.tsx")
 const analyticsClientSource = readOptionalSource("lib/analytics/umami-client.ts")
 const analyticsIdentitySource = readOptionalSource("lib/analytics/umami-identity.ts")
-const loginFormSource = readFileSync(new URL("../../components/auth/login-form.tsx", import.meta.url), "utf8")
+const headerSource = readFileSync(
+  new URL("../../components/layout/header.tsx", import.meta.url),
+  "utf8",
+)
+const loginFormSource = readFileSync(
+  new URL("../../components/auth/login-form.tsx", import.meta.url),
+  "utf8",
+)
 const registerFormSource = readFileSync(
   new URL("../../components/auth/register-form.tsx", import.meta.url),
   "utf8",
@@ -20,7 +27,14 @@ const guestApplyFormSource = readFileSync(
   new URL("../../components/guest/guest-apply-form.tsx", import.meta.url),
   "utf8",
 )
-const siteSettingsSource = readFileSync(new URL("../../lib/site-settings.ts", import.meta.url), "utf8")
+const dashboardPreApplicationFormSource = readFileSync(
+  new URL("../../components/dashboard/pre-application-form.tsx", import.meta.url),
+  "utf8",
+)
+const siteSettingsSource = readFileSync(
+  new URL("../../lib/site-settings.ts", import.meta.url),
+  "utf8",
+)
 const settingsApiSource = readFileSync(
   new URL("../../app/api/admin/settings/route.ts", import.meta.url),
   "utf8",
@@ -34,8 +48,12 @@ const createAuthTablesSource = readFileSync(
   new URL("../../scripts/001-create-auth-tables.sql", import.meta.url),
   "utf8",
 )
-const zhDictionary = JSON.parse(readFileSync(new URL("../../dictionaries/zh.json", import.meta.url), "utf8"))
-const enDictionary = JSON.parse(readFileSync(new URL("../../dictionaries/en.json", import.meta.url), "utf8"))
+const zhDictionary = JSON.parse(
+  readFileSync(new URL("../../dictionaries/zh.json", import.meta.url), "utf8"),
+)
+const enDictionary = JSON.parse(
+  readFileSync(new URL("../../dictionaries/en.json", import.meta.url), "utf8"),
+)
 
 test("locale layout includes the Umami analytics script", () => {
   assert.match(layoutSource, /id="umami-analytics"/)
@@ -54,7 +72,10 @@ test("Umami analytics follows its own switch", () => {
     layoutSource.indexOf("<WebsiteJsonLd"),
   )
 
-  assert.match(layoutSource, /const \{ analyticsEnabled, umamiAnalyticsEnabled \} = await getSiteSettings\(\)/)
+  assert.match(
+    layoutSource,
+    /const \{ analyticsEnabled, umamiAnalyticsEnabled \} = await getSiteSettings\(\)/,
+  )
   assert.match(umamiBlock, /id="umami-analytics"/)
   assert.doesNotMatch(umamiBlock, /LA_COLLECT/)
 })
@@ -74,7 +95,10 @@ test("site settings expose an independent Umami switch", () => {
   assert.match(siteSettingsSource, /umamiAnalyticsEnabled: boolean/)
   assert.match(siteSettingsSource, /umamiAnalyticsEnabled: true/)
   assert.match(siteSettingsSource, /umamiAnalyticsEnabled: record\.umamiAnalyticsEnabled/)
-  assert.match(siteSettingsSource, /umamiAnalyticsEnabled: updates\.umamiAnalyticsEnabled \?\? current\.umamiAnalyticsEnabled/)
+  assert.match(
+    siteSettingsSource,
+    /umamiAnalyticsEnabled: updates\.umamiAnalyticsEnabled \?\? current\.umamiAnalyticsEnabled/,
+  )
   assert.match(settingsApiSource, /umamiAnalyticsEnabled: z\.boolean\(\)/)
   assert.match(settingsFormSource, /umamiAnalyticsEnabled: boolean/)
   assert.match(settingsFormSource, /checked=\{settings\.umamiAnalyticsEnabled\}/)
@@ -118,6 +142,20 @@ test("auth and pre-application flows emit basic Umami events", () => {
   assert.match(guestApplyFormSource, /pre_application_submit_start/)
   assert.match(guestApplyFormSource, /pre_application_submit_success/)
   assert.match(guestApplyFormSource, /pre_application_submit_failed/)
+})
+
+test("homepage announcements and dashboard pre-application actions emit Umami events", () => {
+  assert.match(headerSource, /trackUmamiEvent/)
+  assert.match(headerSource, /homepage_video_announcement_click/)
+  assert.match(headerSource, /homepage_qa_group_click/)
+  assert.match(dashboardPreApplicationFormSource, /trackUmamiEvent/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_draft_save_start/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_draft_save_success/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_draft_save_failed/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_review_submit_click/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_review_submit_start/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_review_submit_success/)
+  assert.match(dashboardPreApplicationFormSource, /pre_application_review_submit_failed/)
 })
 
 test("schema and setup SQL persist the independent Umami switch", () => {
