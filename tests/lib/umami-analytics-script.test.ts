@@ -1,8 +1,25 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 const layoutSource = readFileSync(new URL("../../app/[locale]/layout.tsx", import.meta.url), "utf8")
+function readOptionalSource(relativePath: string) {
+  const url = new URL(`../../${relativePath}`, import.meta.url)
+  return existsSync(url) ? readFileSync(url, "utf8") : ""
+}
+
+const analyticsBridgeSource = readOptionalSource("components/analytics/umami-analytics-bridge.tsx")
+const analyticsClientSource = readOptionalSource("lib/analytics/umami-client.ts")
+const analyticsIdentitySource = readOptionalSource("lib/analytics/umami-identity.ts")
+const loginFormSource = readFileSync(new URL("../../components/auth/login-form.tsx", import.meta.url), "utf8")
+const registerFormSource = readFileSync(
+  new URL("../../components/auth/register-form.tsx", import.meta.url),
+  "utf8",
+)
+const guestApplyFormSource = readFileSync(
+  new URL("../../components/guest/guest-apply-form.tsx", import.meta.url),
+  "utf8",
+)
 const siteSettingsSource = readFileSync(new URL("../../lib/site-settings.ts", import.meta.url), "utf8")
 const settingsApiSource = readFileSync(
   new URL("../../app/api/admin/settings/route.ts", import.meta.url),
@@ -25,6 +42,10 @@ test("locale layout includes the Umami analytics script", () => {
   assert.match(layoutSource, /src="https:\/\/umami\.anglergap\.org\/script\.js"/)
   assert.match(layoutSource, /data-website-id="9c8968bf-63bd-4a3c-9fe1-cae957f1d22a"/)
   assert.match(layoutSource, /defer/)
+  assert.match(layoutSource, /data-performance="true"/)
+  assert.match(layoutSource, /data-do-not-track="true"/)
+  assert.match(layoutSource, /data-exclude-search="true"/)
+  assert.match(layoutSource, /data-exclude-hash="true"/)
 })
 
 test("Umami analytics follows its own switch", () => {
@@ -58,6 +79,45 @@ test("site settings expose an independent Umami switch", () => {
   assert.match(settingsFormSource, /umamiAnalyticsEnabled: boolean/)
   assert.match(settingsFormSource, /checked=\{settings\.umamiAnalyticsEnabled\}/)
   assert.match(settingsFormSource, /setSettings\(\{ \.\.\.settings, umamiAnalyticsEnabled: v \}\)/)
+})
+
+test("layout provides anonymized identity data to the Umami bridge", () => {
+  assert.match(layoutSource, /getCurrentUser\(\)/)
+  assert.match(layoutSource, /createUmamiVisitorId/)
+  assert.match(layoutSource, /<UmamiAnalyticsBridge/)
+  assert.match(layoutSource, /visitorId=\{umamiVisitorId\}/)
+  assert.match(layoutSource, /authState=\{user \? "member" : "guest"\}/)
+  assert.match(analyticsIdentitySource, /createHmac\("sha256"/)
+  assert.match(analyticsIdentitySource, /createUmamiVisitorId/)
+  assert.match(analyticsIdentitySource, /getUmamiAccountAgeBucket/)
+  assert.doesNotMatch(layoutSource, /email:/)
+})
+
+test("Umami bridge identifies visitors and tracks dashboard entry", () => {
+  assert.match(analyticsBridgeSource, /identifyUmamiVisitor/)
+  assert.match(analyticsBridgeSource, /getOrCreateUmamiGuestId/)
+  assert.match(analyticsBridgeSource, /dashboard_enter/)
+  assert.match(analyticsBridgeSource, /sessionStorage/)
+  assert.match(analyticsClientSource, /trackUmamiEvent/)
+  assert.match(analyticsClientSource, /identifyUmamiVisitor/)
+  assert.match(analyticsClientSource, /identify\?: \(uniqueId: string/)
+  assert.match(analyticsClientSource, /window\.umami\?\.identify\?\.\(visitorId/)
+  assert.match(analyticsClientSource, /localStorage/)
+  assert.match(analyticsClientSource, /umami_guest_id/)
+})
+
+test("auth and pre-application flows emit basic Umami events", () => {
+  assert.match(loginFormSource, /auth_login_start/)
+  assert.match(loginFormSource, /auth_login_success/)
+  assert.match(loginFormSource, /auth_login_failed/)
+  assert.match(loginFormSource, /auth_oauth_start/)
+  assert.match(registerFormSource, /auth_register_start/)
+  assert.match(registerFormSource, /auth_register_success/)
+  assert.match(registerFormSource, /auth_register_failed/)
+  assert.match(registerFormSource, /auth_oauth_start/)
+  assert.match(guestApplyFormSource, /pre_application_submit_start/)
+  assert.match(guestApplyFormSource, /pre_application_submit_success/)
+  assert.match(guestApplyFormSource, /pre_application_submit_failed/)
 })
 
 test("schema and setup SQL persist the independent Umami switch", () => {

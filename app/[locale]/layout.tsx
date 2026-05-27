@@ -14,6 +14,13 @@ import {
 } from "@/components/seo/json-ld"
 import { HtmlLang } from "@/components/seo/html-lang"
 import { getSiteSettings } from "@/lib/site-settings"
+import { getCurrentUser } from "@/lib/auth/session"
+import {
+  createUmamiVisitorId,
+  getUmamiAccountAgeBucket,
+  getUmamiRoleBucket,
+} from "@/lib/analytics/umami-identity"
+import { UmamiAnalyticsBridge } from "@/components/analytics/umami-analytics-bridge"
 
 export const dynamic = "force-dynamic"
 
@@ -127,6 +134,10 @@ export default async function LocaleLayout({
   }
   const currentLocale = locale as Locale
   const { analyticsEnabled, umamiAnalyticsEnabled } = await getSiteSettings()
+  const user = umamiAnalyticsEnabled ? await getCurrentUser() : null
+  const umamiVisitorId = user ? createUmamiVisitorId(user.id) : null
+  const roleBucket = getUmamiRoleBucket(user?.role)
+  const accountAgeBucket = getUmamiAccountAgeBucket(user?.createdAt)
 
   return (
     <>
@@ -153,6 +164,19 @@ export default async function LocaleLayout({
           defer
           src="https://umami.anglergap.org/script.js"
           data-website-id="9c8968bf-63bd-4a3c-9fe1-cae957f1d22a"
+          data-performance="true"
+          data-do-not-track="true"
+          data-exclude-search="true"
+          data-exclude-hash="true"
+        />
+      )}
+      {umamiAnalyticsEnabled && (
+        <UmamiAnalyticsBridge
+          locale={currentLocale}
+          visitorId={umamiVisitorId}
+          authState={user ? "member" : "guest"}
+          roleBucket={roleBucket}
+          accountAgeBucket={accountAgeBucket}
         />
       )}
       <WebsiteJsonLd locale={currentLocale} />

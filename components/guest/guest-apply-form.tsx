@@ -38,6 +38,7 @@ import {
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { PostContent } from "@/components/posts/post-content"
 import type { Locale } from "@/lib/i18n/config"
+import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 interface GuestApplyFormProps {
   locale: Locale
@@ -338,6 +339,12 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         const message = data.error || dict.submitFailed
+        trackUmamiEvent("pre_application_submit_failed", {
+          locale,
+          source_type: formData.source || "unknown",
+          group: formData.group || "unknown",
+          reason_bucket: `status_${res.status}`,
+        })
 
         if (captcha && isCaptchaChallengeMessage(message)) {
           setCaptchaError(message)
@@ -353,10 +360,22 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
       }
 
       closeCaptchaDialog()
+      trackUmamiEvent("pre_application_submit_success", {
+        locale,
+        source_type: formData.source || "unknown",
+        group: formData.group || "unknown",
+        captcha: captcha ? "enabled" : "none",
+      })
       toast.success(dict.submitSuccess)
       await loadRecord()
       return true
     } catch {
+      trackUmamiEvent("pre_application_submit_failed", {
+        locale,
+        source_type: formData.source || "unknown",
+        group: formData.group || "unknown",
+        reason_bucket: "network",
+      })
       if (!captcha) {
         closeCaptchaDialog()
       }
@@ -407,16 +426,33 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
       return
     }
 
+    trackUmamiEvent("pre_application_submit_start", {
+      locale,
+      source_type: formData.source || "unknown",
+      group: formData.group || "unknown",
+    })
     setPrechecking(true)
     setCaptchaError(null)
 
     try {
       const precheck = await runSubmitPrecheck()
       if (!precheck) {
+        trackUmamiEvent("pre_application_submit_failed", {
+          locale,
+          source_type: formData.source || "unknown",
+          group: formData.group || "unknown",
+          reason_bucket: "precheck_error",
+        })
         return
       }
 
       if (!precheck.allowed) {
+        trackUmamiEvent("pre_application_submit_failed", {
+          locale,
+          source_type: formData.source || "unknown",
+          group: formData.group || "unknown",
+          reason_bucket: precheck.reason || "precheck_denied",
+        })
         toast.error(getPrecheckFailureMessage(precheck))
         return
       }
@@ -430,6 +466,12 @@ export function GuestApplyForm({ locale, qqNumber, dict }: GuestApplyFormProps) 
       setCaptchaPublicConfig(precheck.captchaPublicConfig)
       setCaptchaDialogOpen(true)
     } catch {
+      trackUmamiEvent("pre_application_submit_failed", {
+        locale,
+        source_type: formData.source || "unknown",
+        group: formData.group || "unknown",
+        reason_bucket: "precheck_exception",
+      })
       toast.error(dict.submitFailed)
     } finally {
       setPrechecking(false)

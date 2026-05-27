@@ -23,6 +23,7 @@ import {
   LOCAL_PART_MIN_LENGTH,
   normalizeLocalPart,
 } from "@/lib/validators/email"
+import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 interface RegisterFormProps {
   locale: Locale
@@ -261,6 +262,7 @@ export function RegisterForm({
     }
 
     setIsLoading(true)
+    trackUmamiEvent("auth_register_start", { method: "password", locale })
 
     try {
       const res = await fetch("/api/auth/register", {
@@ -278,13 +280,24 @@ export function RegisterForm({
       const data = await res.json()
 
       if (!res.ok) {
+        trackUmamiEvent("auth_register_failed", {
+          method: "password",
+          locale,
+          reason_bucket: `status_${res.status}`,
+        })
         setError(resolveErrorMessage(data?.error))
         return
       }
 
+      trackUmamiEvent("auth_register_success", { method: "password", locale })
       router.push(`/${locale}/dashboard`)
       router.refresh()
     } catch {
+      trackUmamiEvent("auth_register_failed", {
+        method: "password",
+        locale,
+        reason_bucket: "network",
+      })
       setError(t.errors.failed)
     } finally {
       setIsLoading(false)
@@ -292,6 +305,7 @@ export function RegisterForm({
   }
 
   const handleOAuth = (provider: string) => {
+    trackUmamiEvent("auth_oauth_start", { provider, locale, source: "register" })
     window.location.href = `/api/auth/${provider}`
   }
 

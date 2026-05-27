@@ -18,6 +18,7 @@ import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
 import { collectFingerprint } from "@/lib/fingerprint/client"
+import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 interface LoginFormProps {
   locale: Locale
@@ -162,6 +163,7 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
 
     setIsLoading(true)
     setError("")
+    trackUmamiEvent("auth_login_start", { method: loginType, locale })
 
     try {
       const fingerprintPayload = await collectFingerprint()
@@ -190,17 +192,28 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
       const data = await res.json()
 
       if (!res.ok) {
+        trackUmamiEvent("auth_login_failed", {
+          method: loginType,
+          locale,
+          reason_bucket: `status_${res.status}`,
+        })
         toast.error(resolveErrorMessage(data?.error))
         setError(resolveErrorMessage(data?.error))
         return
       }
 
+      trackUmamiEvent("auth_login_success", { method: loginType, locale })
       toast.success(t.success)
       setTimeout(() => {
         window.location.href = `/${locale}/dashboard`
       }, 500)
     } catch (err) {
       console.error("Login error:", err)
+      trackUmamiEvent("auth_login_failed", {
+        method: loginType,
+        locale,
+        reason_bucket: "network",
+      })
       setError(t.errors.failed)
     } finally {
       setIsLoading(false)
@@ -210,6 +223,7 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
 
   const handleOAuth = async (provider: string) => {
     setIsLoading(true)
+    trackUmamiEvent("auth_oauth_start", { provider, locale, source: "login" })
     try {
       const fingerprintPayload = await collectFingerprint()
       let oauthPath = `/api/auth/${provider}`
