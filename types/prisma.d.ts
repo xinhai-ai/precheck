@@ -6,15 +6,7 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "DELETED"
 
 export type PostStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "REJECTED"
 
-export type PreApplicationStatus =
-  | "PENDING"
-  | "SHADOW_HIDDEN"
-  | "APPROVED"
-  | "REJECTED"
-  | "DISPUTED"
-  | "ARCHIVED"
-  | "PENDING_REVIEW"
-  | "ON_HOLD"
+export type PreApplicationStatus = "PENDING" | "SHADOW_HIDDEN" | "APPROVED" | "REJECTED" | "DISPUTED" | "ARCHIVED" | "PENDING_REVIEW" | "ON_HOLD"
 
 export type PreApplicationAppealStatus = "PENDING" | "REJECTED" | "OVERRIDDEN"
 
@@ -23,8 +15,6 @@ export type PreApplicationAppealSource = "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
 export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSHU" | "OTHER"
 
 export type PreApplicationAdminNoteAction = "CREATED" | "UPDATED" | "DELETED"
-
-export type FingerprintStatus = "OK" | "COLLECTION_FAILED"
 
 export type EmailLogStatus = "PENDING" | "SUCCESS" | "FAILED"
 
@@ -44,8 +34,6 @@ export interface User {
   preApplicationReapplyEligibleAt: Date | null
   preApplicationReapplyStartedAt: Date | null
   country: string | null
-  latestFingerprintHash: string | null
-  latestFingerprintAt: Date | null
   createdAt: Date
   updatedAt: Date
   accounts: Account[]
@@ -78,9 +66,6 @@ export interface User {
   privateChatMessages: PrivateChatMessage[]
   apiTokens: ApiToken[]
   passkeyCredentials: PasskeyCredential[]
-  fingerprintEvents: FingerprintEvent[]
-  riskIgnoredEntry: RiskIgnoredUser | null
-  riskIgnoredCreated: RiskIgnoredUser[]
   shadowBannedEntry: ShadowBannedUser | null
   shadowBannedCreated: ShadowBannedUser[]
   resetToken: string | null
@@ -192,9 +177,6 @@ export interface PreApplication {
   codeSent: boolean
   codeSentAt: Date | null
   formalApplicationApprovedFeedbackAt: Date | null
-  fingerprintHash: string | null
-  fingerprintCollectedAt: Date | null
-  fingerprintStatus: FingerprintStatus
   createdAt: Date
   updatedAt: Date
   holdUntil: Date | null
@@ -205,7 +187,6 @@ export interface PreApplication {
   adminNotes: PreApplicationAdminNote[]
   appeals: PreApplicationAppeal[]
   tickets: Ticket[]
-  fingerprintEvents: FingerprintEvent[]
 }
 
 export interface PreApplicationAppeal {
@@ -287,86 +268,6 @@ export interface PreApplicationDraft {
   createdAt: Date
   updatedAt: Date
   user: User
-}
-
-export interface FingerprintProfile {
-  id: string
-  fingerprintHash: string
-  fingerprintBasis: Prisma.JsonValue | null
-  componentKeys: string[]
-  firstSeenAt: Date
-  lastSeenAt: Date
-  createdAt: Date
-  updatedAt: Date
-  events: FingerprintEvent[]
-}
-
-export interface FingerprintEvent {
-  id: string
-  fingerprintId: string | null
-  fingerprintHash: string | null
-  eventType: string
-  status: FingerprintStatus
-  failureReason: string | null
-  userId: string | null
-  preApplicationId: string | null
-  ip: string | null
-  userAgent: string | null
-  browserFamily: string | null
-  networkKey: string | null
-  fingerprintComponents: Prisma.JsonValue | null
-  fingerprintSummary: Prisma.JsonValue | null
-  similarityScore: number | null
-  similaritySignals: Prisma.JsonValue | null
-  createdAt: Date
-  fingerprint: FingerprintProfile | null
-  user: User | null
-  preApplication: PreApplication | null
-  riskClusterMembers: FingerprintRiskClusterMember[]
-  anchoredRiskClusters: FingerprintRiskCluster[]
-}
-
-export interface FingerprintRiskCluster {
-  id: string
-  anchorEventId: string | null
-  riskLevel: string
-  riskScore: number
-  userCount: number
-  applicationCount: number
-  eventCount: number
-  maxSimilarity: number | null
-  evidenceFlags: string[]
-  summary: Prisma.JsonValue | null
-  firstSeenAt: Date
-  lastSeenAt: Date
-  createdAt: Date
-  updatedAt: Date
-  anchorEvent: FingerprintEvent | null
-  members: FingerprintRiskClusterMember[]
-}
-
-export interface FingerprintRiskClusterMember {
-  id: string
-  clusterId: string
-  eventId: string
-  similarityScore: number
-  matchedKeys: string[]
-  differentKeys: string[]
-  strongKeys: string[]
-  createdAt: Date
-  cluster: FingerprintRiskCluster
-  event: FingerprintEvent
-}
-
-export interface RiskIgnoredUser {
-  id: string
-  userId: string
-  reason: string
-  createdById: string
-  createdAt: Date
-  updatedAt: Date
-  user: User
-  createdBy: User
 }
 
 export interface ShadowBannedUser {
@@ -483,6 +384,7 @@ export interface SiteSettings {
   inviteCodeCheckApiUrl: string | null
   inviteCodeCheckApiKey: string | null
   analyticsEnabled: boolean
+  umamiAnalyticsEnabled: boolean
   linuxdoAutoAdmin: boolean
   newUserAnnouncementEnabled: boolean
   newUserAnnouncementContent: string

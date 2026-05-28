@@ -31,10 +31,8 @@ const oauthStateSource = readFileSync(
   "utf8",
 )
 
-test("oauth state stores locale together with fingerprint context", () => {
+test("oauth state stores locale", () => {
   assert.match(oauthStateSource, /searchParams\.set\("locale", normalizedLocale\)/)
-  assert.match(oauthStateSource, /searchParams\.set\("fp_ctx", trimmedFingerprintContextToken\)/)
-  assert.match(oauthStateSource, /if \(state\?\.startsWith\("fp:"\)\)/)
   assert.match(
     oauthStateSource,
     /const locale = normalizeOAuthLocale\(searchParams\.get\("locale"\)\) \?\? defaultLocale/,
@@ -48,10 +46,7 @@ test("oauth entry routes capture request locale before redirecting to providers"
     linuxdoAuthRouteSource,
   ]) {
     assert.match(routeSource, /resolveLocaleForRequest\(request\)/)
-    assert.match(
-      routeSource,
-      /buildOAuthState\(\{\s*fingerprintContextToken:\s*fpCtx,\s*locale,\s*\}\)/,
-    )
+    assert.match(routeSource, /buildOAuthState\(\{\s*locale\s*\}\)/)
   }
 })
 
@@ -61,10 +56,7 @@ test("oauth callback routes restore locale-specific login and dashboard redirect
     googleCallbackRouteSource,
     linuxdoCallbackRouteSource,
   ]) {
-    assert.match(
-      routeSource,
-      /const \{ fingerprintContextToken, locale \} = parseOAuthState\(state\)/,
-    )
+    assert.match(routeSource, /const \{ locale \} = parseOAuthState\(state\)/)
     assert.match(
       routeSource,
       /buildRedirectUrl\(`\/\$\{locale\}\/login\?error=no_code`, request\.url\)/,

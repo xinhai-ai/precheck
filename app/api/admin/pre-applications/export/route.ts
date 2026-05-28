@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
     const reviewRound = searchParams.get("reviewRound") || ""
     const inviteStatus = searchParams.get("inviteStatus") || ""
     const formalFeedbackStatus = searchParams.get("formalFeedbackStatus") || ""
-    const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
 
     const where: {
       status?: PreApplicationStatus | { in: PreApplicationStatus[] } | { not: PreApplicationStatus }
@@ -57,7 +56,6 @@ export async function GET(request: NextRequest) {
       resubmitCount?: number
       codeSent?: boolean
       formalApplicationApprovedFeedbackAt?: null | { not: null }
-      fingerprintHash?: { contains: string; mode: "insensitive" }
       OR?: Array<Record<string, unknown>>
     } = {}
 
@@ -86,7 +84,6 @@ export async function GET(request: NextRequest) {
 
     if (registerEmail) where.registerEmail = { contains: registerEmail, mode: "insensitive" }
     if (queryToken) where.queryToken = { contains: queryToken, mode: "insensitive" }
-    if (fingerprintHash) where.fingerprintHash = { contains: fingerprintHash, mode: "insensitive" }
 
     if (reviewRound) {
       const round = Number.parseInt(reviewRound)
@@ -133,9 +130,6 @@ export async function GET(request: NextRequest) {
         reviewedAt: true,
         codeSent: true,
         formalApplicationApprovedFeedbackAt: true,
-        fingerprintHash: true,
-        fingerprintStatus: true,
-        fingerprintCollectedAt: true,
         user: {
           select: {
             email: true,
@@ -156,9 +150,6 @@ export async function GET(request: NextRequest) {
       "reviewedAt",
       "codeSent",
       "formalApplicationApprovedFeedbackAt",
-      "fingerprintHash",
-      "fingerprintStatus",
-      "fingerprintCollectedAt",
     ]
 
     const rows: unknown[][] = [
@@ -174,9 +165,6 @@ export async function GET(request: NextRequest) {
         record.reviewedAt?.toISOString() || "",
         record.codeSent ? "true" : "false",
         record.formalApplicationApprovedFeedbackAt?.toISOString() || "",
-        record.fingerprintHash || "",
-        record.fingerprintStatus,
-        record.fingerprintCollectedAt?.toISOString() || "",
       ]),
     ]
 

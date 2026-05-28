@@ -6,7 +6,6 @@ import { KeyRound, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { resolveApiErrorMessage } from "@/lib/api/error-message"
-import { collectFingerprint } from "@/lib/fingerprint/client"
 import type { Locale } from "@/lib/i18n/config"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 
@@ -47,12 +46,11 @@ export function PasskeyLoginButton({ locale, dict, disabled = false }: PasskeyLo
       const credential = await startAuthentication({
         optionsJSON: optionsPayload.options,
       })
-      const fingerprintPayload = await collectFingerprint()
 
       const verifyRes = await fetch("/api/auth/passkey/authenticate/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential, ...fingerprintPayload }),
+        body: JSON.stringify({ credential }),
       })
       const verifyPayload = await verifyRes.json().catch(() => null)
       if (!verifyRes.ok) {

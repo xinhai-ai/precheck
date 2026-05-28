@@ -135,59 +135,12 @@ type AdminPreApplication = {
   codeSent: boolean
   codeSentAt: string | null
   formalApplicationApprovedFeedbackAt: string | null
-  fingerprintHash: string | null
-  fingerprintStatus: "OK" | "COLLECTION_FAILED"
-  fingerprintCollectedAt: string | null
   reviewRound?: number
   pendingAppeal?: {
     id: string
     source: "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
     createdAt: string
   } | null
-}
-
-type FingerprintRelatedUser = {
-  id: string
-  name: string | null
-  email: string
-  role: string
-  status: string
-  latestFingerprintAt: string | null
-  createdAt: string
-}
-
-type FingerprintRelatedApplication = {
-  id: string
-  registerEmail: string
-  essay: string
-  status: string
-  queryToken: string | null
-  createdAt: string
-  user: { id: string; name: string | null; email: string } | null
-}
-
-type FingerprintRiskClusterSummary = {
-  clusterId: string
-  riskLevel: "LOW" | "MEDIUM" | "HIGH"
-  riskScore: number
-  userCount: number
-  applicationCount: number
-  eventCount: number
-  maxSimilarity: number | null
-  evidenceFlags: string[]
-  lastSeenAt: string | null
-}
-
-type FingerprintDetail = {
-  id: string
-  fingerprintHash: string | null
-  fingerprintStatus: "OK" | "COLLECTION_FAILED"
-  fingerprintCollectedAt: string | null
-  relatedUsersCount: number
-  relatedApplicationsCount: number
-  relatedUsers: FingerprintRelatedUser[]
-  relatedApplications: FingerprintRelatedApplication[]
-  riskCluster: FingerprintRiskClusterSummary | null
 }
 
 type PreApplicationVersion = {
@@ -324,60 +277,6 @@ const isReviewEditableStatus = (status: AdminPreApplication["status"]) =>
 const getLatestVersionTime = (record: AdminPreApplication) =>
   record.latestVersionCreatedAt ?? record.createdAt
 
-function formatRiskLevel(value: string | null | undefined, riskT: Record<string, string>): string {
-  if (value === "HIGH") return riskT.levelHigh || "高风险"
-  if (value === "MEDIUM") return riskT.levelMedium || "中风险"
-  if (value === "LOW") return riskT.levelLow || "低风险"
-  return "-"
-}
-
-function getRiskLevelBadgeClass(value: string | null | undefined): string {
-  if (value === "HIGH") return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-  if (value === "MEDIUM") {
-    return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-  }
-  return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-}
-
-function formatEvidenceFlag(value: string, riskT: Record<string, string>): string {
-  switch (value) {
-    case "recentConcentration":
-      return riskT.signalRecentConcentration || "近期集中出现"
-    case "networkOverlap":
-      return riskT.signalNetworkOverlap || "网络重合"
-    case "crossEventContinuity":
-      return riskT.signalCrossEventContinuity || "跨事件连续性"
-    case "componentSimilarity":
-      return riskT.componentSimilarity || "组件相似"
-    case "strongComponentMatch":
-      return riskT.strongComponentMatch || "强组件命中"
-    case "hashExactMatch":
-      return riskT.hashExactMatch || "兼容哈希命中"
-    case "safariLowConfidence":
-      return riskT.safariLowConfidence || "Safari 低可信"
-    default:
-      return value
-  }
-}
-
-function formatSimilarityScore(value: number | null | undefined, riskT: Record<string, string>) {
-  if (!value) return riskT.noSimilarity || "暂无相似提醒"
-  return `${value}/100`
-}
-
-function hasFingerprintRisk(fingerprintDetail: FingerprintDetail | null): boolean {
-  const cluster = fingerprintDetail?.riskCluster
-
-  if (cluster) {
-    return cluster.riskLevel === "HIGH" || cluster.riskLevel === "MEDIUM" || cluster.riskScore >= 40
-  }
-
-  return Boolean(
-    fingerprintDetail &&
-    (fingerprintDetail.relatedUsersCount >= 2 || fingerprintDetail.relatedApplicationsCount >= 2),
-  )
-}
-
 export function AdminPreApplicationsTable({
   locale,
   dict,
@@ -385,7 +284,6 @@ export function AdminPreApplicationsTable({
 }: AdminPreApplicationsTableProps) {
   const t = dict.admin
   const adminExt = t as unknown as Record<string, string>
-  const riskT = t.riskControlPanel as Record<string, string>
   const isSuperAdmin = currentUserRole === "SUPER_ADMIN"
   const [records, setRecords] = useState<AdminPreApplication[]>([])
   const [total, setTotal] = useState(0)
@@ -418,8 +316,6 @@ export function AdminPreApplicationsTable({
   const [registerEmailInput, setRegisterEmailInput] = useState("")
   const [queryTokenFilter, setQueryTokenFilter] = useState("")
   const [queryTokenInput, setQueryTokenInput] = useState("")
-  const [fingerprintHashFilter, setFingerprintHashFilter] = useState("")
-  const [fingerprintHashInput, setFingerprintHashInput] = useState("")
   const [reviewRoundFilter, setReviewRoundFilter] = useState("ALL")
   const [inviteStatusFilter, setInviteStatusFilter] = useState("ALL")
   const [formalFeedbackStatusFilter, setFormalFeedbackStatusFilter] = useState("ALL")
@@ -470,10 +366,6 @@ export function AdminPreApplicationsTable({
   )
   const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null)
   const duplicateCheckRequestRef = useRef(0)
-  const [fingerprintLoading, setFingerprintLoading] = useState(false)
-  const [fingerprintError, setFingerprintError] = useState<string | null>(null)
-  const [fingerprintDetail, setFingerprintDetail] = useState<FingerprintDetail | null>(null)
-  const [fingerprintSectionValue, setFingerprintSectionValue] = useState<string[]>([])
 
   // 邀请码有效性检测
   const [inviteCodeChecking, setInviteCodeChecking] = useState(false)
@@ -544,11 +436,6 @@ export function AdminPreApplicationsTable({
     void handleDuplicateCheck(selected.id)
   }, [dialogOpen, selected?.id])
 
-  useEffect(() => {
-    if (!dialogOpen || fingerprintLoading) return
-    setFingerprintSectionValue(hasFingerprintRisk(fingerprintDetail) ? ["fingerprint"] : [])
-  }, [dialogOpen, fingerprintLoading, fingerprintDetail])
-
   const fetchRecords = async () => {
     setLoading(true)
     try {
@@ -565,7 +452,6 @@ export function AdminPreApplicationsTable({
         ...(statusFilter.length > 0 && { status: statusFilter.join(",") }),
         ...(registerEmailFilter && { registerEmail: registerEmailFilter }),
         ...(queryTokenFilter && { queryToken: queryTokenFilter }),
-        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(reviewRoundFilter !== "ALL" && { reviewRound: reviewRoundFilter }),
         ...(inviteStatusFilter !== "ALL" && { inviteStatus: inviteStatusFilter }),
         ...(formalFeedbackStatusFilter !== "ALL" && {
@@ -627,7 +513,6 @@ export function AdminPreApplicationsTable({
     statusFilter,
     registerEmailFilter,
     queryTokenFilter,
-    fingerprintHashFilter,
     reviewRoundFilter,
     inviteStatusFilter,
     formalFeedbackStatusFilter,
@@ -639,7 +524,6 @@ export function AdminPreApplicationsTable({
     setSearch(searchInput)
     setRegisterEmailFilter(registerEmailInput)
     setQueryTokenFilter(queryTokenInput)
-    setFingerprintHashFilter(fingerprintHashInput)
     setPage(1)
   }
 
@@ -1051,25 +935,6 @@ export function AdminPreApplicationsTable({
     }
   }
 
-  const loadFingerprintDetail = async (recordId: string) => {
-    setFingerprintLoading(true)
-    setFingerprintError(null)
-    try {
-      const res = await fetch(`/api/admin/pre-applications/${recordId}/fingerprint`)
-      if (!res.ok) {
-        throw new Error("Fetch failed")
-      }
-      const data = await res.json()
-      setFingerprintDetail(data)
-    } catch (error) {
-      console.error("Pre-application fingerprint detail error:", error)
-      setFingerprintError(t.fetchFailed)
-      setFingerprintDetail(null)
-    } finally {
-      setFingerprintLoading(false)
-    }
-  }
-
   const downloadExport = async () => {
     setExporting(true)
     try {
@@ -1078,7 +943,6 @@ export function AdminPreApplicationsTable({
         ...(statusFilter.length > 0 && { status: statusFilter.join(",") }),
         ...(registerEmailFilter && { registerEmail: registerEmailFilter }),
         ...(queryTokenFilter && { queryToken: queryTokenFilter }),
-        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(reviewRoundFilter !== "ALL" && { reviewRound: reviewRoundFilter }),
         ...(inviteStatusFilter !== "ALL" && { inviteStatus: inviteStatusFilter }),
         ...(formalFeedbackStatusFilter !== "ALL" && {
@@ -1182,9 +1046,6 @@ export function AdminPreApplicationsTable({
     setSelected(record)
     setHistoryRecords([])
     setNoteRecords([])
-    setFingerprintDetail(null)
-    setFingerprintError(null)
-    setFingerprintSectionValue([])
     setNewNoteContent("")
     setEditingNoteId(null)
     setEditingNoteContent("")
@@ -1213,7 +1074,6 @@ export function AdminPreApplicationsTable({
     setDialogOpen(true)
     loadHistory(record.id)
     loadNotes(record.id)
-    loadFingerprintDetail(record.id)
   }
 
   // 查重处理函数
@@ -1761,32 +1621,6 @@ export function AdminPreApplicationsTable({
                 </Button>
               )}
             </div>
-            <div className="relative flex-1 sm:max-w-[180px]">
-              <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={fingerprintHashInput}
-                onChange={(event) => setFingerprintHashInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") handleSearch()
-                }}
-                placeholder={adminExt.fingerprintHash || "指纹哈希"}
-                className="pl-9 pr-8"
-              />
-              {fingerprintHashInput && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    setFingerprintHashInput("")
-                    setFingerprintHashFilter("")
-                    setPage(1)
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
             <Button variant="outline" onClick={handleSearch} className="shrink-0 gap-2">
               <Search className="h-4 w-4" />
               {t.searchAction}
@@ -1923,8 +1757,6 @@ export function AdminPreApplicationsTable({
                 setRegisterEmailFilter("")
                 setQueryTokenInput("")
                 setQueryTokenFilter("")
-                setFingerprintHashInput("")
-                setFingerprintHashFilter("")
                 setStatusFilter([])
                 setReviewRoundFilter("ALL")
                 setInviteStatusFilter("ALL")
@@ -2252,297 +2084,6 @@ export function AdminPreApplicationsTable({
                 </div>
               </div>
 
-              {/* 指纹信息 */}
-              <Accordion
-                type="multiple"
-                value={fingerprintSectionValue}
-                onValueChange={setFingerprintSectionValue}
-                className="rounded-xl border bg-gradient-to-br from-muted/50 to-muted/20"
-              >
-                <AccordionItem value="fingerprint" className="border-none">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className="flex w-full flex-wrap items-center justify-between gap-2 pr-2">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Key className="h-4 w-4 text-primary" />
-                        {adminExt.fingerprintInfo || "指纹信息"}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {fingerprintLoading ? (
-                          <Badge variant="outline" className="gap-1 text-xs">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            {t.loading}
-                          </Badge>
-                        ) : fingerprintError ? (
-                          <Badge variant="destructive" className="text-xs">
-                            {((t as unknown as Record<string, unknown>).failed as string) || "失败"}
-                          </Badge>
-                        ) : hasFingerprintRisk(fingerprintDetail) &&
-                          fingerprintDetail?.riskCluster ? (
-                          <>
-                            <Badge
-                              className={cn(
-                                "text-xs",
-                                getRiskLevelBadgeClass(fingerprintDetail.riskCluster.riskLevel),
-                              )}
-                            >
-                              {formatRiskLevel(fingerprintDetail.riskCluster.riskLevel, riskT)}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {riskT.riskScore || "风险分"}:{" "}
-                              {fingerprintDetail.riskCluster.riskScore}
-                            </Badge>
-                          </>
-                        ) : hasFingerprintRisk(fingerprintDetail) ? (
-                          <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs">
-                            {riskT.levelMedium || "中风险"}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs text-muted-foreground">
-                            {adminExt.noFingerprintRisk || "暂无风险"}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4">
-                    {fingerprintLoading && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {t.loading}
-                      </div>
-                    )}
-
-                    {!fingerprintLoading && fingerprintError && (
-                      <p className="text-sm text-destructive">{fingerprintError}</p>
-                    )}
-
-                    {!fingerprintLoading && !fingerprintError && (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                          <div className="col-span-2">
-                            <span className="text-xs text-muted-foreground">
-                              {riskT.compatibilityHash || adminExt.fingerprintHash || "兼容哈希"}
-                            </span>
-                            <div className="mt-1 flex items-center gap-1.5">
-                              <p className="font-mono text-xs break-all">
-                                {fingerprintDetail?.fingerprintHash ||
-                                  selected.fingerprintHash ||
-                                  "-"}
-                              </p>
-                              {(fingerprintDetail?.fingerprintHash || selected.fingerprintHash) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(
-                                      fingerprintDetail?.fingerprintHash ||
-                                        selected.fingerprintHash ||
-                                        "",
-                                    )
-                                    toast.success(t.copied || "已复制")
-                                  }}
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-xs text-muted-foreground">
-                              {adminExt.fingerprintStatus || "采集状态"}
-                            </span>
-                            <p className="font-medium">
-                              {(fingerprintDetail?.fingerprintStatus ||
-                                selected.fingerprintStatus) === "OK"
-                                ? ((t as unknown as Record<string, unknown>).success as string) ||
-                                  "成功"
-                                : ((t as unknown as Record<string, unknown>).failed as string) ||
-                                  "失败"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-xs text-muted-foreground">
-                              {adminExt.fingerprintCollectedAt || "采集时间"}
-                            </span>
-                            <p className="font-medium">
-                              {formatDateTime(
-                                fingerprintDetail?.fingerprintCollectedAt ||
-                                  selected.fingerprintCollectedAt,
-                                locale,
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-xs text-muted-foreground">
-                              {adminExt.relatedUsers || "关联用户"}
-                            </span>
-                            <p className="font-medium">
-                              {fingerprintDetail?.relatedUsersCount ?? 0}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-xs text-muted-foreground">
-                              {adminExt.relatedApplications || "关联申请"}
-                            </span>
-                            <p className="font-medium">
-                              {fingerprintDetail?.relatedApplicationsCount ?? 0}
-                            </p>
-                          </div>
-                        </div>
-
-                        {fingerprintDetail?.riskCluster ? (
-                          <div className="space-y-3 rounded-lg border bg-card/80 p-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  {riskT.clusterDetail || "集群详情"}
-                                </p>
-                                <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
-                                  {fingerprintDetail.riskCluster.clusterId}
-                                </p>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge
-                                  className={cn(
-                                    "text-xs",
-                                    getRiskLevelBadgeClass(fingerprintDetail.riskCluster.riskLevel),
-                                  )}
-                                >
-                                  {formatRiskLevel(fingerprintDetail.riskCluster.riskLevel, riskT)}
-                                </Badge>
-                                <Badge variant="outline" className="text-xs">
-                                  {riskT.riskScore || "风险分"}:{" "}
-                                  {fingerprintDetail.riskCluster.riskScore}
-                                </Badge>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
-                              <div className="rounded-md bg-muted/40 p-2">
-                                <span className="text-muted-foreground">
-                                  {riskT.userCount || "用户数"}
-                                </span>
-                                <p className="mt-1 font-semibold">
-                                  {fingerprintDetail.riskCluster.userCount}
-                                </p>
-                              </div>
-                              <div className="rounded-md bg-muted/40 p-2">
-                                <span className="text-muted-foreground">
-                                  {riskT.applicationCount || "申请数"}
-                                </span>
-                                <p className="mt-1 font-semibold">
-                                  {fingerprintDetail.riskCluster.applicationCount}
-                                </p>
-                              </div>
-                              <div className="rounded-md bg-muted/40 p-2">
-                                <span className="text-muted-foreground">
-                                  {riskT.memberEvents || "成员事件"}
-                                </span>
-                                <p className="mt-1 font-semibold">
-                                  {fingerprintDetail.riskCluster.eventCount}
-                                </p>
-                              </div>
-                              <div className="rounded-md bg-muted/40 p-2">
-                                <span className="text-muted-foreground">
-                                  {riskT.similarityScore || "相似提醒"}
-                                </span>
-                                <p className="mt-1 font-semibold">
-                                  {formatSimilarityScore(
-                                    fingerprintDetail.riskCluster.maxSimilarity,
-                                    riskT,
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="grid gap-2 text-xs md:grid-cols-[1fr_2fr]">
-                              <div className="rounded-md bg-muted/30 p-2">
-                                <span className="text-muted-foreground">
-                                  {riskT.lastSeenAt || "最近出现"}
-                                </span>
-                                <p className="mt-1 font-medium">
-                                  {formatDateTime(fingerprintDetail.riskCluster.lastSeenAt, locale)}
-                                </p>
-                              </div>
-                              <div className="rounded-md bg-muted/30 p-2">
-                                <span className="text-muted-foreground">
-                                  {riskT.keyEvidence || "关键证据"}
-                                </span>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {fingerprintDetail.riskCluster.evidenceFlags.length ? (
-                                    fingerprintDetail.riskCluster.evidenceFlags.map((flag) => (
-                                      <Badge key={flag} variant="secondary" className="text-[10px]">
-                                        {formatEvidenceFlag(flag, riskT)}
-                                      </Badge>
-                                    ))
-                                  ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {fingerprintDetail?.relatedUsers?.length ? (
-                          <div className="space-y-1.5">
-                            <p className="text-xs text-muted-foreground">
-                              {adminExt.relatedUsers || "关联用户"}
-                            </p>
-                            <div className="max-h-28 space-y-1 overflow-y-auto rounded-md border bg-card p-2">
-                              {fingerprintDetail.relatedUsers.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center justify-between gap-2 text-xs"
-                                >
-                                  <span className="truncate">{item.name || item.email}</span>
-                                  <span className="text-muted-foreground">{item.role}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {fingerprintDetail?.relatedApplications?.length ? (
-                          <div className="space-y-1.5">
-                            <p className="text-xs text-muted-foreground">
-                              {adminExt.relatedApplications || "关联申请"}
-                            </p>
-                            <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border bg-card p-2">
-                              {fingerprintDetail.relatedApplications.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="space-y-1 rounded-md border bg-muted/20 p-2 text-xs"
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="truncate">
-                                      {item.user?.name || item.user?.email || item.registerEmail}
-                                    </span>
-                                    <span className="text-muted-foreground">{item.status}</span>
-                                  </div>
-                                  <p className="text-[11px] text-muted-foreground">
-                                    {formatDateTime(item.createdAt, locale)}
-                                  </p>
-                                  <div className="rounded bg-background p-2">
-                                    <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-                                      {t.preApplicationEssay}
-                                    </p>
-                                    <p className="whitespace-pre-wrap break-words text-[11px] select-text">
-                                      {item.essay || "-"}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-
               {/* 申请理由 */}
               <Accordion type="multiple" defaultValue={["essay"]} className="rounded-xl border">
                 <AccordionItem value="essay" className="border-none">
@@ -2654,9 +2195,6 @@ export function AdminPreApplicationsTable({
                                               inviteCode: null,
                                               codeSent: false,
                                               codeSentAt: null,
-                                              fingerprintHash: null,
-                                              fingerprintStatus: "COLLECTION_FAILED",
-                                              fingerprintCollectedAt: null,
                                               reviewRound: undefined,
                                             }
                                             openDialog(duplicateRecord)

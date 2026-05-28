@@ -8,8 +8,6 @@ import { writeAuditLog } from "@/lib/audit"
 import { sendEmail } from "@/lib/email/mailer"
 import { getAccountReactivationEmail } from "@/lib/email/templates/account-reactivation"
 import { createApiErrorResponse, resolveLocaleForRequest } from "@/lib/api/error-response"
-import { parseFingerprintPayload } from "@/lib/fingerprint/payload"
-import { recordFingerprintEvent } from "@/lib/fingerprint/server"
 import { ApiErrorKeys } from "@/lib/api/error-keys"
 import {
   clearPasskeyChallengeCookie,
@@ -45,7 +43,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { credential } = authenticateVerifySchema.parse(body)
-    const fingerprintPayload = parseFingerprintPayload(body)
     const challenge = await getPasskeyChallenge("authenticate")
 
     if (!challenge) {
@@ -149,14 +146,6 @@ export async function POST(request: NextRequest) {
     })
     setSessionCookie(response, token, expires)
     clearPasskeyChallengeCookie(response, "authenticate")
-
-    await recordFingerprintEvent({
-      db,
-      eventType: "LOGIN_PASSKEY",
-      payload: fingerprintPayload,
-      request,
-      userId: user.id,
-    })
 
     await writeAuditLog(db, {
       action: "AUTH_PASSKEY_LOGIN",

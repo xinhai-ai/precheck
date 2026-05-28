@@ -15,8 +15,6 @@ export interface User {
   status: string
   banReason?: string | null
   preApplicationSubmitBannedUntil?: string | null
-  latestFingerprintHash?: string | null
-  latestFingerprintAt?: string | null
   applicationCount?: number
   reviewCount?: number
   shadowBanned?: boolean

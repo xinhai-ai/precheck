@@ -17,7 +17,6 @@ import { PasskeyLoginButton } from "./passkey-login-button"
 import { getDictionaryEntry } from "@/lib/i18n/get-dictionary-entry"
 import type { Dictionary } from "@/lib/i18n/get-dictionary"
 import type { Locale } from "@/lib/i18n/config"
-import { collectFingerprint } from "@/lib/fingerprint/client"
 import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 interface LoginFormProps {
@@ -72,11 +71,15 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
     turnstileRef.current?.reset()
   }
 
-  const resolveErrorMessage = (payload?: {
-    code?: string
-    message?: string
-    meta?: Record<string, unknown>
-  } | string) => {
+  const resolveErrorMessage = (
+    payload?:
+      | {
+          code?: string
+          message?: string
+          meta?: Record<string, unknown>
+        }
+      | string,
+  ) => {
     if (!payload) {
       return t.errors.failed
     }
@@ -166,7 +169,6 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
     trackUmamiEvent("auth_login_start", { method: loginType, locale })
 
     try {
-      const fingerprintPayload = await collectFingerprint()
       const payload =
         loginType === "code"
           ? {
@@ -174,13 +176,11 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
               verificationCode: formData.verificationCode,
               loginType: "code" as const,
               turnstileToken: turnstileEnabled ? turnstileToken : undefined,
-              ...fingerprintPayload,
             }
           : {
               email: formData.email,
               password: formData.password,
               turnstileToken: turnstileEnabled ? turnstileToken : undefined,
-              ...fingerprintPayload,
             }
 
       const res = await fetch("/api/auth/login", {
@@ -221,32 +221,10 @@ export function LoginForm({ locale, dict, oauthProviders, turnstileSiteKey }: Lo
     }
   }
 
-  const handleOAuth = async (provider: string) => {
+  const handleOAuth = (provider: string) => {
     setIsLoading(true)
     trackUmamiEvent("auth_oauth_start", { provider, locale, source: "login" })
-    try {
-      const fingerprintPayload = await collectFingerprint()
-      let oauthPath = `/api/auth/${provider}`
-
-      const contextRes = await fetch("/api/fingerprint/oauth-context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fingerprintPayload),
-      })
-
-      if (contextRes.ok) {
-        const data = await contextRes.json().catch(() => ({}))
-        if (typeof data?.token === "string" && data.token) {
-          oauthPath = `${oauthPath}?fp_ctx=${encodeURIComponent(data.token)}`
-        }
-      }
-
-      window.location.href = oauthPath
-    } catch {
-      window.location.href = `/api/auth/${provider}`
-    } finally {
-      setIsLoading(false)
-    }
+    window.location.href = `/api/auth/${provider}`
   }
 
   return (

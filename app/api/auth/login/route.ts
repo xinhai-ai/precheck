@@ -12,8 +12,6 @@ import { sendEmail } from "@/lib/email/mailer"
 import { getAccountReactivationEmail } from "@/lib/email/templates/account-reactivation"
 import { z } from "zod"
 import { createApiErrorResponse, resolveLocaleForRequest } from "@/lib/api/error-response"
-import { parseFingerprintPayload } from "@/lib/fingerprint/payload"
-import { recordFingerprintEvent } from "@/lib/fingerprint/server"
 
 // 密码登录 schema
 const passwordLoginSchema = z.object({
@@ -63,7 +61,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const data = loginSchema.parse(body)
-    const fingerprintPayload = parseFingerprintPayload(body)
     const { email, turnstileToken } = data
 
     // 验证 Turnstile (如果提供)
@@ -162,7 +159,13 @@ export async function POST(request: NextRequest) {
 
       // 异步发送激活邮件，不阻塞响应
       sendEmail(
-        getAccountReactivationEmail(user.email, reactivationToken, process.env.NEXT_PUBLIC_APP_URL, undefined, resolveLocaleForRequest(request)),
+        getAccountReactivationEmail(
+          user.email,
+          reactivationToken,
+          process.env.NEXT_PUBLIC_APP_URL,
+          undefined,
+          resolveLocaleForRequest(request),
+        ),
       ).catch((error) => {
         console.error("Failed to send reactivation email:", error)
       })
@@ -187,14 +190,6 @@ export async function POST(request: NextRequest) {
       },
     })
     setSessionCookie(response, token, expires)
-
-    await recordFingerprintEvent({
-      db,
-      eventType: "loginType" in data && data.loginType === "code" ? "LOGIN_CODE" : "LOGIN_PASSWORD",
-      payload: fingerprintPayload,
-      request,
-      userId: user.id,
-    })
 
     await writeAuditLog(db, {
       action: "AUTH_LOGIN",

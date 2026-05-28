@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get("status")
     const providerFilter = searchParams.get("provider")
     const linuxdoTL3 = searchParams.get("linuxdoTL3") === "true"
-    const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
 
     const conditions: Prisma.UserWhereInput[] = []
 
@@ -76,12 +75,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    if (fingerprintHash) {
-      conditions.push({
-        latestFingerprintHash: { contains: fingerprintHash, mode: "insensitive" },
-      })
-    }
-
     const where = conditions.length > 0 ? { AND: conditions } : {}
 
     const users = await db.user.findMany({
@@ -95,8 +88,6 @@ export async function GET(request: NextRequest) {
         status: true,
         preApplicationSubmitBannedUntil: true,
         createdAt: true,
-        latestFingerprintHash: true,
-        latestFingerprintAt: true,
       },
     })
 
@@ -108,8 +99,6 @@ export async function GET(request: NextRequest) {
       "status",
       "preApplicationSubmitBannedUntil",
       "createdAt",
-      "latestFingerprintHash",
-      "latestFingerprintAt",
     ]
 
     const rows: unknown[][] = [
@@ -122,8 +111,6 @@ export async function GET(request: NextRequest) {
         item.status,
         item.preApplicationSubmitBannedUntil?.toISOString() || "",
         item.createdAt.toISOString(),
-        item.latestFingerprintHash || "",
-        item.latestFingerprintAt?.toISOString() || "",
       ]),
     ]
 

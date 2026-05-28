@@ -17,7 +17,6 @@ A production-ready Next.js starter template with React, TypeScript, Tailwind CSS
 - **Rich Text Editor** - Tiptap-powered editor with preview modes
 - **Internal Messages** - Admin-created messages with user inbox + read status
 - **Pre-Application Appeals** - Rejected users can request super-admin review with cooldown + penalty rules
-- **Fingerprint Tracking** - Browser fingerprint capture on login + pre-application submit with admin correlation tools
 - **Theme & Locale** - Light/dark theme toggle + locale switcher
 - **Multi-Platform** - Deploy to Vercel, Cloudflare, Netlify, Railway, Fly.io, and more
 
@@ -73,15 +72,6 @@ Generated type definitions are written to `types/prisma.d.ts`.
 - Appeals are gated by a super-admin-controlled feature toggle, a 3-day per-application cooldown, and a single pending appeal invariant.
 - Super admins review appeals in `/{locale}/admin/pre-application-appeals` and can either reject the appeal or restore the original pre-application to `PENDING`.
 - Rejecting an appeal applies a 3-day submit ban by updating `User.preApplicationSubmitBannedUntil`.
-
-## Fingerprint Tracking
-
-- Login records browser fingerprint for password/code/OAuth flows.
-- Dashboard pre-application submit records browser fingerprint.
-- Admin pre-application review drawer shows fingerprint details plus related users/applications sharing the same fingerprint hash.
-- Admin pre-application/user pages support fingerprint-hash search and CSV export includes fingerprint fields.
-- Only hash is stored (no raw visitor ID in DB).
-- Environment toggles: `FEATURE_FINGERPRINT`, `NEXT_PUBLIC_FEATURE_FINGERPRINT`, `FINGERPRINT_PEPPER`.
 
 ## Admin & Dashboard Features
 

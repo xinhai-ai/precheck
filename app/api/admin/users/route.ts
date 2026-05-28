@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get("status")
     const providerFilter = searchParams.get("provider")
     const linuxdoTL3 = searchParams.get("linuxdoTL3") === "true"
-    const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
 
     // 构建查询条件
     const conditions: Prisma.UserWhereInput[] = []
@@ -75,12 +74,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    if (fingerprintHash) {
-      conditions.push({
-        latestFingerprintHash: { contains: fingerprintHash, mode: "insensitive" },
-      })
-    }
-
     const where = conditions.length > 0 ? { AND: conditions } : {}
 
     const [usersRaw, total, stats] = await Promise.all([
@@ -100,8 +93,6 @@ export async function GET(request: NextRequest) {
           preApplicationReapplyEligibleAt: true,
           preApplicationReapplyStartedAt: true,
           createdAt: true,
-          latestFingerprintHash: true,
-          latestFingerprintAt: true,
           preApplications: {
             orderBy: { createdAt: "desc" },
             take: 1,

@@ -9,7 +9,6 @@ import {
   Settings,
   Shield,
   ClipboardCheck,
-  ShieldAlert,
   Mail,
   ClipboardList,
   ScrollText,
@@ -66,12 +65,6 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       href: `/${locale}/admin/pre-application-appeals`,
       icon: ClipboardCheck,
       requiredCapability: "preApplicationAppeal.view" as Capability,
-    },
-    {
-      name: ((dict.admin as Record<string, unknown>).riskControl as string) || "风险控制",
-      href: `/${locale}/admin/risk-control`,
-      icon: ShieldAlert,
-      superAdminOnly: false,
     },
     {
       name: dict.admin.messages,

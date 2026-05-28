@@ -19,10 +19,6 @@ const historyRouteUrl = new URL(
   "../../../app/api/admin/pre-applications/[id]/history/route.ts",
   import.meta.url,
 )
-const fingerprintRouteUrl = new URL(
-  "../../../app/api/admin/pre-applications/[id]/fingerprint/route.ts",
-  import.meta.url,
-)
 const duplicateCheckRouteUrl = new URL(
   "../../../app/api/admin/pre-applications/[id]/duplicate-check/route.ts",
   import.meta.url,
@@ -45,7 +41,6 @@ const helperSource = readIfExists(helperUrl)
 const listRouteSource = readIfExists(listRouteUrl)
 const exportRouteSource = readIfExists(exportRouteUrl)
 const historyRouteSource = readIfExists(historyRouteUrl)
-const fingerprintRouteSource = readIfExists(fingerprintRouteUrl)
 const duplicateCheckRouteSource = readIfExists(duplicateCheckRouteUrl)
 const reviewRequestRouteSource = readIfExists(reviewRequestRouteUrl)
 const notesRouteSource = readIfExists(notesRouteUrl)
@@ -66,7 +61,6 @@ test("admin pre-application routes use archived visibility helper", () => {
     listRouteSource,
     exportRouteSource,
     historyRouteSource,
-    fingerprintRouteSource,
     duplicateCheckRouteSource,
     reviewRequestRouteSource,
     notesRouteSource,
@@ -93,12 +87,6 @@ test("admin pre-application routes use archived visibility helper", () => {
     duplicateCheckRouteSource,
     /status:\s*\{\s*not:\s*ARCHIVED_PRE_APPLICATION_STATUS\s*\}/,
   )
-  assert.match(
-    fingerprintRouteSource,
-    /ARCHIVED_PRE_APPLICATION_STATUS|canViewArchivedPreApplications/,
-  )
-  assert.match(fingerprintRouteSource, /fingerprintRiskClusterMember/)
-  assert.match(fingerprintRouteSource, /riskCluster/)
 })
 
 test("admin pre-application table hides archived filter and stats behind super-admin gate", () => {

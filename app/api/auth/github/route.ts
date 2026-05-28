@@ -19,11 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   const locale = resolveLocaleForRequest(request)
-  const fpCtx = request.nextUrl.searchParams.get("fp_ctx")?.trim()
-  const state = buildOAuthState({
-    fingerprintContextToken: fpCtx,
-    locale,
-  })
+  const state = buildOAuthState({ locale })
   const url = await getGitHubAuthUrl(state)
   if (!url) {
     return createApiErrorResponse(request, ApiErrorKeys.auth.oauth.failedToGenerateUrl, {

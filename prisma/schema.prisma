@@ -30,8 +30,6 @@ model User {
   preApplicationReapplyEligibleAt DateTime?
   preApplicationReapplyStartedAt  DateTime?
   country                         String?
-  latestFingerprintHash           String?
-  latestFingerprintAt             DateTime?
   createdAt                       DateTime   @default(now())
   updatedAt                       DateTime   @updatedAt
 
@@ -66,9 +64,6 @@ model User {
   privateChatMessages              PrivateChatMessage[]              @relation("PrivateChatMessageSender")
   apiTokens                        ApiToken[]
   passkeyCredentials               PasskeyCredential[]
-  fingerprintEvents                FingerprintEvent[]                @relation("UserFingerprintEvents")
-  riskIgnoredEntry                 RiskIgnoredUser?                  @relation("RiskIgnoredTarget")
-  riskIgnoredCreated               RiskIgnoredUser[]                 @relation("RiskIgnoredCreator")
   shadowBannedEntry                ShadowBannedUser?                 @relation("ShadowBannedTarget")
   shadowBannedCreated              ShadowBannedUser[]                @relation("ShadowBannedCreator")
 
@@ -80,7 +75,6 @@ model User {
   reactivationToken       String?   @unique
   reactivationTokenExpiry DateTime?
 
-  @@index([latestFingerprintHash])
 }
 
 model Account {
@@ -206,9 +200,6 @@ model PreApplication {
   codeSent                            Boolean               @default(false)
   codeSentAt                          DateTime?
   formalApplicationApprovedFeedbackAt DateTime?
-  fingerprintHash                     String?
-  fingerprintCollectedAt              DateTime?
-  fingerprintStatus                   FingerprintStatus     @default(COLLECTION_FAILED)
   createdAt                           DateTime              @default(now())
   updatedAt                           DateTime              @updatedAt
   holdUntil                           DateTime? // ON_HOLD 状态的截止时间
@@ -220,14 +211,12 @@ model PreApplication {
   adminNotes        PreApplicationAdminNote[]
   appeals           PreApplicationAppeal[]
   tickets           Ticket[] // 工单
-  fingerprintEvents FingerprintEvent[]        @relation("PreApplicationFingerprintEvents")
 
   @@index([status, createdAt])
   @@index([status, formalApplicationApprovedFeedbackAt])
   @@index([userId, createdAt])
   @@index([registerEmail])
   @@index([qqNumber])
-  @@index([fingerprintHash])
 }
 
 model PreApplicationAppeal {
@@ -332,111 +321,6 @@ model PreApplicationDraft {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([updatedAt])
-}
-
-model FingerprintProfile {
-  id               String             @id @default(cuid())
-  fingerprintHash  String             @unique
-  fingerprintBasis Json?
-  componentKeys    String[]           @default([])
-  firstSeenAt      DateTime           @default(now())
-  lastSeenAt       DateTime           @default(now())
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  events           FingerprintEvent[]
-
-  @@index([lastSeenAt])
-}
-
-model FingerprintEvent {
-  id                    String            @id @default(cuid())
-  fingerprintId         String?
-  fingerprintHash       String?
-  eventType             String
-  status                FingerprintStatus @default(COLLECTION_FAILED)
-  failureReason         String?
-  userId                String?
-  preApplicationId      String?
-  ip                    String?
-  userAgent             String?
-  browserFamily         String?
-  networkKey            String?
-  fingerprintComponents Json?
-  fingerprintSummary    Json?
-  similarityScore       Int?
-  similaritySignals     Json?
-  createdAt             DateTime          @default(now())
-
-  fingerprint          FingerprintProfile?            @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
-  user                 User?                          @relation("UserFingerprintEvents", fields: [userId], references: [id], onDelete: SetNull)
-  preApplication       PreApplication?                @relation("PreApplicationFingerprintEvents", fields: [preApplicationId], references: [id], onDelete: SetNull)
-  riskClusterMembers   FingerprintRiskClusterMember[] @relation("FingerprintRiskClusterMemberEvent")
-  anchoredRiskClusters FingerprintRiskCluster[]       @relation("FingerprintRiskClusterAnchor")
-
-  @@index([fingerprintId, createdAt])
-  @@index([fingerprintHash, createdAt])
-  @@index([userId, createdAt])
-  @@index([preApplicationId, createdAt])
-  @@index([eventType, createdAt])
-  @@index([browserFamily, createdAt])
-  @@index([networkKey, createdAt])
-  @@index([similarityScore, createdAt])
-}
-
-model FingerprintRiskCluster {
-  id               String   @id @default(cuid())
-  anchorEventId    String?
-  riskLevel        String
-  riskScore        Int
-  userCount        Int      @default(0)
-  applicationCount Int      @default(0)
-  eventCount       Int      @default(0)
-  maxSimilarity    Int?
-  evidenceFlags    String[] @default([])
-  summary          Json?
-  firstSeenAt      DateTime
-  lastSeenAt       DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  anchorEvent FingerprintEvent?              @relation("FingerprintRiskClusterAnchor", fields: [anchorEventId], references: [id], onDelete: SetNull)
-  members     FingerprintRiskClusterMember[]
-
-  @@index([riskLevel, lastSeenAt])
-  @@index([lastSeenAt])
-  @@index([anchorEventId])
-}
-
-model FingerprintRiskClusterMember {
-  id              String   @id @default(cuid())
-  clusterId       String
-  eventId         String   @unique
-  similarityScore Int
-  matchedKeys     String[] @default([])
-  differentKeys   String[] @default([])
-  strongKeys      String[] @default([])
-  createdAt       DateTime @default(now())
-
-  cluster FingerprintRiskCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-  event   FingerprintEvent       @relation("FingerprintRiskClusterMemberEvent", fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([clusterId, similarityScore])
-  @@index([eventId])
-}
-
-model RiskIgnoredUser {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  reason      String
-  createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user      User @relation("RiskIgnoredTarget", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy User @relation("RiskIgnoredCreator", fields: [createdById], references: [id], onDelete: Restrict)
-
-  @@index([createdById])
-  @@index([createdAt])
 }
 
 model ShadowBannedUser {
@@ -583,11 +467,6 @@ enum PreApplicationAdminNoteAction {
   CREATED
   UPDATED
   DELETED
-}
-
-enum FingerprintStatus {
-  OK
-  COLLECTION_FAILED
 }
 
 model SiteSettings {

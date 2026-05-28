@@ -55,7 +55,6 @@ import {
 } from "@/components/captcha/captcha-challenge-dialog"
 import { useAllowedEmailDomains } from "@/lib/hooks/use-allowed-email-domains"
 import { cn } from "@/lib/utils"
-import { collectFingerprint } from "@/lib/fingerprint/client"
 import { trackUmamiEvent } from "@/lib/analytics/umami-client"
 
 import {
@@ -1062,7 +1061,6 @@ export function PreApplicationForm({
     try {
       const isCreatingNewRound = latest?.status === "ARCHIVED" && reapply.started
       const method = latest && !isCreatingNewRound ? "PUT" : "POST"
-      const fingerprintPayload = await collectFingerprint()
       const res = await fetch("/api/pre-application", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -1076,7 +1074,6 @@ export function PreApplicationForm({
           captchaProvider: captcha?.provider ?? null,
           captchaPayload: captcha?.payload ?? null,
           captchaTicket: captcha?.ticket ?? null,
-          ...fingerprintPayload,
         }),
       })
 

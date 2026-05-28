@@ -108,8 +108,6 @@ interface AdminUser {
   createdAt: string
   applicationCount: number
   reviewCount: number
-  latestFingerprintHash?: string | null
-  latestFingerprintAt?: string | null
   banReason?: string | null
   preApplicationSubmitBannedUntil?: string | null
   preApplicationReapplyEligibleAt?: string | null
@@ -163,8 +161,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [searchInput, setSearchInput] = useState("")
-  const [fingerprintHashFilter, setFingerprintHashFilter] = useState("")
-  const [fingerprintHashInput, setFingerprintHashInput] = useState("")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [roleFilter, setRoleFilter] = useState("all")
@@ -217,7 +213,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
         sortBy,
         sortOrder,
         ...(search && { search }),
-        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(roleFilter !== "all" && { role: roleFilter }),
         ...(statusFilter !== "all" && { status: statusFilter }),
         ...(providerFilter !== "all" && { provider: providerFilter }),
@@ -240,7 +235,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
       setLoading(false)
     }
   }, [
-    fingerprintHashFilter,
     linuxdoTL3Filter,
     page,
     pageSize,
@@ -263,7 +257,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
 
   const handleSearch = () => {
     setSearch(searchInput)
-    setFingerprintHashFilter(fingerprintHashInput)
     setPage(1)
   }
 
@@ -278,7 +271,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
     try {
       const params = new URLSearchParams({
         ...(search && { search }),
-        ...(fingerprintHashFilter && { fingerprintHash: fingerprintHashFilter }),
         ...(roleFilter !== "all" && { role: roleFilter }),
         ...(statusFilter !== "all" && { status: statusFilter }),
         ...(providerFilter !== "all" && { provider: providerFilter }),
@@ -1037,29 +1029,6 @@ export function AdminUsersTable({ locale, dict }: AdminUsersTableProps) {
               onClick={() => {
                 setSearchInput("")
                 setSearch("")
-                setPage(1)
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        <div className="relative flex-1 max-w-sm">
-          <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={adminExt.fingerprintHash || "指纹哈希"}
-            value={fingerprintHashInput}
-            onChange={(event) => setFingerprintHashInput(event.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            className="pl-9 pr-9"
-          />
-          {fingerprintHashInput && (
-            <button
-              type="button"
-              onClick={() => {
-                setFingerprintHashInput("")
-                setFingerprintHashFilter("")
                 setPage(1)
               }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"

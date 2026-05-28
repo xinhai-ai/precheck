@@ -5,15 +5,13 @@ import { features } from "@/lib/features"
 import { writeAuditLog } from "@/lib/audit"
 import { db } from "@/lib/db"
 import { buildRedirectUrl } from "@/lib/url"
-import { consumeOAuthFingerprintContext } from "@/lib/fingerprint/oauth-context"
-import { recordFingerprintEvent } from "@/lib/fingerprint/server"
 import { parseOAuthState } from "@/lib/auth/oauth-state"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get("code")
   const state = searchParams.get("state")
-  const { fingerprintContextToken, locale } = parseOAuthState(state)
+  const { locale } = parseOAuthState(state)
 
   if (!features.oauth.google) {
     return NextResponse.redirect(
@@ -41,23 +39,6 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(buildRedirectUrl(`/${locale}/dashboard`, request.url))
     setSessionCookie(response, token, expires)
     if (db) {
-      const fingerprintPayload = (fingerprintContextToken
-        ? await consumeOAuthFingerprintContext(fingerprintContextToken)
-        : null) ?? {
-        fingerprintStatus: "COLLECTION_FAILED" as const,
-        fingerprintFailureReason: fingerprintContextToken
-          ? "oauth_context_not_found"
-          : "oauth_context_missing",
-      }
-
-      await recordFingerprintEvent({
-        db,
-        eventType: "LOGIN_OAUTH",
-        payload: fingerprintPayload,
-        request,
-        userId: user.id,
-      })
-
       await writeAuditLog(db, {
         action: "AUTH_OAUTH_LOGIN",
         entityType: "AUTH",

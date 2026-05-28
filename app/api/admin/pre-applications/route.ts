@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || ""
     const registerEmail = (searchParams.get("registerEmail") || "").trim()
     const queryToken = (searchParams.get("queryToken") || "").trim()
-    const fingerprintHash = (searchParams.get("fingerprintHash") || "").trim()
     const reviewRound = searchParams.get("reviewRound") || ""
     const inviteStatus = searchParams.get("inviteStatus") || ""
     const formalFeedbackStatus = searchParams.get("formalFeedbackStatus") || ""
@@ -90,10 +89,6 @@ export async function GET(request: NextRequest) {
       where.queryToken = { contains: queryToken, mode: "insensitive" }
     }
 
-    if (fingerprintHash) {
-      where.fingerprintHash = { contains: fingerprintHash, mode: "insensitive" }
-    }
-
     if (reviewRound) {
       const round = Number.parseInt(reviewRound)
       if (!Number.isNaN(round) && round >= 1) {
@@ -146,9 +141,6 @@ export async function GET(request: NextRequest) {
       codeSent: true,
       codeSentAt: true,
       formalApplicationApprovedFeedbackAt: true,
-      fingerprintHash: true,
-      fingerprintCollectedAt: true,
-      fingerprintStatus: true,
       user: { select: { id: true, name: true, email: true } },
       reviewedBy: { select: { id: true, name: true, email: true } },
       inviteCode: {
