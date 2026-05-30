@@ -78,6 +78,7 @@ import type { Locale } from "@/lib/i18n/config"
 import type { Role } from "@prisma/client"
 import { preApplicationGroups, preApplicationSources } from "@/lib/pre-application/constants"
 import { PostContent } from "@/components/posts/post-content"
+import { FingerprintCard } from "@/components/admin/fingerprint-card"
 import {
   Accordion,
   AccordionContent,
@@ -140,6 +141,24 @@ type AdminPreApplication = {
     id: string
     source: "USER_APPEAL" | "ADMIN_REVIEW_REQUEST"
     createdAt: string
+  } | null
+  fingerprint?: {
+    id: string
+    visitorId: string
+    browser: string | null
+    os: string | null
+    device: string | null
+    screenResolution: string | null
+    timezone: string | null
+    firstSeenAt: string
+    lastSeenAt: string
+  } | null
+  fingerprintLink?: {
+    id: string
+    visitorId: string
+    userIds: string[]
+    riskScore: number
+    status: "PENDING" | "CONFIRMED" | "CLEARED" | "IGNORED"
   } | null
 }
 
@@ -2083,6 +2102,15 @@ export function AdminPreApplicationsTable({
                   </div>
                 </div>
               </div>
+
+              {/* 设备指纹 */}
+              <FingerprintCard
+                locale={locale}
+                dict={dict}
+                fingerprint={selected.fingerprint ?? null}
+                link={selected.fingerprintLink ?? null}
+                currentUserId={selected.user?.id}
+              />
 
               {/* 申请理由 */}
               <Accordion type="multiple" defaultValue={["essay"]} className="rounded-xl border">

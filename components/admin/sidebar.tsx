@@ -20,6 +20,7 @@ import {
   History,
   Activity,
   Ticket,
+  Fingerprint,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -65,6 +66,15 @@ export function AdminSidebar({ locale, dict, user }: AdminSidebarProps) {
       href: `/${locale}/admin/pre-application-appeals`,
       icon: ClipboardCheck,
       requiredCapability: "preApplicationAppeal.view" as Capability,
+    },
+    {
+      name:
+        ((dict.admin as Record<string, unknown>).fingerprint as
+          | Record<string, string>
+          | undefined)?.management || "指纹管理",
+      href: `/${locale}/admin/fingerprints`,
+      icon: Fingerprint,
+      superAdminOnly: true, // 仅超管
     },
     {
       name: dict.admin.messages,

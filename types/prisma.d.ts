@@ -16,6 +16,8 @@ export type PreApplicationSource = "TIEBA" | "BILIBILI" | "DOUYIN" | "XIAOHONGSH
 
 export type PreApplicationAdminNoteAction = "CREATED" | "UPDATED" | "DELETED"
 
+export type FingerprintLinkStatus = "PENDING" | "CONFIRMED" | "CLEARED" | "IGNORED"
+
 export type EmailLogStatus = "PENDING" | "SUCCESS" | "FAILED"
 
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
@@ -68,6 +70,8 @@ export interface User {
   passkeyCredentials: PasskeyCredential[]
   shadowBannedEntry: ShadowBannedUser | null
   shadowBannedCreated: ShadowBannedUser[]
+  fingerprints: DeviceFingerprint[]
+  fingerprintLinksReviewed: FingerprintLink[]
   resetToken: string | null
   resetTokenExpiry: Date | null
   reactivationToken: string | null
@@ -180,9 +184,11 @@ export interface PreApplication {
   createdAt: Date
   updatedAt: Date
   holdUntil: Date | null
+  fingerprintId: string | null
   user: User | null
   reviewedBy: User | null
   inviteCode: InviteCode | null
+  fingerprint: DeviceFingerprint | null
   versions: PreApplicationVersion[]
   adminNotes: PreApplicationAdminNote[]
   appeals: PreApplicationAppeal[]
@@ -335,6 +341,49 @@ export interface AuditLog {
   metadata: Prisma.JsonValue | null
   createdAt: Date
   actor: User | null
+}
+
+export interface DeviceFingerprint {
+  id: string
+  visitorId: string
+  userAgent: string | null
+  browser: string | null
+  os: string | null
+  device: string | null
+  language: string | null
+  languages: string | null
+  platform: string | null
+  screenResolution: string | null
+  timezone: string | null
+  timezoneOffset: number | null
+  webglVendor: string | null
+  webglRenderer: string | null
+  canvasHash: string | null
+  audioHash: string | null
+  fonts: string | null
+  components: Prisma.JsonValue | null
+  userId: string | null
+  user: User | null
+  ip: string | null
+  country: string | null
+  confidence: number | null
+  firstSeenAt: Date
+  lastSeenAt: Date
+  preApplications: PreApplication[]
+}
+
+export interface FingerprintLink {
+  id: string
+  visitorId: string
+  userIds: string[]
+  riskScore: number
+  status: FingerprintLinkStatus
+  reviewedById: string | null
+  reviewedBy: User | null
+  reviewedAt: Date | null
+  reviewNote: string | null
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface SiteSettings {

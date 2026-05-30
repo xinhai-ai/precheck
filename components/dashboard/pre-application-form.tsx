@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
+import { useFingerprint } from "@/hooks/use-fingerprint"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -264,6 +265,25 @@ export function PreApplicationForm({
   const router = useRouter()
   const t = dict.preApplication
   const emailSuffixPlaceholder = t.emailSuffixPlaceholder ?? ""
+  // 采集浏览器指纹（自动采集），并在采集完成后上报到 /api/fingerprint
+  const { fingerprint } = useFingerprint({ autoCollect: true })
+
+  useEffect(() => {
+    if (!fingerprint) return
+    // 上报指纹，建立指纹-用户关联（失败不阻断申请流程）
+    fetch("/api/fingerprint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        visitorId: fingerprint.visitorId,
+        confidence: fingerprint.confidence,
+        components: fingerprint.components,
+        raw: fingerprint.raw,
+      }),
+    }).catch(() => {
+      // 静默失败，指纹采集不应影响用户提交
+    })
+  }, [fingerprint])
   const [essayMinChars, setEssayMinChars] = useState(50)
   const [essayMaxChars, setEssayMaxChars] = useState(300)
   const [loading, setLoading] = useState(!initialRecords)
@@ -1074,6 +1094,7 @@ export function PreApplicationForm({
           captchaProvider: captcha?.provider ?? null,
           captchaPayload: captcha?.payload ?? null,
           captchaTicket: captcha?.ticket ?? null,
+          visitorId: fingerprint?.visitorId ?? null,
         }),
       })
 

@@ -2576,7 +2576,91 @@
     "auditAction_AUTH_PASSKEY_LOGIN": "通行密钥登录",
     "auditAction_AUTH_PASSKEY_REGISTER": "绑定通行密钥",
     "auditAction_AUTH_PASSKEY_DELETE": "移除通行密钥",
-    "auditEntity_PASSKEY": "通行密钥"
+    "auditEntity_PASSKEY": "通行密钥",
+    "fingerprint": {
+      "title": "设备指纹",
+      "noFingerprint": "暂无指纹信息",
+      "visitorId": "指纹 ID",
+      "copy": "复制",
+      "copied": "已复制",
+      "viewDetails": "查看详情",
+      "linkedAccounts": "关联账号",
+      "multiAccountWarning": "此指纹关联了其他 {count} 个账号",
+      "andMore": "还有 {count} 个...",
+      "riskLevel": {
+        "low": "低风险",
+        "medium": "中风险",
+        "high": "高风险"
+      },
+      "status": {
+        "pending": "待审核",
+        "confirmed": "已确认违规",
+        "cleared": "已排除",
+        "ignored": "已忽略"
+      },
+      "management": "指纹管理",
+      "managementDesc": "查看和管理设备指纹关联",
+      "alerts": "风险告警",
+      "alertsDesc": "处理多账号风险告警",
+      "searchPlaceholder": "搜索指纹 ID 或用户...",
+      "filterByStatus": "按状态筛选",
+      "filterByRisk": "按风险等级筛选",
+      "allStatus": "全部状态",
+      "allRisk": "全部风险",
+      "columns": {
+        "visitorId": "指纹 ID",
+        "linkedUsers": "关联用户",
+        "riskScore": "风险分数",
+        "status": "状态",
+        "lastSeen": "最后活跃",
+        "actions": "操作"
+      },
+      "detail": {
+        "title": "指纹详情",
+        "basicInfo": "基本信息",
+        "deviceInfo": "设备信息",
+        "linkedUsers": "关联用户",
+        "preApplications": "关联申请",
+        "timeline": "时间线",
+        "riskFactors": "风险因素",
+        "browser": "浏览器",
+        "os": "操作系统",
+        "device": "设备类型",
+        "screen": "屏幕分辨率",
+        "timezone": "时区",
+        "language": "语言",
+        "webgl": "WebGL 渲染器",
+        "canvas": "Canvas 哈希",
+        "firstSeen": "首次出现",
+        "lastSeen": "最后活跃",
+        "ip": "IP 地址"
+      },
+      "review": {
+        "title": "处理指纹关联",
+        "confirm": "确认违规",
+        "confirmDesc": "确认这些账号属于同一人违规注册",
+        "clear": "排除误判",
+        "clearDesc": "标记为共用设备等正常情况",
+        "ignore": "忽略",
+        "ignoreDesc": "暂时忽略此关联",
+        "note": "处理备注",
+        "notePlaceholder": "输入处理说明...",
+        "banUsers": "同时封禁关联账号",
+        "banUsersDesc": "保留最早注册的账号，封禁其他账号",
+        "banReason": "封禁理由",
+        "banReasonPlaceholder": "多账号违规",
+        "success": "处理成功",
+        "failed": "处理失败"
+      },
+      "stats": {
+        "pending": "待处理",
+        "confirmed": "已确认",
+        "cleared": "已排除",
+        "ignored": "已忽略"
+      },
+      "empty": "暂无指纹关联记录",
+      "loadFailed": "加载指纹数据失败"
+    }
   },
   "theme": {
     "toggle": "切换主题",

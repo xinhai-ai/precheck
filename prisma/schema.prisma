@@ -66,6 +66,8 @@ model User {
   passkeyCredentials               PasskeyCredential[]
   shadowBannedEntry                ShadowBannedUser?                 @relation("ShadowBannedTarget")
   shadowBannedCreated              ShadowBannedUser[]                @relation("ShadowBannedCreator")
+  fingerprints                     DeviceFingerprint[]
+  fingerprintLinksReviewed         FingerprintLink[]                 @relation("FingerprintLinksReviewed")
 
   // 密码重置
   resetToken       String?   @unique
@@ -203,10 +205,12 @@ model PreApplication {
   createdAt                           DateTime              @default(now())
   updatedAt                           DateTime              @updatedAt
   holdUntil                           DateTime? // ON_HOLD 状态的截止时间
+  fingerprintId                       String? // 设备指纹 ID
 
   user              User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviewedBy        User?                     @relation("ReviewedPreApplications", fields: [reviewedById], references: [id])
   inviteCode        InviteCode?               @relation("PreApplicationInviteCode", fields: [inviteCodeId], references: [id])
+  fingerprint       DeviceFingerprint?        @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
   versions          PreApplicationVersion[] // 版本历史
   adminNotes        PreApplicationAdminNote[]
   appeals           PreApplicationAppeal[]
@@ -217,6 +221,7 @@ model PreApplication {
   @@index([userId, createdAt])
   @@index([registerEmail])
   @@index([qqNumber])
+  @@index([fingerprintId])
 }
 
 model PreApplicationAppeal {
@@ -468,6 +473,83 @@ enum PreApplicationAdminNoteAction {
   UPDATED
   DELETED
 }
+
+// ==================== 设备指纹风控 ====================
+
+// 设备指纹记录
+model DeviceFingerprint {
+  id               String   @id @default(cuid())
+  visitorId        String // FingerprintJS 生成的 ID
+
+  // 核心组件（用于相似度计算和展示）
+  userAgent        String?
+  browser          String? // 浏览器名称和版本
+  os               String? // 操作系统
+  device           String? // 设备类型
+  language         String?
+  languages        String? // JSON 数组
+  platform         String?
+  screenResolution String?
+  timezone         String?
+  timezoneOffset   Int?
+  webglVendor      String?
+  webglRenderer    String?
+  canvasHash       String?
+  audioHash        String?
+  fonts            String?  @db.Text // JSON 数组
+
+  // 完整组件 JSON（备查）
+  components       Json?
+
+  // 关联
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // 元数据
+  ip               String?
+  country          String?
+  confidence       Float?   @default(0) // FingerprintJS 置信度
+  firstSeenAt      DateTime @default(now())
+  lastSeenAt       DateTime @default(now())
+
+  // 反向关系
+  preApplications  PreApplication[]
+
+  @@index([visitorId])
+  @@index([userId])
+  @@index([canvasHash])
+  @@index([ip])
+  @@index([firstSeenAt])
+  @@index([lastSeenAt])
+}
+
+// 指纹关联记录（同一指纹关联的多个用户）
+model FingerprintLink {
+  id           String                @id @default(cuid())
+  visitorId    String                @unique
+  userIds      String[] // 关联的用户 ID 列表
+  riskScore    Int                   @default(0) // 0-100
+  status       FingerprintLinkStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   User?                 @relation("FingerprintLinksReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([status])
+  @@index([riskScore])
+  @@index([createdAt])
+}
+
+enum FingerprintLinkStatus {
+  PENDING   // 待审核
+  CONFIRMED // 确认多账号
+  CLEARED   // 已排除（如家庭共用设备）
+  IGNORED   // 忽略
+}
+
+// ==================== 设备指纹风控 END ====================
 
 model SiteSettings {
   id                                           String   @id @default("global")

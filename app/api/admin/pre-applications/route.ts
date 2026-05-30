@@ -161,6 +161,19 @@ export async function GET(request: NextRequest) {
         take: 1,
         select: { createdAt: true },
       },
+      fingerprint: {
+        select: {
+          id: true,
+          visitorId: true,
+          browser: true,
+          os: true,
+          device: true,
+          screenResolution: true,
+          timezone: true,
+          firstSeenAt: true,
+          lastSeenAt: true,
+        },
+      },
     } satisfies Prisma.PreApplicationSelect
 
     const recordsPromise =
@@ -224,12 +237,44 @@ export async function GET(request: NextRequest) {
       database.preApplication.count({ where: { status: SHADOW_HIDDEN_STATUS } }),
     ])
 
+    // 批量获取关联指纹的风险信息（用于在列表/详情中提示多账号风险）
+    const visitorIds = Array.from(
+      new Set(
+        records
+          .map((record) => record.fingerprint?.visitorId)
+          .filter((v): v is string => Boolean(v)),
+      ),
+    )
+    const fingerprintLinks =
+      visitorIds.length > 0
+        ? await database.fingerprintLink.findMany({
+            where: { visitorId: { in: visitorIds } },
+            select: {
+              id: true,
+              visitorId: true,
+              userIds: true,
+              riskScore: true,
+              status: true,
+            },
+          })
+        : []
+    const linkByVisitorId = new Map(fingerprintLinks.map((link) => [link.visitorId, link]))
+
     const enrichedRecords = records.map((record) => {
       const reviewRound = record.resubmitCount + 1
       const latestVersionCreatedAt = record.versions[0]?.createdAt ?? record.createdAt
       const pendingAppeal = record.appeals[0] ?? null
       const { versions, appeals, ...rest } = record
-      return { ...rest, reviewRound, latestVersionCreatedAt, pendingAppeal }
+      const fingerprintLink = record.fingerprint
+        ? (linkByVisitorId.get(record.fingerprint.visitorId) ?? null)
+        : null
+      return {
+        ...rest,
+        reviewRound,
+        latestVersionCreatedAt,
+        pendingAppeal,
+        fingerprintLink,
+      }
     })
 
     return NextResponse.json({

@@ -132,6 +132,7 @@ const preApplicationSchema = z.object({
   captchaProvider: z.enum(["turnstile", "hcaptcha", "geetest"]).optional().nullable(),
   captchaPayload: z.record(z.string(), z.unknown()).optional().nullable(),
   captchaTicket: z.string().min(1).max(200).optional().nullable(),
+  visitorId: z.string().min(1).max(100).optional().nullable(), // 浏览器指纹 ID
 })
 
 // 验证群 ID 是否在配置中
@@ -146,6 +147,24 @@ function getClientIp(request: NextRequest): string | undefined {
     request.headers.get("x-real-ip") ||
     undefined
   )
+}
+
+/**
+ * 根据 visitorId 解析出当前用户对应的 DeviceFingerprint 记录 ID。
+ * 指纹数据由 /api/fingerprint 单独上报，这里仅做关联查找。
+ * 找不到时返回 null（不阻断提交）。
+ */
+async function resolveFingerprintId(
+  visitorId: string | null | undefined,
+  userId: string,
+): Promise<string | null> {
+  if (!db || !visitorId) return null
+  const fingerprint = await db.deviceFingerprint.findFirst({
+    where: { visitorId, userId },
+    orderBy: { lastSeenAt: "desc" },
+    select: { id: true },
+  })
+  return fingerprint?.id ?? null
 }
 
 async function validatePreApplicationSubmitCaptcha(
@@ -551,6 +570,9 @@ export async function POST(request: NextRequest) {
     // 在事务外部生成 queryToken，避免 pgBouncer 兼容性问题
     const queryToken = await generateUniqueQueryToken()
 
+    // 关联设备指纹（指纹由 /api/fingerprint 单独上报）
+    const fingerprintId = await resolveFingerprintId(data.visitorId, user.id)
+
     // 使用事务创建预申请和版本记录
     const record = await db.$transaction(async (tx) => {
       if (isReapplyCreate) {
@@ -575,6 +597,7 @@ export async function POST(request: NextRequest) {
           status: persistedStatus,
           version: 1,
           resubmitCount: 0,
+          fingerprintId,
         },
         include: {
           reviewedBy: { select: { id: true, name: true, email: true } },
@@ -810,6 +833,7 @@ export async function PUT(request: NextRequest) {
       sourceDetail: data.source === "OTHER" ? data.sourceDetail?.trim() || null : null,
       registerEmail,
       group: data.group,
+      fingerprintId: await resolveFingerprintId(data.visitorId, user.id),
     }
 
     const before = await db.preApplication.findUnique({

@@ -24,6 +24,7 @@ import {
   normalizeLocalPart,
 } from "@/lib/validators/email"
 import { trackUmamiEvent } from "@/lib/analytics/umami-client"
+import { useFingerprint } from "@/hooks/use-fingerprint"
 
 interface RegisterFormProps {
   locale: Locale
@@ -44,6 +45,25 @@ export function RegisterForm({
   const [error, setError] = useState("")
   const [turnstileToken, setTurnstileToken] = useState("")
   const turnstileRef = useRef<TurnstileRef>(null)
+  // 采集浏览器指纹（匿名采集，注册成功后由后端认领关联）
+  const { fingerprint } = useFingerprint({ autoCollect: true })
+
+  useEffect(() => {
+    if (!fingerprint) return
+    // 上报匿名指纹（userId 为空），注册时再认领（失败不阻断流程）
+    fetch("/api/fingerprint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        visitorId: fingerprint.visitorId,
+        confidence: fingerprint.confidence,
+        components: fingerprint.components,
+        raw: fingerprint.raw,
+      }),
+    }).catch(() => {
+      // 静默失败
+    })
+  }, [fingerprint])
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -274,6 +294,7 @@ export function RegisterForm({
           password: formData.password,
           verificationCode: formData.verificationCode,
           turnstileToken: turnstileEnabled ? turnstileToken : undefined,
+          visitorId: fingerprint?.visitorId ?? undefined,
         }),
       })
 

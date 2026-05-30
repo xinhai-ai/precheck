@@ -2580,7 +2580,91 @@
     "auditAction_AUTH_PASSKEY_LOGIN": "Passkey login",
     "auditAction_AUTH_PASSKEY_REGISTER": "Register passkey",
     "auditAction_AUTH_PASSKEY_DELETE": "Delete passkey",
-    "auditEntity_PASSKEY": "Passkey"
+    "auditEntity_PASSKEY": "Passkey",
+    "fingerprint": {
+      "title": "Device Fingerprint",
+      "noFingerprint": "No fingerprint data",
+      "visitorId": "Fingerprint ID",
+      "copy": "Copy",
+      "copied": "Copied",
+      "viewDetails": "View details",
+      "linkedAccounts": "Linked accounts",
+      "multiAccountWarning": "This fingerprint is linked to {count} other account(s)",
+      "andMore": "and {count} more...",
+      "riskLevel": {
+        "low": "Low Risk",
+        "medium": "Medium Risk",
+        "high": "High Risk"
+      },
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "cleared": "Cleared",
+        "ignored": "Ignored"
+      },
+      "management": "Fingerprint Management",
+      "managementDesc": "View and manage device fingerprint links",
+      "alerts": "Risk Alerts",
+      "alertsDesc": "Handle multi-account risk alerts",
+      "searchPlaceholder": "Search fingerprint ID or user...",
+      "filterByStatus": "Filter by status",
+      "filterByRisk": "Filter by risk level",
+      "allStatus": "All status",
+      "allRisk": "All risk levels",
+      "columns": {
+        "visitorId": "Fingerprint ID",
+        "linkedUsers": "Linked Users",
+        "riskScore": "Risk Score",
+        "status": "Status",
+        "lastSeen": "Last Seen",
+        "actions": "Actions"
+      },
+      "detail": {
+        "title": "Fingerprint Details",
+        "basicInfo": "Basic Info",
+        "deviceInfo": "Device Info",
+        "linkedUsers": "Linked Users",
+        "preApplications": "Related Applications",
+        "timeline": "Timeline",
+        "riskFactors": "Risk Factors",
+        "browser": "Browser",
+        "os": "Operating System",
+        "device": "Device Type",
+        "screen": "Screen Resolution",
+        "timezone": "Timezone",
+        "language": "Language",
+        "webgl": "WebGL Renderer",
+        "canvas": "Canvas Hash",
+        "firstSeen": "First Seen",
+        "lastSeen": "Last Seen",
+        "ip": "IP Address"
+      },
+      "review": {
+        "title": "Review Fingerprint Link",
+        "confirm": "Confirm Violation",
+        "confirmDesc": "Confirm these accounts belong to the same person",
+        "clear": "Clear as False Positive",
+        "clearDesc": "Mark as shared device or legitimate use",
+        "ignore": "Ignore",
+        "ignoreDesc": "Temporarily ignore this link",
+        "note": "Review Note",
+        "notePlaceholder": "Enter review notes...",
+        "banUsers": "Ban linked accounts",
+        "banUsersDesc": "Keep the earliest account, ban others",
+        "banReason": "Ban Reason",
+        "banReasonPlaceholder": "Multi-account violation",
+        "success": "Review submitted",
+        "failed": "Review failed"
+      },
+      "stats": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "cleared": "Cleared",
+        "ignored": "Ignored"
+      },
+      "empty": "No fingerprint links found",
+      "loadFailed": "Failed to load fingerprint data"
+    }
   },
   "theme": {
     "toggle": "Toggle theme",

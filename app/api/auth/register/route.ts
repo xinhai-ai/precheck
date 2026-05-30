@@ -12,6 +12,7 @@ import { verifyTurnstileToken } from "@/lib/turnstile"
 import { z } from "zod"
 import { createApiErrorResponse } from "@/lib/api/error-response"
 import { isRegisterQqEmail } from "@/lib/auth/register-email-policy"
+import { claimFingerprintForUser } from "@/lib/fingerprint/link-check"
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -19,6 +20,7 @@ const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").optional(),
   verificationCode: z.string().optional(), // 改为可选
   turnstileToken: z.string().optional(),
+  visitorId: z.string().min(1).max(100).optional(), // 浏览器指纹 ID
 })
 
 function getRegisterValidationErrorCode(error: z.ZodError) {
@@ -59,7 +61,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, password, name, verificationCode, turnstileToken } = registerSchema.parse(body)
+    const { email, password, name, verificationCode, turnstileToken, visitorId } =
+      registerSchema.parse(body)
 
     if (settings.registerQqNumberEmailOnly && !isRegisterQqEmail(email)) {
       return createApiErrorResponse(request, "apiErrors.auth.register.qqEmailOnly", {
@@ -140,6 +143,15 @@ export async function POST(request: NextRequest) {
       metadata: { country },
       request,
     })
+
+    // 认领注册页采集的浏览器指纹并建立关联（失败不阻断注册流程）
+    if (visitorId) {
+      try {
+        await claimFingerprintForUser(visitorId, user.id)
+      } catch (fingerprintError) {
+        console.error("Failed to claim fingerprint on register:", fingerprintError)
+      }
+    }
 
     // 创建 Session
     const { token, expires } = await createSession(user.id)
