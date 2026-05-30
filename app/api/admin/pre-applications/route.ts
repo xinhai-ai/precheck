@@ -170,6 +170,10 @@ export async function GET(request: NextRequest) {
           device: true,
           screenResolution: true,
           timezone: true,
+          language: true,
+          webglRenderer: true,
+          canvasHash: true,
+          ip: true,
           firstSeenAt: true,
           lastSeenAt: true,
         },
@@ -258,7 +262,71 @@ export async function GET(request: NextRequest) {
             },
           })
         : []
-    const linkByVisitorId = new Map(fingerprintLinks.map((link) => [link.visitorId, link]))
+
+    // 解析关联用户的基础信息（用于在申请详情中展示其它账号）
+    const linkedUserIds = Array.from(new Set(fingerprintLinks.flatMap((link) => link.userIds)))
+    const linkedUsers =
+      linkedUserIds.length > 0
+        ? await database.user.findMany({
+            where: { id: { in: linkedUserIds } },
+            select: { id: true, email: true, name: true, createdAt: true },
+          })
+        : []
+    const linkedUserMap = new Map(linkedUsers.map((u) => [u.id, u]))
+
+    // 获取这些 visitorId 下每个用户的指纹（含原始 IP），按用户聚合
+    const linkedFingerprints =
+      visitorIds.length > 0
+        ? await database.deviceFingerprint.findMany({
+            where: { visitorId: { in: visitorIds } },
+            select: {
+              visitorId: true,
+              userId: true,
+              ip: true,
+              browser: true,
+              os: true,
+              lastSeenAt: true,
+            },
+            orderBy: { lastSeenAt: "desc" },
+          })
+        : []
+    // visitorId -> userId -> 最近一次指纹（含 IP）
+    const fpByVisitorAndUser = new Map<string, Map<string, (typeof linkedFingerprints)[number]>>()
+    for (const fp of linkedFingerprints) {
+      if (!fp.userId) continue
+      let byUser = fpByVisitorAndUser.get(fp.visitorId)
+      if (!byUser) {
+        byUser = new Map()
+        fpByVisitorAndUser.set(fp.visitorId, byUser)
+      }
+      // findMany 已按 lastSeenAt desc 排序，保留首个（最新）即可
+      if (!byUser.has(fp.userId)) {
+        byUser.set(fp.userId, fp)
+      }
+    }
+
+    const linkByVisitorId = new Map(
+      fingerprintLinks.map((link) => {
+        const byUser = fpByVisitorAndUser.get(link.visitorId)
+        const users = link.userIds
+          .map((id) => {
+            const u = linkedUserMap.get(id)
+            if (!u) return null
+            const fp = byUser?.get(id)
+            return {
+              id: u.id,
+              email: u.email,
+              name: u.name,
+              createdAt: u.createdAt,
+              ip: fp?.ip ?? null,
+              browser: fp?.browser ?? null,
+              os: fp?.os ?? null,
+            }
+          })
+          .filter((u): u is NonNullable<typeof u> => u !== null)
+        return [link.visitorId, { ...link, users }]
+      }),
+    )
 
     const enrichedRecords = records.map((record) => {
       const reviewRound = record.resubmitCount + 1

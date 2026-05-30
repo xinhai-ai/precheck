@@ -63,6 +63,7 @@ interface DetailData {
   fingerprints: Array<{
     id: string
     visitorId: string
+    userId?: string | null
     browser?: string | null
     os?: string | null
     device?: string | null
@@ -189,8 +190,18 @@ export function FingerprintDetail({
   const latestFingerprint = data.fingerprints[data.fingerprints.length - 1]
   const isPending = data.status === "PENDING"
 
+  // userId -> 最近一次指纹（含原始 IP / 设备），用于在每个关联用户下展示
+  const fingerprintByUserId = new Map<string, (typeof data.fingerprints)[number]>()
+  for (const fp of data.fingerprints) {
+    if (!fp.userId) continue
+    const existing = fingerprintByUserId.get(fp.userId)
+    if (!existing || new Date(fp.lastSeenAt) > new Date(existing.lastSeenAt)) {
+      fingerprintByUserId.set(fp.userId, fp)
+    }
+  }
+
   return (
-    <div className="space-y-6 py-4">
+    <div className="space-y-6 px-4 py-4">
       {/* Risk Score */}
       <div className="flex items-center justify-between">
         <div>
@@ -284,50 +295,65 @@ export function FingerprintDetail({
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-2">
-              {data.users.map((user, index) => (
-                <div
-                  key={user.id}
-                  className={cn(
-                    "p-3 rounded-lg border",
-                    index === 0 && "border-green-500/50 bg-green-500/5",
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{user.email}</div>
-                      {user.name && (
-                        <div className="text-sm text-muted-foreground">
-                          {user.name}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <Badge
-                        variant={user.status === "ACTIVE" ? "default" : "destructive"}
-                      >
-                        {user.status}
-                      </Badge>
-                      {index === 0 && (
-                        <div className="text-xs text-green-600 mt-1">
-                          {locale === "zh" ? "最早注册" : "First registered"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDate(user.createdAt)}
-                    </div>
-                    {user.country && (
-                      <div className="flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
-                        {user.country}
-                      </div>
+              {data.users.map((user, index) => {
+                const userFp = fingerprintByUserId.get(user.id)
+                return (
+                  <div
+                    key={user.id}
+                    className={cn(
+                      "p-3 rounded-lg border",
+                      index === 0 && "border-green-500/50 bg-green-500/5",
                     )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{user.email}</div>
+                        {user.name && (
+                          <div className="text-sm text-muted-foreground">
+                            {user.name}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant={user.status === "ACTIVE" ? "default" : "destructive"}
+                        >
+                          {user.status}
+                        </Badge>
+                        {index === 0 && (
+                          <div className="text-xs text-green-600 mt-1">
+                            {locale === "zh" ? "最早注册" : "First registered"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDate(user.createdAt)}
+                      </div>
+                      {user.country && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          {user.country}
+                        </div>
+                      )}
+                      {userFp?.ip && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          <code className="font-mono">{userFp.ip}</code>
+                        </div>
+                      )}
+                      {(userFp?.browser || userFp?.os) && (
+                        <div className="flex items-center gap-1">
+                          <Monitor className="h-3 w-3" />
+                          {[userFp?.browser, userFp?.os].filter(Boolean).join(" / ")}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </AccordionContent>
         </AccordionItem>

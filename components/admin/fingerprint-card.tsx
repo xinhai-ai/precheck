@@ -26,6 +26,9 @@ interface FingerprintUser {
   email: string
   name?: string | null
   createdAt: string | Date
+  ip?: string | null
+  browser?: string | null
+  os?: string | null
 }
 
 interface FingerprintCardProps {
@@ -39,6 +42,10 @@ interface FingerprintCardProps {
     device?: string | null
     screenResolution?: string | null
     timezone?: string | null
+    language?: string | null
+    webglRenderer?: string | null
+    canvasHash?: string | null
+    ip?: string | null
     firstSeenAt: string | Date
     lastSeenAt: string | Date
   } | null
@@ -205,6 +212,12 @@ export function FingerprintCard({
               <span>{fingerprint.timezone}</span>
             </div>
           )}
+          {fingerprint.ip && (
+            <div className="flex items-center gap-2 text-xs">
+              <Globe className="h-3 w-3 text-muted-foreground" />
+              <span className="font-mono">{fingerprint.ip}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
             <span>{formatDate(fingerprint.lastSeenAt)}</span>
@@ -220,23 +233,39 @@ export function FingerprintCard({
                 {t.multiAccountWarning.replace("{count}", String(linkedCount - 1))}
               </span>
             </div>
-            <div className="space-y-1">
-              {otherUsers.slice(0, 3).map((user) => (
+            <div className="space-y-1.5">
+              {otherUsers.slice(0, 5).map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between text-xs"
+                  className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs"
                 >
-                  <span className="text-muted-foreground truncate max-w-[150px]">
-                    {user.email}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {formatDate(user.createdAt)}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium max-w-[180px]">
+                      {user.email}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {formatDate(user.createdAt)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground">
+                    {user.ip && (
+                      <span className="flex items-center gap-1">
+                        <Globe className="h-3 w-3" />
+                        <code className="font-mono">{user.ip}</code>
+                      </span>
+                    )}
+                    {(user.browser || user.os) && (
+                      <span className="flex items-center gap-1">
+                        <Monitor className="h-3 w-3" />
+                        {[user.browser, user.os].filter(Boolean).join(" / ")}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
-              {otherUsers.length > 3 && (
+              {otherUsers.length > 5 && (
                 <div className="text-xs text-muted-foreground">
-                  {t.andMore.replace("{count}", String(otherUsers.length - 3))}
+                  {t.andMore.replace("{count}", String(otherUsers.length - 5))}
                 </div>
               )}
             </div>

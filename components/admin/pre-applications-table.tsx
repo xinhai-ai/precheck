@@ -150,6 +150,10 @@ type AdminPreApplication = {
     device: string | null
     screenResolution: string | null
     timezone: string | null
+    language: string | null
+    webglRenderer: string | null
+    canvasHash: string | null
+    ip: string | null
     firstSeenAt: string
     lastSeenAt: string
   } | null
@@ -159,6 +163,15 @@ type AdminPreApplication = {
     userIds: string[]
     riskScore: number
     status: "PENDING" | "CONFIRMED" | "CLEARED" | "IGNORED"
+    users?: {
+      id: string
+      email: string
+      name: string | null
+      createdAt: string
+      ip: string | null
+      browser: string | null
+      os: string | null
+    }[]
   } | null
 }
 
@@ -2109,6 +2122,7 @@ export function AdminPreApplicationsTable({
                 dict={dict}
                 fingerprint={selected.fingerprint ?? null}
                 link={selected.fingerprintLink ?? null}
+                linkedUsers={selected.fingerprintLink?.users ?? []}
                 currentUserId={selected.user?.id}
               />
 
