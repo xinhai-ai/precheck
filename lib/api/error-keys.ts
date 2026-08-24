@@ -260,6 +260,7 @@ export const ApiErrorKeys = {
     failedToDelete: "apiErrors.preApplication.failedToDelete",
     alreadySubmitted: "apiErrors.preApplication.alreadySubmitted",
     alreadyApproved: "apiErrors.preApplication.alreadyApproved",
+    inviteCodeReceived: "apiErrors.preApplication.inviteCodeReceived",
     essayTooShort: "apiErrors.preApplication.essayTooShort",
     essayTooLong: "apiErrors.preApplication.essayTooLong",
     draftTooLong: "apiErrors.preApplication.draftTooLong",

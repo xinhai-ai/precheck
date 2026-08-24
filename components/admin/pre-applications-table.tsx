@@ -438,9 +438,7 @@ export function AdminPreApplicationsTable({
 
     const templates =
       reviewAction === "APPROVE"
-        ? !inviteCode.trim()
-          ? reviewTemplates.approveNoCode
-          : reviewTemplates.approve
+        ? reviewTemplates.approve
         : reviewAction === "REJECT"
           ? reviewTemplates.reject
           : reviewTemplates.dispute
@@ -1065,11 +1063,7 @@ export function AdminPreApplicationsTable({
   }
 
   const getCurrentTemplates = () => {
-    if (reviewAction === "APPROVE") {
-      // 当审核通过但没有选择邀请码时，使用"通过无码"模板
-      if (!inviteCode.trim()) return reviewTemplates.approveNoCode
-      return reviewTemplates.approve
-    }
+    if (reviewAction === "APPROVE") return reviewTemplates.approve
     if (reviewAction === "REJECT") return reviewTemplates.reject
     return reviewTemplates.dispute
   }
@@ -1149,7 +1143,11 @@ export function AdminPreApplicationsTable({
       toast.error(t.reviewGuidanceRequired)
       return
     }
-    // 审核通过时邀请码可选（手动粘贴或从下拉选择）
+    if (reviewAction === "APPROVE" && !inviteCode.trim()) {
+      toast.error(adminExt.inviteCodeRequiredForApproval || "通过审核需要填写邀请码")
+      return
+    }
+
     setSubmitting(true)
     try {
       const payload: Record<string, string | boolean> = {

@@ -365,6 +365,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         version: true,
         resubmitCount: true,
+        codeSent: true,
         formalApplicationApprovedFeedbackAt: true,
         reviewedBy: { select: { id: true, name: true, email: true } },
         inviteCode: {
@@ -752,7 +753,14 @@ export async function PUT(request: NextRequest) {
     const latest = await db.preApplication.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: { id: true, status: true, version: true, resubmitCount: true },
+      select: {
+        id: true,
+        status: true,
+        version: true,
+        resubmitCount: true,
+        inviteCodeId: true,
+        codeSent: true,
+      },
     })
 
     if (!latest) {
@@ -763,6 +771,12 @@ export async function PUT(request: NextRequest) {
 
     if (latest.status === "APPROVED") {
       return createApiErrorResponse(request, ApiErrorKeys.preApplication.alreadyApproved, {
+        status: 400,
+      })
+    }
+
+    if (latest.codeSent || latest.inviteCodeId) {
+      return createApiErrorResponse(request, ApiErrorKeys.preApplication.inviteCodeReceived, {
         status: 400,
       })
     }

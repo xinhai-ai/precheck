@@ -114,6 +114,7 @@ type PreApplicationRecord = {
     usedAt: string | null
     assignedAt: string | null
   } | null
+  codeSent?: boolean
   versions?: PreApplicationVersion[]
 }
 
@@ -365,8 +366,9 @@ export function PreApplicationForm({
     hasResolvedAppealState &&
     !pendingAppeal &&
     (maxResubmitCount === 0 || remainingResubmits > 0)
-  // DISPUTED 状态且没有邀请码时可以修改
-  const canEditDisputed = latest?.status === "DISPUTED" && !latest?.inviteCode
+  const hasReceivedInviteCode = Boolean(latest?.inviteCode || latest?.codeSent)
+  // DISPUTED 状态且没有收到邀请码时可以修改
+  const canEditDisputed = latest?.status === "DISPUTED" && !hasReceivedInviteCode
   // 管理员可以删除自己的申请记录（用于测试）
   const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
   const canDelete = isAdmin && latest
@@ -1330,7 +1332,11 @@ export function PreApplicationForm({
     !isSubmitBanned &&
     (!latest || latest.status === "PENDING" || canResubmit || canEditDisputed || isNewRoundStarted)
   const showForm =
-    !latest || isNewRoundStarted || (latest.status !== "APPROVED" && latest.status !== "ARCHIVED")
+    !latest ||
+    isNewRoundStarted ||
+    (latest.status !== "APPROVED" &&
+      latest.status !== "ARCHIVED" &&
+      !(latest.status === "DISPUTED" && hasReceivedInviteCode))
   const appealStatusContent = renderAppealStatusContent()
 
   return (

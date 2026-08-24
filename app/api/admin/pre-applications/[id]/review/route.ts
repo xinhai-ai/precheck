@@ -106,6 +106,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const isOnHold = data.action === "ON_HOLD"
     const code = data.inviteCode?.trim()
 
+    if (isApproved && !code) {
+      return createApiErrorResponse(
+        request,
+        ApiErrorKeys.admin.preApplications.inviteCodeRequired,
+        {
+          status: 400,
+        },
+      )
+    }
+
     // 通过/有争议且附带邀请码时，将邀请码拼接到指导意见末尾（持久化到 DB、站内信、邮件）
     const guidanceWithCode =
       (isApproved || isDisputed) && code
@@ -204,6 +214,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             version: newVersion,
             reviewedAt: new Date(),
             reviewedBy: { connect: { id: user.id } },
+            ...(code ? { codeSent: true, codeSentAt: new Date() } : {}),
           },
         })
 
@@ -306,7 +317,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             version: newVersion,
             reviewedAt: new Date(),
             reviewedBy: { connect: { id: user.id } },
-            ...((code || data.codeSent) ? { codeSent: true, codeSentAt: new Date() } : {}),
+            ...(code || data.codeSent ? { codeSent: true, codeSentAt: new Date() } : {}),
           },
           include: {
             reviewedBy: { select: { id: true, name: true, email: true } },

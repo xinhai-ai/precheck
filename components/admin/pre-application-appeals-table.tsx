@@ -429,6 +429,10 @@ export function AdminPreApplicationAppealsTable({
         toast.error(pageT.messages.commentRequired)
         return
       }
+      if (!inviteCode.trim()) {
+        toast.error(adminT.inviteCodeRequiredForApproval || "通过审核需要填写邀请码")
+        return
+      }
     } else if (!nextComment) {
       toast.error(pageT.messages.commentRequired)
       return

@@ -339,6 +339,7 @@
       "failedToDelete": "删除预申请失败",
       "alreadySubmitted": "已提交",
       "alreadyApproved": "已通过",
+      "inviteCodeReceived": "已收到邀请码，不能继续申请",
       "essayTooShort": "文章太短",
       "essayTooLong": "文章太长",
       "draftTooLong": "草稿内容超出最大字数限制",

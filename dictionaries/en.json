@@ -341,6 +341,7 @@
       "failedToDelete": "Failed to delete pre-application",
       "alreadySubmitted": "Already submitted",
       "alreadyApproved": "Already approved",
+      "inviteCodeReceived": "Invite code received; you cannot continue this application",
       "essayTooShort": "Essay is too short",
       "essayTooLong": "Essay is too long",
       "draftTooLong": "Draft exceeds the maximum allowed length",

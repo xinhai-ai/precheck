@@ -152,6 +152,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const inviteCode =
       action === "APPROVE" ? parsed.data.inviteCode?.trim() || undefined : undefined
     const codeSent = action === "APPROVE" ? Boolean(parsed.data.codeSent || inviteCode) : false
+
+    if (action === "APPROVE" && !inviteCode) {
+      return createApiErrorResponse(
+        request,
+        ApiErrorKeys.admin.preApplications.inviteCodeRequired,
+        { status: 400 },
+      )
+    }
     const applySubmitBan = action === "REJECT" ? (parsed.data.applySubmitBan ?? true) : false
     const submitBanDays = applySubmitBan
       ? normalizeSubmitBanDays(parsed.data.submitBanDays ?? PRE_APPLICATION_APPEAL_SUBMIT_BAN_DAYS)
